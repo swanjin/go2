@@ -122,11 +122,15 @@ class OpenaiClient(AiClientBase):
         if match:
             avg_depth = float(match.group(1))
 
-            ############# FIX THE NUMBER BASED ON EXPECTED DISTANCE ########
-            if avg_depth > 0.2:
-                assistant.action = "move forward"
-            else:
-                assistant.action = "stop"
+            if assistant.action == 'move forward' or 'stop':
+
+                #### FIX THE NUMBER BASED ON EXPECTED DISTANCE ####
+
+                if avg_depth > 0.2:
+                    assistant.action = "move forward"
+                else:
+                    assistant.action = "stop"
+
         ####################################################################
         self.store_image(owl_response.frame)
         self.save_round(assistant, owl_response=owl_response)

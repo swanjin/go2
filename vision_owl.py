@@ -9,7 +9,7 @@ from torchvision.ops import nms
 from PIL import Image, ImageDraw
 import numpy as np
 import os
-
+from ai_client_base import AiClientBase 
 import utils
 
 @dataclass
@@ -35,7 +35,7 @@ class OWLDepthModel:
         self.detector = pipeline(model=owl_model_checkpoint, task="zero-shot-object-detection", device=0 if torch.cuda.is_available() else -1)
 
         # Define custom candidate labels for object detection
-        self.candidate_labels = ["apple"] # "tv", "potted plant", "coffee machine", "block", "table", "person", "chair", "plant", "bottle", "person"
+        self.candidate_labels =       # "tv", "potted plant", "coffee machine", "block", "table", "person", "chair", "plant", "bottle", "person"
         # self.candidate_labels = [self.env["target_in_test_dataset"]], 
 
         # Depth Estimation pipeline
