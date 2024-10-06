@@ -83,6 +83,8 @@ class Dog:
 
         self.setup_input_source(target)
         self.ai_client.set_target(target)
+        self.owl_depth_model = OWLDepthModel(self.env)
+        self.owl_depth_model.set_target(target)
 
     def setup_input_source(self, target):
         """

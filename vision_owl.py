@@ -7,10 +7,11 @@ import torch
 from transformers import pipeline
 from torchvision.ops import nms
 from PIL import Image, ImageDraw
+
 import numpy as np
 import os
-from ai_client_base import AiClientBase 
 import utils
+from ai_client_base import AiClientBase
 
 @dataclass
 class OWLResponse:
@@ -18,6 +19,9 @@ class OWLResponse:
     description: str
 
 class OWLDepthModel:
+    
+    target: str
+
     def __init__(self, env, owl_model_checkpoint="google/owlv2-base-patch16-ensemble", depth_model_checkpoint="Intel/zoedepth-nyu-kitti"):
         """
         Args:
@@ -33,9 +37,15 @@ class OWLDepthModel:
         # Initialize the OWL-V2 model for object detection
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self.detector = pipeline(model=owl_model_checkpoint, task="zero-shot-object-detection", device=0 if torch.cuda.is_available() else -1)
-
         # Define custom candidate labels for object detection
-        self.candidate_labels =       # "tv", "potted plant", "coffee machine", "block", "table", "person", "chair", "plant", "bottle", "person"
+
+        ###########################################################
+
+        self.target = None
+        self.candidate_labels = None # "tv", "potted plant", "coffee machine", "block", "table", "person", "chair", "plant", "bottle", "person"
+
+        ###########################################################
+
         # self.candidate_labels = [self.env["target_in_test_dataset"]], 
 
         # Depth Estimation pipeline
@@ -47,6 +57,14 @@ class OWLDepthModel:
         #     os.mkdir(self.save_dir)
         # except Exception as e:
         #     print(f"Failed to create directory: {e}")
+
+
+    ############################################################
+    def set_target(self, target):
+        self.target = target
+        self.candidate_labels = target
+        print(self.candidate_labels)
+    ############################################################
 
     def detect_objects(self, frame):
         # Convert OpenCV frame to PIL image
