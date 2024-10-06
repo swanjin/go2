@@ -260,6 +260,7 @@ class Dog:
             sport_client.Init()
             
             ans = ans.strip().lower()
+
             if ans == 'move forward':
                 sport_client.Move(5, 0, 0) 
             elif ans == 'move backward':

@@ -112,9 +112,26 @@ class OpenaiClient(AiClientBase):
         result = self.client.chat.completions.create(**self.openai_params_for_text)
         rawAssistant = result.choices[0].message.content
         assistant = ResponseMessage.parse(rawAssistant)
-        
+
+        ####################################################################
+        import re
+
+        depth_pattern = r"with a depth of ([\d\.]+) meters"
+        match = re.search(depth_pattern, image_description_text)
+
+        if match:
+            avg_depth = float(match.group(1))
+
+            ############# FIX THE NUMBER BASED ON EXPECTED DISTANCE ########
+            if avg_depth > 0.2:
+                assistant.action = "move forward"
+            else:
+                assistant.action = "stop"
+        ####################################################################
         self.store_image(owl_response.frame)
         self.save_round(assistant, owl_response=owl_response)
+
+
 
         return rawAssistant, assistant
 
