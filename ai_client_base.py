@@ -1,33 +1,53 @@
-from dataclasses import dataclass, asdict
-import utils
+# ai_cllient_base.py
+from dataclasses import dataclass, field, asdict
+import datetime
 from PIL import Image
 import os
 
+import utils
+
 class AiClientBase:
-#### Use w/ gpt_vsion_test() ####        
-    # system_prompt = """You are Go2, a robot dog."""
-    system_prompt = """You are Go2, a robot dog. Your position and orientation are represented by a tuple (x, y, orientation), where x and y are its coordinates on a grid, and orientation describes its facing direction in degrees:
-0 degrees or 360 degrees means facing north (along the positive Y-axis)
-90 degrees or -270 degrees means facing east (along the positive X-axis)
-180 degrees or -180 degrees means facing south (along the negative Y-axis)
-270 degrees or -90 degrees means facing west (along the negative X-axis).
-        
-You start at (0, 0, 0). Your task is to search for target objects as instructed. One unit shift in the X and Y directions corresponds to 0.5 meters. Here is the action dictionary formatted as 'Action: (X shift, Y shift, clockwise rotation)':
-
-Stop: (0, 0, 0)
-Pause: (0, 0, 0)
-Move forward: (0, 1, 0) — Moves 1 meter forward
-Move backward: (0, -0.5, 0) — Moves 0.5 meter backward
-Shift right: (1, 0, 0) — Moves 1 meter to the right
-Shift left: (-1, 0, 0) — Moves 1 meter to the left
-Turn right: (0, 0, 90) — Rotates 90 degrees clockwise
-Turn left: (0, 0, -90) — Rotates 90 degrees counterclockwise"""
-
     def __init__(self, env):
         self.client = None
         self.env = env
         self.image_counter = 0
+        self.round_list = []
 
+        try:
+            os.makedirs('test', exist_ok=True)
+            self.save_dir = f"test/test_{datetime.datetime.now().strftime('%Y%m%d%H%M%S')}"
+            os.mkdir(self.save_dir)
+            self.history_log_file = open(f"{self.save_dir}/history.log", "a+") # append: a+ overwrite: w+
+        except Exception as e:
+            print(f"Failed to create directory: {e}")
+        
+        # self.target = None  # Initialize target to None
+
+        #### Use w/ gpt_vsion_test() ####        
+        # self.system_prompt = """You are Go2, a robot dog."""
+        self.system_prompt = f"""You are Go2, a robot dog. Your coordinates and orientation are represented by a position tuple (x, y, orientation), where x and y are your coordinates on a grid, and orientation describes your facing direction in degrees:
+- 0 degrees or 360 degrees means facing north (along the positive Y-axis).
+- 90 degrees or -270 degrees means facing east (along the positive X-axis).
+- 180 degrees or -180 degrees means facing south (along the negative Y-axis).
+- 270 degrees or -90 degrees means facing west (along the negative X-axis).   
+You start at (0, 0, 0). One unit shift in x or y corresponds to 0.5 meters. 
+
+Here is the action dictionary, formatted as 'action name: (x shift, y shift, clockwise rotation)':
+- 'stop': (0, 0, 0)
+- 'pause': (0, 0, 0)
+- 'move forward': (0, 1, 0) 
+- 'move backward': (0, -0.5, 0) 
+- 'shift right': (1, 0, 0) 
+- 'shift left': (-1, 0, 0) 
+- 'turn right': (0, 0, 60) 
+- 'turn left': (0, 0, -60)
+
+# Instructions
+- Search for the target object. Use the image description and history to guide your decisions, and follow feedback to determine your action.
+- If the target is visible, align it to the center of your field of view. Divide the image into three vertical sections, and only if none of the detected targets are in the middle section, adjust your x coordinates. If at least one of them is in the middle, move closer to it. However, if the distance to at least one detected target is less than {self.env['stop_hurdle_meter']} meters, execute the 'Stop' action. If the distances to all detected targets are greater than or equal to {self.env['stop_hurdle_meter']} meters, avoid the 'Stop' action.
+- If the target is invisible, first explore all possible orientations at the same x and y coordinates before moving to new ones. By referring to the history, avoid revisiting orientations already explored without success. If you have explored all possible orientations(0,60,120,180,240,300) at the same x and y coordinates without success, choose your action to revisit the orientation with the highest likelihood based on your history at that x and y coordinates. Once you reach that specific orientation, explore further in that direction and its neighboring ones.
+""" # 발견한 이후, keep centered가 move forward보다 먼저하도록 명시 안해야, move forward하다가 시야에서 사라져서 사람 도움 필요한 failure 상황이 생김.
+    
     def get_user_prompt(self):
 #### Use w/ gpt_vsion_test() ####        
 #         return f"""Go2, find {self.target}. Respond with the specified format:
@@ -36,19 +56,14 @@ Turn left: (0, 0, -90) — Rotates 90 degrees counterclockwise"""
 # Confidence: If visible, provide how much you are sure that the detected object is the target based on the scale 0-100. Please output only the number.
 # Location: If visible, explain its location in the image in one concise short sentence.
 # """
-        return f"""Go2, find {self.target}. Respond with the specified format:
-Go2)
-Current Position: The tuple (x, y, orientation) before doing Action.
-Target: If the {self.target} is detected in the image description, mark it as 'Visible'. If the target is not detected, mark it as 'Invisible'.
-Likelihood: If the target object is detected, assign a likelihood of 100. If the target is not detected, assess the likelihood of its presence on a scale of 0 to 100, using contextual and semantic information from the detected objects in the household setting, and provide a one-sentence rationale for your evaluation.
-Action: action name you choose.
-New Position: The updated tuple (x, y, orientation) after doing Action.
-Reason: Why you choose the action.
-
-# Instruction
-- Use the image description below to make a decision.
-- If the target is not visible in the image, explore another orientation.
-- If there is a feedback, use the feedback to determine your action."""
+        return f"""Your target object is '{self.target}'. When you respond, follow the structued format:
+Current Position: Tuple (x, y, orientation) before the action.
+Target Status: If any target is detected in the image description of this round, not those of previous rounds in the history, mark 'Visible'; otherwise, 'Invisible.'
+Likelihood: If the target status is 'Visible', set likelihood to 100. If not, assign a score from 0-100 based on how likely the target is to be near detected objects or environments, considering contextual correlations.
+Action: The exact action name in the action dictionary you choose by considering all the instructions.
+New Position: Updated tuple (x, y, orientation) after the action.
+Reason: Explain your choice in one concise sentence by mentioning which instructions affected your decision.
+"""
 
     def set_target(self, target):
         self.target = target
@@ -56,17 +71,19 @@ Reason: Why you choose the action.
     def stt(self, voice_buffer):
         return None
 
-    def get_response_by_image(self, cv2_image):
+    def get_response_by_image(self, image_pil):
         pass
 
     def get_response_by_feedback(self, feedback):
         pass
 
-    def store_image(self, cv2_image = None):
-        if cv2_image is None:
+    def store_image(self, image_array = None):
+        if image_array is None:
+            text = "The user provided feedback; no image was captured."
             image = Image.new('RGB', (self.env["captured_width"], self.env["captured_height"]), 'black')
+            image = utils.put_text_in_the_middle(image, text, self.env["captured_width"], self.env["captured_height"])
         else:
-            image = utils.OpenCV2PIL(cv2_image)
+            image = utils.OpenCV2PIL(image_array)
  
         ## add 'assistant' as a parameter into the function
         # if (self.env["text_insertion"]):
@@ -81,6 +98,39 @@ Reason: Why you choose the action.
         # Save the image
         image.save(image_path)
         # print(f"Image saved to {image_path}")
+
+    # def save_round(self, assistant, history, feedback=None, feedback_factor=None, image_analysis=None):
+    #     self.history_log_file.write(f"======= image{len(self.round_list)+1} =======\n")
+        
+    #     if image_analysis:
+    #         self.history_log_file.write(f"Image Analysis:\n {image_analysis.description}\n")
+    #     else: 
+    #         self.history_log_file.write(f"Image Analysis:\n None\n")
+
+    #     if feedback:
+    #         self.history_log_file.write(f"Feedback:\n {feedback}\n")
+    #     else:
+    #         self.history_log_file.write(f"Feedback:\n None\n")  # This prevents logging False
+
+    #     self.history_log_file.write(f"Response:\n Action) {assistant.action}\n Reason) {assistant.reason}\n\n")
+    #     self.history_log_file.flush()
+
+    #     self.round_list.append(Round(len(self.round_list) + 1, assistant, history, feedback, feedback_factor, image_analysis))
+        
+    #     if (len(self.round_list) == 1):
+    #         history = "# History"
+    #     else:
+    #         # pauseText = "by trigger" if feedback_factor else "by voluntary"
+    #         feedbackText = f"The user provided feedback: {feedback}."
+    #         history += (
+    #             f"\nRound {len(self.round_list)}: "
+    #             f"{feedbackText if feedback is not None else ''} "
+    #             f"From the position {assistant.curr_position}, "
+    #             f"{image_analysis.description if image_analysis is not None else ''} "
+    #             f"The detection likelihood score for this position was {assistant.likelihood}. "
+    #             f"You executed the '{assistant.action}' action and updated the position to {assistant.new_position}. "
+    #             f"The rationale behind this action you told me was: '{assistant.reason}'"
+    #         )
 
     def close(self):
         pass
@@ -100,7 +150,7 @@ class ResponseMessage:
             # Filter out lines that do not contain ':' and strip empty spaces
             parts = [line.split(":", 1)[1].strip() for line in message.split('\n') if ':' in line and len(line.strip()) > 0]
             if len(parts) != 6:
-                raise ValueError("Message does not contain exactly four parts")
+                raise ValueError("Message does not contain exactly six parts")
             curr_position, target, likelihood, action, new_position, reason = parts
         except Exception as e:
             print("parse failed. Message: ", message, "\nError: ", e)
@@ -109,3 +159,32 @@ class ResponseMessage:
     
     def to_dict(self):
         return asdict(self)
+
+
+
+
+# @dataclass
+# class ResponseMessage:
+#     fields: dict = field(default_factory=dict)
+    
+#     @staticmethod
+#     def parse(message: str):
+#         try:
+#             # Split message by lines and filter out any lines that do not contain ':' and strip empty spaces
+#             parts = [line.split(":", 1) for line in message.split('\n') if ':' in line and len(line.strip()) > 0]
+#             # Create a dictionary with dynamic keys and their corresponding values
+#             fields = {key.strip(): value.strip() for key, value in parts}
+#         except Exception as e:
+#             print("parse failed. Message: ", message, "\nError: ", e)
+#             return ResponseMessage()
+
+#         return ResponseMessage(fields)
+
+#     def to_dict(self):
+#         return asdict(self)
+    
+#     def get_field(self, field_name: str):
+#         return self.fields.get(field_name, None)
+
+#     def set_field(self, field_name: str, value: str):
+#         self.fields[field_name] = value

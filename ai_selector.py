@@ -1,6 +1,6 @@
 import openai_client
 
-class AiController:
+class AiSelector:
     @staticmethod
     def getClient(env: str, key):
         if env["ai"] == "openai":

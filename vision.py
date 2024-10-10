@@ -1,6 +1,9 @@
+# vision.py
 import math
 from dataclasses import dataclass
 import datetime
+import warnings
+import os
 
 import cv2
 import torch
@@ -8,17 +11,17 @@ from transformers import pipeline
 from torchvision.ops import nms
 from PIL import Image, ImageDraw
 import numpy as np
-import os
+from lang_sam import LangSAM
 
 import utils
 
 @dataclass
-class OWLResponse:
+class VisionResponse:
     frame: "cv2.typing.MatLike"
     description: str
 
-class OWLDepthModel:
-    def __init__(self, env, owl_model_checkpoint="google/owlv2-base-patch16-ensemble", depth_model_checkpoint="Intel/zoedepth-nyu-kitti"):
+class VisionModel:
+    def __init__(self, env, depth_model_checkpoint="Intel/zoedepth-nyu-kitti"):
         """
         Args:
             depth_model_checkpoint
@@ -28,33 +31,35 @@ class OWLDepthModel:
         self.env = env
         self.image_counter = 0
 
-        torch.cuda.empty_cache()  # Clear the cache before model initialization
-
-        # Initialize the OWL-V2 model for object detection
-        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        self.detector = pipeline(model=owl_model_checkpoint, task="zero-shot-object-detection", device=0 if torch.cuda.is_available() else -1)
-
         # Define custom candidate labels for object detection
-        self.candidate_labels = ["apple"] # "tv", "potted plant", "coffee machine", "block", "table", "person", "chair", "plant", "bottle", "person"
-        # self.candidate_labels = [self.env["target_in_test_dataset"]], 
+        #self.candidate_labels = ["apple"] # "tv", "potted plant", "coffee machine", "block", "table", "person", "chair", "plant", "bottle", "person"
+        self.candidate_labels = self.env["target_in_test_dataset"]
 
         # Depth Estimation pipeline
         self.depth_pipe = pipeline("depth-estimation", model=depth_model_checkpoint, device="cuda" if torch.cuda.is_available() else "cpu")
 
-        # try:
-        #     os.makedirs('test', exist_ok=True)
-        #     self.save_dir = f"test/test_{datetime.datetime.now().strftime('%Y%m%d%H%M%S')}"
-        #     os.mkdir(self.save_dir)
-        # except Exception as e:
-        #     print(f"Failed to create directory: {e}")
+    def predict_langsam(self, image_pil):
+        warnings.filterwarnings("ignore")
 
-    def detect_objects(self, frame):
-        # Convert OpenCV frame to PIL image
-        image = Image.fromarray(np.uint8(frame)).convert("RGB")
+        # image_pil = Image.fromarray(np.uint8(frame)).convert("RGB")
 
+        model = LangSAM()
+        # caption = " ".join(self.candidate_labels)  # Join list into a single string
+        boxes_tensor, logits_tensor, phrases = model.predict_dino(image_pil, self.candidate_labels, box_threshold=0.3, text_threshold=0.25)
+        boxes = boxes_tensor.tolist()
+        logits =logits_tensor.tolist()
+        return phrases, boxes, logits
+
+    def predict_owlv2(self, image_pil):
+        torch.cuda.empty_cache()  # Clear the cache before model initialization
+
+        # Initialize the OWL-V2 model for object detection
+        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        self.detector = pipeline(model="google/owlv2-base-patch16-ensemble", task="zero-shot-object-detection", device=0 if torch.cuda.is_available() else -1)
+        
         # Perform object detection using the OWL-V2 model (handled by the pipeline)
-        predictions = self.detector(image, candidate_labels=self.candidate_labels)
-
+        predictions = self.detector(image_pil, self.candidate_labels)
+        
         boxes = []
         scores = []
         labels = []
@@ -82,7 +87,7 @@ class OWLDepthModel:
             boxes_tensor = boxes_tensor.unsqueeze(0)
 
         # Apply NMS - this will also be performed on the GPU
-        keep_indices = nms(boxes_tensor, scores_tensor, self.env["iou_threshold"])
+        keep_indices = nms(boxes_tensor, scores_tensor, self.env["iou_threshold_owlv2"])
 
         # Prepare lists to store the final output after NMS
         filtered_boxes = []
@@ -90,7 +95,8 @@ class OWLDepthModel:
         filtered_labels = []
 
         # Process the kept indices and clamp the bounding boxes to image dimensions (done on CPU)
-        height, width = frame.shape[:2]
+        image_array = utils.PIL2OpenCV(image_pil)
+        height, width = image_array.shape[:2]
         for i in keep_indices:
             if scores[i] >= self.env["detect_confidence"]:
                 filtered_labels.append(labels[i])
@@ -110,20 +116,29 @@ class OWLDepthModel:
 
         return filtered_labels, filtered_boxes, filtered_scores
 
+    def detect_objects(self, image_pil):
+        if self.env["detection_model"] == "langsam":
+            labels, boxes, scores = self.predict_langsam(image_pil)
+        elif self.env["detection_model"] == "owlv2":
+            labels, boxes, scores = self.predict_owlv2(image_pil)
+        else:
+            print("Detection model is not set in env.yml")
+            return [], [], []  # Return empty values if the detection model is not set
 
-    def depth_estimation(self, frame, boxes):
-        # Convert the OpenCV frame to a PIL image for depth estimation
-        image = Image.fromarray(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB))
+        return labels, boxes, scores  # Ensure the method returns these values
+
+    def depth_estimation(self, image_pil, boxes):
+        image_array = utils.PIL2OpenCV(image_pil)
 
         # Get depth estimation predictions (this returns a tensor on the GPU if available)
-        predictions = self.depth_pipe(image)
+        predictions = self.depth_pipe(image_pil)
 
         # Extract depth map as a GPU tensor
         depth_values_gpu = predictions["predicted_depth"]
 
         # Get dimensions of depth map and frame
         depth_height, depth_width = depth_values_gpu.shape[-2:]  # Assuming depth tensor is in [batch, height, width] format
-        frame_height, frame_width = frame.shape[:2]
+        frame_height, frame_width = image_array.shape[:2]
 
         # Calculate scaling factors on the CPU
         scale_x = depth_width / frame_width
@@ -157,16 +172,18 @@ class OWLDepthModel:
 
         return average_depths
 
-    def get_label(self, frame):
-        labels, boxes, scores = self.detect_objects(frame)
+    def get_label(self, image_pil):
+        labels, boxes, scores = self.detect_objects(image_pil)
         return labels[0]
 
-    def describe_image(self, frame, draw_on_frame=True):
+    def describe_image(self, image_pil, draw_on_frame=True):
+        image_array = utils.PIL2OpenCV(image_pil)
+
         # Get detected objects and their bounding boxes
-        labels, boxes, scores = self.detect_objects(frame)
+        labels, boxes, scores = self.detect_objects(image_pil)
         
         # Get depth for each bounding box (already using GPU in depth_estimation)
-        average_depths = self.depth_estimation(frame, boxes)
+        average_depths = self.depth_estimation(image_pil, boxes)
 
         description = []
         depth_threshold = self.env["depth_threshold"]
@@ -186,38 +203,37 @@ class OWLDepthModel:
             center_y = (y1 + y2) / 2
 
             # Generate description for each detected object (on CPU)
-            description.append(f"You detected {label} at coordinates ({center_x:.0f}, {center_y:.0f}) with a depth of {avg_depth:.2f} meters.")
+            description.append(f"You detected {label} at coordinates ({center_x:.0f}, {center_y:.0f}) with a distance of {avg_depth:.2f} meters.")
 
         # Draw bounding boxes and labels on the frame if draw_on_frame is True (done on CPU using OpenCV)
         if draw_on_frame:
             for i, box in enumerate(boxes):
                 x1, y1, x2, y2 = box
-                cv2.rectangle(frame, (x1, y1), (x2, y2), (0, 0, 255), 1)
-                org = (x1, y1 - 10 if y1 - 10 > 10 else y1 + 10)
+                cv2.rectangle(image_array, (int(x1), int(y1)), (int(x2), int(y2)), (0, 0, 255), 1)
+                org = (int(x1), int(y1) - 10 if y1 - 10 > 10 else int(y1) + 10)
                 font = cv2.FONT_HERSHEY_SIMPLEX
                 # cv2.putText(frame, f"{labels[i]}: {average_depths[i]:.1f}m", org, font, 0.5, (255, 255, 255), 1)
-                cv2.putText(frame, f"{labels[i]}: {scores[i]:.1f}", org, font, 0.5, (255, 255, 255), 1)
+                cv2.putText(image_array, f"{labels[i]}: {scores[i]:.1f}", org, font, 0.5, (255, 255, 255), 1)
 
-        print(torch.cuda.is_available())
-        # Return OWLResponse with the frame and the combined description
-        return OWLResponse(frame, "\n".join(description))
+        # Return VisionResponse with the frame and the combined description
+        return VisionResponse(image_array, "\n".join(description))
     
-    def store_image(self, cv2_image = None):
-        if cv2_image is None:
-            image = Image.new('RGB', (self.env["captured_width"], self.env["captured_height"]), 'black')
-        else:
-            image = utils.OpenCV2PIL(cv2_image)
+    # def store_image(self, cv2_image = None):
+    #     if cv2_image is None:
+    #         image = Image.new('RGB', (self.env["captured_width"], self.env["captured_height"]), 'black')
+    #     else:
+    #         image = utils.OpenCV2PIL(cv2_image)
 
-        ## add 'assistant' as a parameter into the function
-        # if (self.env["text_insertion"]):
-        #     text = "\n".join([f"Current Position: {assistant.curr_position}", f"Target: {assistant.target}", f"Likelihood: {assistant.likelihood}", f"Action: {assistant.action}", f"New Position: {assistant.new_position}", f"Reason: {assistant.reason}"])
-        #     image = utils.image_text_append(image, self.env["captured_width"], self.env["captured_height"], text)
+    #     ## add 'assistant' as a parameter into the function
+    #     # if (self.env["text_insertion"]):
+    #     #     text = "\n".join([f"Current Position: {assistant.curr_position}", f"Target: {assistant.target}", f"Likelihood: {assistant.likelihood}", f"Action: {assistant.action}", f"New Position: {assistant.new_position}", f"Reason: {assistant.reason}"])
+    #     #     image = utils.image_text_append(image, self.env["captured_width"], self.env["captured_height"], text)
         
-        # Format the filename based on the number of images stored
-        self.image_counter += 1
-        filename = f"image{self.image_counter:02d}.jpg"  # Pad with zeros to two digits
-        image_path = os.path.join(self.save_dir, filename)
+    #     # Format the filename based on the number of images stored
+    #     self.image_counter += 1
+    #     filename = f"image{self.image_counter:02d}.jpg"  # Pad with zeros to two digits
+    #     image_path = os.path.join(self.save_dir, filename)
 
-        # Save the image
-        image.save(image_path)
-        # print(f"Image saved to {image_path}")
+    #     # Save the image
+    #     image.save(image_path)
+    #     # print(f"Image saved to {image_path}")

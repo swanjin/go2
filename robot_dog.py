@@ -1,22 +1,24 @@
+# robot_dog.py
 import signal
 import sys
 import time
 import os
-import sys
+import base64
 import threading
 import queue
 from pathlib import Path
 import glob
 
+from PIL import Image
 import cv2
-
 robot_interface_path = os.path.join(Path(__file__).parent, 'robot_interface/lib/python/x86_64')
 sys.path.append(robot_interface_path)
 import robot_interface as sdk
 
-from vision_owl import OWLDepthModel
-from ai_controller import AiController
+from vision import VisionModel
+from ai_selector import AiSelector
 from ai_client_base import AiClientBase, ResponseMessage
+import utils
 from recorder import SpeechByEnter
 
 class Dog:
@@ -29,11 +31,10 @@ class Dog:
         self.stop_thread1 = False
         self.stop_thread2 = False
         self.capture: cv2.VideoCapture
-        self.ai_client = AiController.getClient(env, apikey[env["ai"]])
-        self.owl_depth_model = OWLDepthModel(env)
+        self.ai_client = AiSelector.getClient(env, apikey[env["ai"]])
+        self.vision_model = VisionModel(env)
         self.pause_by_trigger = False
         self.image_files = None  # To store image paths when using test_dataset
-
 
     def signal_handler(self, sig, frame):
         print("SIGINT received, stopping threads and shutting down...")
@@ -115,20 +116,26 @@ class Dog:
         """
         Read frame from the camera or load an image from test_dataset.
         Returns:
-            - frame (np.ndarray): The image/frame as a NumPy array
+            - frame: PIL image RGB format
         """
         if self.env["use_test_dataset"]:
             # Read images from the test_dataset one by one
             for image_file in self.image_files:
-                frame = cv2.imread(image_file)
+                # frame = image_file # file path -> high langsam performance
+                # frame = cv2.imread(image_file) # BGR np array -> low langsam performance
+                
+                image_cv = cv2.cvtColor(cv2.imread(image_file), cv2.COLOR_BGR2RGB) 
+                frame = Image.fromarray(image_cv)
                 if frame is None:
                     print(f"Failed to load image {image_file}.")
                     continue
                 yield frame
         else:
             while True:
-                success, frame = self.capture.read()
-                time.sleep(3)
+                success, capture = self.capture.read()
+                image_cv = cv2.cvtColor(capture, cv2.COLOR_BGR2RGB) 
+                frame = Image.fromarray(image_cv)
+                # time.sleep(3)
                 if not success:
                     print("Failed to capture frame from camera.")
                     break
@@ -160,8 +167,10 @@ class Dog:
             if not self.env["use_test_dataset"] and i >= self.env["max_round"]: # If camera capture is used, it stops after a maximum number of rounds. This limit doesn't apply to test images.
                 break
 
-            rawAssistant = self.ai_client.gpt_vision_test(frame)
-            print(rawAssistant)
+            assistant = self.ai_client.gpt_vision_test(frame)
+            action_parsed = assistant.action.strip('* ').lower()
+            print(action_parsed)
+            print(assistant.reason)
 
         self.stop_thread1 = True
 
@@ -185,27 +194,29 @@ class Dog:
                 print("Assumed GPT answered")
             else:
                 if self.env["useVLM"]:
-                    rawAssistant, assistant = self.ai_client.get_response_by_image(frame)
+                    assistant = self.ai_client.get_response_by_image(frame)
                 else:
-                    rawAssistant, assistant = self.ai_client.get_response_by_LLM(frame)
+                    assistant = self.ai_client.get_response_by_LLM(frame)
+                    
+                if not self.feedback_start.empty(): # non-blocking; an example of blocking: input()
+                    continue
+
+                # if assistant.action == "Pause":
+                #     print("Go2) I'm confused. Please help me.")
+                #     print("Press Enter to start and finish giving your feedback.")
+                #     confused_pause = True
+                #     self.pause_by_trigger = True
+                #     continue
 
                 if not self.feedback_start.empty(): # non-blocking
                     continue
-                print(assistant.action)
+                action_parsed = assistant.action.strip('* ').lower()
+                print(action_parsed)
                 print(assistant.reason)
-
-                if assistant.action == "Pause":
-                    print("Go2) I'm confused. Please help me.")
-                    print("Press Enter to start and finish giving your feedback.")
-                    confused_pause = True
-                    self.pause_by_trigger = True
-                    continue
-
-                if not self.feedback_start.empty(): # non-blocking
-                    continue
-                self.activate_sportclient(assistant.action)
+                self.activate_sportclient(action_parsed)
                 if self.env["tts"]:
-                    self.ai_client.tts(assistant.action)
+                    self.ai_client.tts(action_parsed)
+                    self.ai_client.tts(assistant.reason)
 
         self.stop_thread1 = True
 
@@ -230,8 +241,10 @@ class Dog:
             if not self.env["connect_gpt"]:
                 print("Assumed GPT answered")
             else:
-                rawAssistant, assistant = self.ai_client.get_response_by_feedback(feedback, self.pause_by_trigger)
-                print(rawAssistant)
+                assistant = self.ai_client.get_response_by_feedback(feedback)
+                action_parsed = assistant.action.strip('* ').lower()
+                print(action_parsed)
+                print(assistant.reason)
                 self.activate_sportclient(assistant.action)
                 if self.env["tts"]:
                     self.ai_client.tts(assistant.reason)
@@ -248,20 +261,19 @@ class Dog:
         
         if not self.env["connect_robot"]:
             print("Assumed action executed: " + ans)
-            time.sleep(5)
+            # time.sleep(5)
             return 0
         else: 
             chan = sdk.ChannelFactory.Instance()
-            chan.Init(0, "enp58s0")
+            chan.Init(0, self.env["network_interface"])
 
             # Initialize the sport client, assuming the translated classes have the same functionality
             sport_client = sdk.SportClient(False)
             sport_client.SetTimeout(10.0)
             sport_client.Init()
             
-            ans = ans.strip().lower()
             if ans == 'move forward':
-                sport_client.Move(5, 0, 0) 
+                sport_client.Move(3.8, 0, 0) 
             elif ans == 'move backward':
                 sport_client.Move(-2.5, 0, 0) 
             elif ans == 'shift right':
@@ -283,7 +295,7 @@ class Dog:
                 print("Action not recognized: " + ans)
                 # sport_client.StopMove()  # stop 
 
-            #time.sleep(2.5)
+            time.sleep(5) # 행동 하라고 쏘고 완료했는지 확인 없이 일단 코드는 다음으로 진행. 즉, 행동 중에 혹은 심지어 행동 시작도 전에 다음 라운드 캡쳐 이루어질 수 있음. 근데 이제는 langsam 처리 시간이 이 sleep 시간 어느 정도 대체 가능하긴 한데 필요한 듯; 없으면 흔들리는 이미지가 캡쳐됨 그 말은 행동하는 중에 찍혔다는 것임
             return 0
 
     def run_gpt(self):

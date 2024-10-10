@@ -2,6 +2,7 @@
 /test_dataset/
 /test_code/
 /test/
+/models/
 
 # Ignore API key files
 apikey.yml
@@ -15,14 +16,37 @@ __pycache__/
 # Jupyter Notebook checkpoints
 .ipynb_checkpoints/
 
+# Ignore virtual environments
+venv/
+env/
+
 # IDE
 .vscode/
+
+# OS-specific
+.DS_Store
+Thumbs.db
+desktop.ini
 
 # Logs and temp files
 *.log
 *.tmp
+*.swp
+*.swo
+*.bak
+*.old
 
 # cpp
 build/
+*.o
+*.obj
+*.so
+*.exe
+*.out
 
+# Docker
 Dockerfile
+*.dockerignore
+*.env
+docker-compose.yml
+docker-compose.override.yml
