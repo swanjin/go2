@@ -1,5 +1,28 @@
+# Directory
+/test_dataset/
+/test_code/
+/test/
+
+# Ignore API key files
+apikey.yml
+
+# Python bytecode and cache files
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+
+# Jupyter Notebook checkpoints
+.ipynb_checkpoints/
+
 # IDE
-.vscode
+.vscode/
+
+# Logs and temp files
+*.log
+*.tmp
 
 # cpp
-build
+build/
+
+Dockerfile
