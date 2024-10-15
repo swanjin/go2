@@ -13,13 +13,13 @@ class AiClientBase:
         self.image_counter = 0
         self.round_list = []
 
-        try:
-            os.makedirs('test', exist_ok=True)
-            self.save_dir = f"test/test_{datetime.datetime.now().strftime('%Y%m%d%H%M%S')}"
-            os.mkdir(self.save_dir)
-            self.history_log_file = open(f"{self.save_dir}/history.log", "a+") # append: a+ overwrite: w+
-        except Exception as e:
-            print(f"Failed to create directory: {e}")
+        # try:
+        #     os.makedirs('test', exist_ok=True)
+        #     self.save_dir = f"test/test_{datetime.datetime.now().strftime('%Y%m%d%H%M%S')}"
+        #     os.mkdir(self.save_dir)
+        #     self.history_log_file = open(f"{self.save_dir}/history.log", "a+") # append: a+ overwrite: w+
+        # except Exception as e:
+        #     print(f"Failed to create directory: {e}")
         
         # self.target = None  # Initialize target to None
 
