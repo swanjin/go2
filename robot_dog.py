@@ -37,17 +37,18 @@ class Dog:
         self.image_files = None  # To store image paths when using test_dataset
 
         # Initialize the communication channel and the sport client
-        try:
-            chan = sdk.ChannelFactory.Instance()
-            chan.Init(0, self.env["network_interface"])
-        except Exception as e:
-            print(f"Error: Failed to initialize the connection with the robot. Please check the network interface name and ensure the robot is connected.")
-            print(f"Details: {e}")
-            return -1
+        if self.env["connect_robot"]:
+            try:
+                chan = sdk.ChannelFactory.Instance()
+                chan.Init(0, self.env["network_interface"])
+            except Exception as e:
+                print(f"Error: Failed to initialize the connection with the robot. Please check the network interface name and ensure the robot is connected.")
+                print(f"Details: {e}")
+                return -1
         
-        self.sport_client = sdk.SportClient(False)
-        self.sport_client.SetTimeout(50.0)
-        self.sport_client.Init()
+            self.sport_client = sdk.SportClient(False)
+            self.sport_client.SetTimeout(50.0)
+            self.sport_client.Init()
 
     def signal_handler(self, sig, frame):
         print("SIGINT received, stopping threads and shutting down...")
@@ -137,32 +138,22 @@ class Dog:
 
     def read_frame(self):
         """
-        Read frame from the camera or load an image from test_dataset.
+        Read a frame from the camera and return it as a PIL image in RGB format.
         Returns:
-            - frame: PIL image RGB format
+            - frame: PIL image in RGB format, or None if an error occurs.
         """
-        if self.env["use_test_dataset"]:
-            # If using a test dataset, return one image per call from the dataset
-            for image_file in self.image_files:
-                image_cv = cv2.cvtColor(cv2.imread(image_file), cv2.COLOR_BGR2RGB) 
-                frame = Image.fromarray(image_cv)
-                if frame is None:
-                    print(f"Failed to load image {image_file}.")
-                    continue
-                return frame  # Return the frame instead of yielding it for on-demand capture
+        # Read one frame from the camera
+        success, capture = self.capture.read()  # Capture a frame from the camera
+        if not success:
+            if self.env["connect_robot"]:
+                print("Failed to retrieve frame from robot camera. Possible causes:")
+                print("1) OpenCV without GStreamer support may have been prioritized.")
+                print("2) Network connection to the robot camera may have failed. Please check your LAN cable and try again.")
+            return None  # Return None if the frame capture failed
         else:
-            # Read one frame from the camera
-            success, capture = self.capture.read()  # Capture a frame from the camera
-            if not success:
-                if self.env["connect_robot"]:
-                    print("Failed to retrieve frame from robot camera. Possible causes:")
-                    print("1) OpenCV without GStreamer support may have been prioritized.")
-                    print("2) Network connection to the robot camera may have failed. Please check your LAN cable and try again.")
-                return None  # Return None if the frame capture failed
-            else:
-                image_cv = cv2.cvtColor(capture, cv2.COLOR_BGR2RGB)  # Convert to RGB
-                frame = Image.fromarray(image_cv)
-                return frame  # Return the captured frame as a PIL image
+            image_cv = cv2.cvtColor(capture, cv2.COLOR_BGR2RGB)  # Convert to RGB
+            frame = Image.fromarray(image_cv)
+            return frame  # Return the captured frame as a PIL image
 
     def shutdown(self, force=False):
         print("Shutting down the robot dog...")
@@ -201,50 +192,55 @@ class Dog:
 
     def queryGPT_by_LLM(self):
         confused_pause = False
-        for i in range(self.env["max_round"]):
-            if not self.env["use_test_dataset"] and i >= self.env["max_round"]: # If camera capture is used, it stops after a maximum number of rounds. This limit doesn't apply to test images.
-                break
-            frame = self.read_frame()
-
-            print(f"Round #{i+1}")
-            if not self.feedback_start.empty() or confused_pause: # block till feedback query ends
-                confused_pause = False
-                self.feedback_start.get() # Since the feedback_start queue is not empty, the get() method removes an item from the queue
-                self.feedback_end.get() # Since the feedback_end queue is empty until the feedback query ends, the get() method on this queue blocks the execution of the code. When the feedback query ends, an item is placed into the feedback_end queue via feedback_end.put(1). This action makes the feedback_end queue non-empty, allowing the get() method to remove the item from the queue. Once the item is removed, the blocking ends, and the remaining code can be executed.
-            
-            # Query GPT
-            if not self.feedback_start.empty(): # non-blocking; an example of blocking: input()
-                continue
-            if not self.env["connect_gpt"]:
-                self.ai_client.vision_model_test(frame)
-                print("Assumed GPT answered")
-            else:
-                if self.env["useVLM"]:
-                    assistant = self.ai_client.get_response_by_image(frame)
-                else:
-                    assistant = self.ai_client.get_response_by_LLM(frame)
-                    
-                if not self.feedback_start.empty(): # non-blocking; an example of blocking: input()
-                    continue
-
-                # if assistant.action == "Pause":
-                #     print("Go2) I'm confused. Please help me.")
-                #     print("Press Enter to start and finish giving your feedback.")
-                #     confused_pause = True
-                #     self.pause_by_trigger = True
-                #     continue
-
-                if not self.feedback_start.empty(): # non-blocking
-                    continue
-                action_parsed = assistant.action.strip('* ').lower()
-                print(action_parsed)
-                print(assistant.reason)
-                self.activate_sportclient(action_parsed)
-                if self.env["tts"]:
-                    self.ai_client.tts(action_parsed)
-                    self.ai_client.tts(assistant.reason)
+        if self.env["use_test_dataset"]:
+            for i, image_file in enumerate(self.image_files):  # Iterate over the loaded image files
+                print(f"Round #{i+1}")
+                image_cv = cv2.cvtColor(cv2.imread(image_file), cv2.COLOR_BGR2RGB)
+                frame = Image.fromarray(image_cv)
+                self.process_frame(frame, confused_pause)  # Process each frame
+        else:
+            for i in range(self.env["max_round"]):
+                frame = self.read_frame()  # Read from the camera
+                print(f"Round #{i+1}")
+                self.process_frame(frame, confused_pause)  # Process each frame
 
         self.stop_thread1 = True
+
+    def process_frame(self, frame, confused_pause):
+        if not self.feedback_start.empty() or confused_pause: # block till feedback query ends
+            confused_pause = False
+            self.feedback_start.get() # Since the feedback_start queue is not empty, the get() method removes an item from the queue
+            self.feedback_end.get() # Since the feedback_end queue is empty until the feedback query ends, the get() method on this queue blocks the execution of the code. When the feedback query ends, an item is placed into the feedback_end queue via feedback_end.put(1). This action makes the feedback_end queue non-empty, allowing the get() method to remove the item from the queue. Once the item is removed, the blocking ends, and the remaining code can be executed.
+
+        # Query GPT
+        if not self.feedback_start.empty(): # non-blocking; an example of blocking: input()
+            return
+
+        if not self.env["connect_gpt"]:
+            self.ai_client.vision_model_test(frame)
+            print("Assumed GPT answered")
+        else:
+            if self.env["useVLM"]:
+                assistant = self.ai_client.get_response_by_image(frame)
+            else:
+                assistant = self.ai_client.get_response_by_LLM(frame)
+
+            if assistant.action == "Pause":
+                print("Go2) I'm confused. Please help me.")
+                print("Press Enter to start and finish giving your feedback.")
+                confused_pause = True
+                self.pause_by_trigger = True
+                return  # Exit the frame processing and wait for feedback
+
+            if not self.feedback_start.empty():
+                return
+            action_parsed = assistant.action.strip('* ').lower()
+            print(action_parsed)
+            print(assistant.reason)
+            if self.env["tts"]:
+                self.ai_client.tts(action_parsed)
+            
+            self.activate_sportclient(action_parsed)
 
     def user_input(self):
         if self.env["speechable"]:
@@ -310,7 +306,7 @@ class Dog:
                 print("Action not recognized: " + ans)
                 # self.sport_client.StopMove()  # stop 
 
-            time.sleep(1.5) # 행동 하라고 쏘고 완료했는지 확인 없이 일단 코드는 다음으로 진행. 즉, 행동 중에 혹은 심지어 행동 시작도 전에 다음 라운드 캡쳐 이루어질 수 있음. 근데 이제는 langsam 처리 시간이 이 sleep 시간 어느 정도 대체 가능하긴 한데 필요한 듯; 없으면 흔들리는 이미지가 캡쳐됨 그 말은 행동하는 중에 찍혔다는 것임
+            time.sleep(2.5) # 행동 하라고 쏘고 완료했는지 확인 없이 일단 코드는 다음으로 진행. 즉, 행동 중에 혹은 심지어 행동 시작도 전에 다음 라운드 캡쳐 이루어질 수 있음. 근데 이제는 langsam 처리 시간이 이 sleep 시간 어느 정도 대체 가능하긴 한데 필요한 듯; 없으면 흔들리는 이미지가 캡쳐됨 그 말은 행동하는 중에 찍혔다는 것임
             return 0
 
     def run_gpt(self):

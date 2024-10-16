@@ -37,17 +37,18 @@ class Dog:
         self.image_files = None  # To store image paths when using test_dataset
 
         # Initialize the communication channel and the sport client
-        try:
-            chan = sdk.ChannelFactory.Instance()
-            chan.Init(0, self.env["network_interface"])
-        except Exception as e:
-            print(f"Error: Failed to initialize the connection with the robot. Please check the network interface name and ensure the robot is connected.")
-            print(f"Details: {e}")
-            return -1
+        if self.env["connect_robot"]:
+            try:
+                chan = sdk.ChannelFactory.Instance()
+                chan.Init(0, self.env["network_interface"])
+            except Exception as e:
+                print(f"Error: Failed to initialize the connection with the robot. Please check the network interface name and ensure the robot is connected.")
+                print(f"Details: {e}")
+                return -1
         
-        self.sport_client = sdk.SportClient(False)
-        self.sport_client.SetTimeout(50.0)
-        self.sport_client.Init()
+            self.sport_client = sdk.SportClient(False)
+            self.sport_client.SetTimeout(50.0)
+            self.sport_client.Init()
 
     def signal_handler(self, sig, frame):
         print("SIGINT received, stopping threads and shutting down...")

@@ -66,7 +66,7 @@ class OpenaiClient(AiClientBase):
         self.target = target
         self.openai_goal["content"][0] = self.get_user_prompt() + "\n# History: \n" + "None"
 
-    def save_round(self, assistant, feedback=None, feedback_factor=None, image_analysis=None):
+    def save_round(self, assistant=None, feedback=None, feedback_factor=None, image_analysis=None):
         # Update history.log
         self.history_log_file.write(f"======= image{len(self.round_list)+1} =======\n")
         
@@ -79,30 +79,34 @@ class OpenaiClient(AiClientBase):
             self.history_log_file.write(f"Feedback:\n {feedback}\n")
         else:
             self.history_log_file.write(f"Feedback:\n None\n")  # This prevents logging False
+        
+        if assistant is None:
+            self.history_log_file.write(f"Response:\n None\n")  # This prevents logging False
+        else:
+            self.history_log_file.write(f"Response:\n Action) {assistant.action}\n Reason) {assistant.reason}\n\n")
+            self.history_log_file.flush()
 
-        self.history_log_file.write(f"Response:\n Action) {assistant.action}\n Reason) {assistant.reason}\n\n")
-        self.history_log_file.flush()
+            # Update history for prompt
+            self.round_list.append(Round(len(self.round_list) + 1, assistant, feedback, feedback_factor))
+            feedbackText = f"The user provided feedback: {feedback}."
+            round_number = len(self.round_list)
+            image_description = image_analysis.description if image_analysis is not None else ''
+            self.history = self.history if round_number > 1 else "# History"
 
-        # Update history for prompt
-        self.round_list.append(Round(len(self.round_list) + 1, assistant, feedback, feedback_factor))
-        feedbackText = f"The user provided feedback: {feedback}."
-        round_number = len(self.round_list)
-        image_description = image_analysis.description if image_analysis is not None else ''
-        self.history = self.history if round_number > 1 else "# History"
-
-        self.history += (
-            f"\nRound {round_number}: "
-            f"{feedbackText if feedback is not None else ''} "
-            f"From the position {assistant.curr_position}, "
-            f"{image_description} "
-            f"The detection likelihood score for this position was {assistant.likelihood}. "
-            f"You executed the '{assistant.action}' action and updated the position to {assistant.new_position}. "
-            f"The rationale behind this action you told me was: '{assistant.reason}'"
-        )
+            self.history += (
+                f"\nRound {round_number}: "
+                f"{feedbackText if feedback is not None else ''} "
+                f"From the position {assistant.curr_position}, "
+                f"{image_description} "
+                f"The detection likelihood score for this position was {assistant.likelihood}. "
+                f"You executed the '{assistant.action}' action and updated the position to {assistant.new_position}. "
+                f"The rationale behind this action you told me was: '{assistant.reason}'"
+            )
 
     def vision_model_test(self, image_pil):
         image_analysis = self.vision_model.describe_image(image_pil)
         self.store_image(image_analysis.frame)
+        self.save_round(image_analysis=image_analysis)
 
     def gpt_vision_test(self, image_pil):
         _, buffer = cv2.imencode(".jpg", image_pil)
@@ -126,7 +130,7 @@ class OpenaiClient(AiClientBase):
         else:
             image_description_text = image_analysis.description
         # prompt input
-        self.openai_goal_for_text["content"] = f"{self.get_user_prompt()}\n \n# Image description (The image size is 1280x720, with the coordinate (0, 0) located at the top-left corner.)\n{image_description_text}\n \n{self.history}"
+        self.openai_goal_for_text["content"] = f"{self.get_user_prompt()}\n \n# Image analysis (The image size is {self.env['captured_width']}x{self.env['captured_height']}, with the coordinate (0, 0) located at the top-left corner.)\n{image_description_text}\n \n{self.history}"
         if self.env["print_history"]:
             print(self.history)
             

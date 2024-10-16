@@ -42,12 +42,32 @@ Here is the action dictionary, formatted as 'action name: (x shift, y shift, clo
 - 'turn right': (0, 0, 60) 
 - 'turn left': (0, 0, -60)
 
-# Instructions
-- Search for the target object. Use the image description and history to guide your decisions, and follow feedback to determine your action.
-- If the target is visible, align it to the center of your field of view. Divide the image into three vertical sections, and only if none of the detected targets are in the middle section, adjust your x coordinates. If at least one of them is in the middle, move closer to it. However, if the distance to at least one detected target is less than {self.env['stop_hurdle_meter']} meters, execute the 'Stop' action. If the distances to all detected targets are greater than or equal to {self.env['stop_hurdle_meter']} meters, avoid the 'Stop' action.
-- If the target is invisible, first explore all possible orientations at the same x and y coordinates before moving to new ones. By referring to the history, avoid revisiting orientations already explored without success. If you have explored all possible orientations(0,60,120,180,240,300) at the same x and y coordinates without success, choose your action to revisit the orientation with the highest likelihood based on your history at that x and y coordinates. Once you reach that specific orientation, explore further in that direction and its neighboring ones.
-""" # 발견한 이후, keep centered가 move forward보다 먼저하도록 명시 안해야, move forward하다가 시야에서 사라져서 사람 도움 필요한 failure 상황이 생김.
-    
+# Instructions for Target Search and Navigation
+
+1. Search for the Target Object:
+- Use image analysis and historical data to guide your decisions. Follow real-time feedback to determine the most appropriate action.
+2. Target Alignment:
+- If the x-coordinate of at least one detected target is within the middle third of the image (i.e., x-coordinates between {self.env['captured_width']*(1/3)} and {self.env['captured_width']*(2/3)}), adjust your y-coordinate to move closer to that target.
+- If no targets are within this middle range, adjust your x-coordinate to center the detected target within your field of view.
+3. Stopping Condition:
+- If the distance to at least one detected target in the middle third of the image is less than the defined stop distance (i.e., {self.env['stop_hurdle_meter']} meters), execute the "Stop" action.
+- If all targets in the middle third are at or beyond the stop distance, do not execute the "Stop" action.
+4. Handling Invisible Targets:
+- If the target becomes invisible:
+-- First, explore all possible orientations at the current x and y coordinates before moving to new ones. Use the following orientations: 0°, 60°, 120°, 180°, 240°, 300°.
+-- Refer to the search history to avoid revisiting orientations that have already been explored without success.
+-- If all orientations at the current x and y coordinates have been explored without finding the target, choose the orientation with the highest likelihood of success based on historical data at that location. Revisit that orientation and continue exploring in that direction and its neighboring orientations.
+""" 
+# 발견한 이후, keep centered가 move forward보다 먼저하도록 명시 안해야, move forward하다가 시야에서 사라져서 사람 도움 필요한 failure 상황이 생김.
+# # Instructions
+# - Search for the target object. Use the image analysis and history to guide your decisions, and follow feedback to determine your action.
+# - If the x coodrinate of at least one detected target is in the middle of the image, that is, between {self.env['captured_width']*(1/3)} and {self.env['captured_width']*(2/3)}, adjust your y coordinates to move closer to it. If none of them is in the middle, adjust your x coordinates to center the detected target within your field of view.
+# - If the distance of at least one detected target in the middle is less than {self.env['stop_hurdle_meter']} meters, execute the 'Stop' action. If the distances to all detected targets in the middle are greater than or equal to {self.env['stop_hurdle_meter']} meters, avoid the 'Stop' action.
+# - If the target is invisible, first explore all possible orientations at the same x and y coordinates before moving to new ones. By referring to the history, avoid revisiting orientations already explored without success. If you have explored all possible orientations(0,60,120,180,240,300) at the same x and y coordinates without success, choose your action to revisit the orientation with the highest likelihood based on your history at that x and y coordinates. Once you reach that specific orientation, explore further in that direction and its neighboring ones.
+
+
+
+
     def get_user_prompt(self):
 #### Use w/ gpt_vsion_test() ####        
 #         return f"""Go2, find {self.target}. Respond with the specified format:
@@ -58,7 +78,7 @@ Here is the action dictionary, formatted as 'action name: (x shift, y shift, clo
 # """
         return f"""Your target object is '{self.target}'. When you respond, follow the structued format:
 Current Position: Tuple (x, y, orientation) before the action.
-Target Status: If any target is detected in the image description of this round, not those of previous rounds in the history, mark 'Visible'; otherwise, 'Invisible.'
+Target Status: If any target is detected in the image analysis of this round, not those of previous rounds in the history, mark 'Visible'; otherwise, 'Invisible.'
 Likelihood: If the target status is 'Visible', set likelihood to 100. If not, assign a score from 0-100 based on how likely the target is to be near detected objects or environments, considering contextual correlations.
 Action: The exact action name in the action dictionary you choose by considering all the instructions.
 New Position: Updated tuple (x, y, orientation) after the action.
