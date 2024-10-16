@@ -36,6 +36,14 @@ class Dog:
         self.pause_by_trigger = False
         self.image_files = None  # To store image paths when using test_dataset
 
+        # Initialize the communication channel and the sport client
+        chan = sdk.ChannelFactory.Instance()
+        chan.Init(0, self.env["network_interface"])
+        
+        self.sport_client = sdk.SportClient(False)
+        self.sport_client.SetTimeout(50.0)
+        self.sport_client.Init()
+
     def signal_handler(self, sig, frame):
         print("SIGINT received, stopping threads and shutting down...")
         self.shutdown(True)  # Ensure proper shutdown is called
@@ -264,38 +272,27 @@ class Dog:
             # time.sleep(5)
             return 0
         else: 
-            chan = sdk.ChannelFactory.Instance()
-            chan.Init(0, self.env["network_interface"])
-
-            # Initialize the sport client, assuming the translated classes have the same functionality
-            sport_client = sdk.SportClient(False)
-            sport_client.SetTimeout(10.0)
-            sport_client.Init()
-            
             if ans == 'move forward':
-                sport_client.Move(3.8, 0, 0) 
+                self.sport_client.Move(3.8, 0, 0) 
             elif ans == 'move backward':
-                sport_client.Move(-2.5, 0, 0) 
+                self.sport_client.Move(-2.5, 0, 0) 
             elif ans == 'shift right':
-                sport_client.Move(0, -1, 0) 
+                self.sport_client.Move(0, -1, 0) 
             elif ans == 'shift left':
-                sport_client.Move(0, 1, 0) 
+                self.sport_client.Move(0, 1, 0) 
             elif ans == 'turn right':
-                sport_client.Move(0, 0, -2) # rotate right 0.5 sec: 1.57 radian = 90 degree/sec w/ horizontal angle of view of 100 degrees
-                # time.sleep(1)
-                # sport_client.Move(0, 0, 3)
-                # sport_client.Move(0, -0.02, -0.09)
+                self.sport_client.Move(0, 0, -2) # rotate right 0.5 sec: 1.57 radian = 90 degree/sec w/ horizontal angle of view of 100 degrees
             elif ans == 'turn left':
-                sport_client.Move(0, 0, 2) # rotate left
+                self.sport_client.Move(0, 0, 2) # rotate left
             elif ans == 'stop':
-                sport_client.StopMove()
+                self.sport_client.StopMove()
             elif ans == 'pause':
-                sport_client.StopMove()
+                self.sport_client.StopMove()
             else:
                 print("Action not recognized: " + ans)
-                # sport_client.StopMove()  # stop 
+                # self.sport_client.StopMove()  # stop 
 
-            time.sleep(5) # 행동 하라고 쏘고 완료했는지 확인 없이 일단 코드는 다음으로 진행. 즉, 행동 중에 혹은 심지어 행동 시작도 전에 다음 라운드 캡쳐 이루어질 수 있음. 근데 이제는 langsam 처리 시간이 이 sleep 시간 어느 정도 대체 가능하긴 한데 필요한 듯; 없으면 흔들리는 이미지가 캡쳐됨 그 말은 행동하는 중에 찍혔다는 것임
+            # time.sleep(5) # 행동 하라고 쏘고 완료했는지 확인 없이 일단 코드는 다음으로 진행. 즉, 행동 중에 혹은 심지어 행동 시작도 전에 다음 라운드 캡쳐 이루어질 수 있음. 근데 이제는 langsam 처리 시간이 이 sleep 시간 어느 정도 대체 가능하긴 한데 필요한 듯; 없으면 흔들리는 이미지가 캡쳐됨 그 말은 행동하는 중에 찍혔다는 것임
             return 0
 
     def run_gpt(self):
