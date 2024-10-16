@@ -15,5 +15,10 @@ with open('env.yml') as f:
 	import cv2
 	del sys.path[0]
 
-with open('apikey.yml') as f:
-	apikey = yaml.load(f, Loader=yaml.FullLoader)
+# Load API keys from apikey.yml
+try:
+    with open('apikey.yml') as f:
+        apikey = yaml.load(f, Loader=yaml.FullLoader)
+except FileNotFoundError:
+    print("Error: apikey.yml file not found.")
+    sys.exit(1)

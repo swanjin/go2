@@ -37,8 +37,13 @@ class Dog:
         self.image_files = None  # To store image paths when using test_dataset
 
         # Initialize the communication channel and the sport client
-        chan = sdk.ChannelFactory.Instance()
-        chan.Init(0, self.env["network_interface"])
+        try:
+            chan = sdk.ChannelFactory.Instance()
+            chan.Init(0, self.env["network_interface"])
+        except Exception as e:
+            print(f"Error: Failed to initialize the connection with the robot. Please check the network interface name and ensure the robot is connected.")
+            print(f"Details: {e}")
+            return -1
         
         self.sport_client = sdk.SportClient(False)
         self.sport_client.SetTimeout(50.0)
@@ -114,11 +119,21 @@ class Dog:
         Connect to the robot camera or use built-in camera.
         """
         print("- Connecting to camera")
+
+        # Ensure any previously opened capture is released to free the resource
+        if hasattr(self, 'capture') and self.capture is not None:
+            self.capture.release()  # Release the camera resource if it was previously used
+
         if self.env["connect_robot"]:
             gstreamer_str = self.env["robot_gstreamer"]  # Robot camera resolution: 1280x720
-            self.capture = cv2.VideoCapture(gstreamer_str, cv2.CAP_GSTREAMER)
+            self.capture = cv2.VideoCapture(gstreamer_str, cv2.CAP_GSTREAMER)        
         else:
             self.capture = cv2.VideoCapture(0)  # Built-in webcam
+
+            if not self.capture.isOpened():
+                print("Error: Failed to open the built-in camera. Possible causes:")
+                print("1) The built-in camera may be in use by another application. Close any other applications using the camera and try again.")
+                print("2) The camera resource might not have been properly released from a previous session.")
 
     def read_frame(self):
         """
@@ -144,8 +159,10 @@ class Dog:
                 image_cv = cv2.cvtColor(capture, cv2.COLOR_BGR2RGB) 
                 frame = Image.fromarray(image_cv)
                 # time.sleep(3)
-                if not success:
-                    print("Failed to capture frame from camera.")
+                if self.env["connect_robot"] and not success:
+                    print("Failed to retrieve frame from robot camera. Possible causes:")
+                    print("1) OpenCV without GStreamer support may have been prioritized.")
+                    print("2) Network connection to the robot camera may have failed. Please check your LAN cable and try again.")
                     break
                 yield frame  
 
