@@ -142,27 +142,29 @@ class Dog:
             - frame: PIL image RGB format
         """
         if self.env["use_test_dataset"]:
-            # If using a test dataset, return one image per call from the dataset
+            # Read images from the test_dataset one by one
             for image_file in self.image_files:
+                # frame = image_file # file path -> high langsam performance
+                # frame = cv2.imread(image_file) # BGR np array -> low langsam performance
+                
                 image_cv = cv2.cvtColor(cv2.imread(image_file), cv2.COLOR_BGR2RGB) 
                 frame = Image.fromarray(image_cv)
                 if frame is None:
                     print(f"Failed to load image {image_file}.")
                     continue
-                return frame  # Return the frame instead of yielding it for on-demand capture
+                yield frame
         else:
-            # Read one frame from the camera
-            success, capture = self.capture.read()  # Capture a frame from the camera
-            if not success:
-                if self.env["connect_robot"]:
+            while True:
+                success, capture = self.capture.read()
+                image_cv = cv2.cvtColor(capture, cv2.COLOR_BGR2RGB) 
+                frame = Image.fromarray(image_cv)
+                # time.sleep(3)
+                if self.env["connect_robot"] and not success:
                     print("Failed to retrieve frame from robot camera. Possible causes:")
                     print("1) OpenCV without GStreamer support may have been prioritized.")
                     print("2) Network connection to the robot camera may have failed. Please check your LAN cable and try again.")
-                return None  # Return None if the frame capture failed
-            else:
-                image_cv = cv2.cvtColor(capture, cv2.COLOR_BGR2RGB)  # Convert to RGB
-                frame = Image.fromarray(image_cv)
-                return frame  # Return the captured frame as a PIL image
+                    break
+                yield frame  
 
     def shutdown(self, force=False):
         print("Shutting down the robot dog...")
@@ -186,12 +188,10 @@ class Dog:
         print("All threads have been terminated and resources have been released.")
 
     def queryGPT_for_vision_test(self):
-        for i in range(self.env["max_round"]):
+        for i, frame in enumerate(self.read_frame()):
             if not self.env["use_test_dataset"] and i >= self.env["max_round"]: # If camera capture is used, it stops after a maximum number of rounds. This limit doesn't apply to test images.
                 break
-            frame = self.read_frame()
 
-            print(f"Round #{i+1}")
             assistant = self.ai_client.gpt_vision_test(frame)
             action_parsed = assistant.action.strip('* ').lower()
             print(action_parsed)
@@ -201,12 +201,11 @@ class Dog:
 
     def queryGPT_by_LLM(self):
         confused_pause = False
-        for i in range(self.env["max_round"]):
+        for i, frame in enumerate(self.read_frame()):
             if not self.env["use_test_dataset"] and i >= self.env["max_round"]: # If camera capture is used, it stops after a maximum number of rounds. This limit doesn't apply to test images.
                 break
-            frame = self.read_frame()
 
-            print(f"Round #{i+1}")
+            # print(f"current action #{i}")
             if not self.feedback_start.empty() or confused_pause: # block till feedback query ends
                 confused_pause = False
                 self.feedback_start.get() # Since the feedback_start queue is not empty, the get() method removes an item from the queue
@@ -310,7 +309,7 @@ class Dog:
                 print("Action not recognized: " + ans)
                 # self.sport_client.StopMove()  # stop 
 
-            time.sleep(1.5) # 행동 하라고 쏘고 완료했는지 확인 없이 일단 코드는 다음으로 진행. 즉, 행동 중에 혹은 심지어 행동 시작도 전에 다음 라운드 캡쳐 이루어질 수 있음. 근데 이제는 langsam 처리 시간이 이 sleep 시간 어느 정도 대체 가능하긴 한데 필요한 듯; 없으면 흔들리는 이미지가 캡쳐됨 그 말은 행동하는 중에 찍혔다는 것임
+            # time.sleep(5) # 행동 하라고 쏘고 완료했는지 확인 없이 일단 코드는 다음으로 진행. 즉, 행동 중에 혹은 심지어 행동 시작도 전에 다음 라운드 캡쳐 이루어질 수 있음. 근데 이제는 langsam 처리 시간이 이 sleep 시간 어느 정도 대체 가능하긴 한데 필요한 듯; 없으면 흔들리는 이미지가 캡쳐됨 그 말은 행동하는 중에 찍혔다는 것임
             return 0
 
     def run_gpt(self):
