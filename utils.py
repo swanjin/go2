@@ -1,3 +1,4 @@
+import sys
 import signal
 import textwrap
 from PIL import Image, ImageDraw, ImageFont
@@ -24,6 +25,41 @@ def timeoutInput(timeout):
         if timeout is not None:
             signal.alarm(0)
     return s
+
+def put_text_in_the_middle(image, text, width, height, font_size=40):
+    """
+    Function to create an image and place the given text in the middle.
+
+    Parameters:
+    text (str): The text to display.
+    width (int): The width of the image.
+    height (int): The height of the image.
+    font_size (int): The size of the font for the text.
+
+    Returns:
+    numpy array: The image with text centered, ready for display with imshow.
+    """
+    # Create a new image with black background
+    draw = ImageDraw.Draw(image)
+
+    # Try to load a larger font, fall back to default if necessary
+    try:
+        font = ImageFont.truetype("DejaVuSans-Bold.ttf", font_size)
+    except IOError:
+        font = ImageFont.load_default()
+
+    # Get the size of the text for positioning
+    text_bbox = draw.textbbox((0, 0), text, font=font)
+    text_width = text_bbox[2] - text_bbox[0]
+    text_height = text_bbox[3] - text_bbox[1]
+
+    # Calculate the position to center the text
+    position = ((width - text_width) // 2, (height - text_height) // 2)
+
+    # Add the text to the image in white
+    draw.text(position, text, fill="white", font=font)
+
+    return image
 
 def combine_images_vertically(self, image1, image2):
     # Get the dimensions of the images
