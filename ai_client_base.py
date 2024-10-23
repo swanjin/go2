@@ -47,11 +47,11 @@ Here is the action dictionary, formatted as 'action name: (x shift, y shift, clo
 1. Search for the Target Object:
 - Use image analysis and historical data to guide your decisions. Follow real-time feedback to determine the most appropriate action.
 2. Target Alignment:
-- If the x-coordinate of at least one detected target is within the middle third of the image (i.e., x-coordinates between {self.env['captured_width']*(1/3)} and {self.env['captured_width']*(2/3)}), adjust your y-coordinate to move closer to that target.
-- If no targets are within this middle range, adjust your x-coordinate to center the detected target within your field of view.
+- If the x-coordinate of at least one detected target is within the middle third of the image (i.e., x-coordinates between {self.env['captured_width']*(1/3)} and {self.env['captured_width']*(2/3)}), adjust your y-coordinate to move closer to that target. 
+- If no targets are within this middle range, adjust your x-coordinate to center the detected target within your field of view. For example, if the target is in the left third of the image, 'shift left' to bring it closer to the center. On the other hand, if the target is in the right third of the image, 'shift right' to center it.
 3. Stopping Condition:
-- If the distance to at least one detected target in the middle third of the image is less than the defined stop distance (i.e., {self.env['stop_hurdle_meter']} meters), execute the "Stop" action.
-- If all targets in the middle third are at or beyond the stop distance, do not execute the "Stop" action.
+- If the distance to at least one detected target in the middle third of the image is less than the defined stop distance (i.e., {self.env['stop_hurdle_meter']} meters), execute the "stop" action.
+- If all targets in the middle third are at or beyond the stop distance, do not execute the "stop" action.
 4. Handling Invisible Targets:
 - If the target becomes invisible:
 -- First, explore all possible orientations at the current x and y coordinates before moving to new ones. Use the following orientations: 0°, 60°, 120°, 180°, 240°, 300°.

@@ -46,8 +46,8 @@ class Dog:
                 print(f"Details: {e}")
                 return -1
         
-            self.sport_client = sdk.SportClient(False)
-            self.sport_client.SetTimeout(50.0)
+            self.sport_client = sdk.SportClient(False) # True enables lease management to ensure exclusive robot control by one client
+            self.sport_client.SetTimeout(60.0)
             self.sport_client.Init()
 
     def signal_handler(self, sig, frame):
@@ -142,14 +142,13 @@ class Dog:
         Returns:
             - frame: PIL image in RGB format, or None if an error occurs.
         """
-        # Read one frame from the camera
         success, capture = self.capture.read()  # Capture a frame from the camera
         if not success:
             if self.env["connect_robot"]:
                 print("Failed to retrieve frame from robot camera. Possible causes:")
                 print("1) OpenCV without GStreamer support may have been prioritized.")
                 print("2) Network connection to the robot camera may have failed. Please check your LAN cable and try again.")
-            return None  # Return None if the frame capture failed
+            return None 
         else:
             image_cv = cv2.cvtColor(capture, cv2.COLOR_BGR2RGB)  # Convert to RGB
             frame = Image.fromarray(image_cv)
@@ -273,40 +272,38 @@ class Dog:
                 self.pause_by_trigger = False
                 self.feedback_end.put(1)
 
+    def VelocityMove(self, vx, vy, vyaw, elapsed_time = 1, dt = 0.01):
+        for i in range(int(elapsed_time / dt)):
+            self.sport_client.Move(vx, vy, vyaw)
+            time.sleep(dt)
+        for i in range(int(elapsed_time / dt)):
+            self.sport_client.StopMove()
+            time.sleep(dt)
+
     def activate_sportclient(self, ans):
-        # if len(sys.argv) < 2:
-        #     print(f"Usage: {sys.argv[0]} networkInterface")
-        #     return -1
-        
-        # Assuming that the ChannelFactory and Init methods are properly bound in Python
-        # sdk.ChannelFactory.Instance().Init(0, sys.argv[1])
-        
         if not self.env["connect_robot"]:
             print("Assumed action executed: " + ans)
-            # time.sleep(5)
             return 0
         else: 
             if ans == 'move forward':
-                self.sport_client.Move(3.8, 0, 0) 
+                self.VelocityMove(1, 0, 0) 
             elif ans == 'move backward':
-                self.sport_client.Move(-2.5, 0, 0) 
+                self.VelocityMove(-1, 0, 0) 
             elif ans == 'shift right':
-                self.sport_client.Move(0, -1, 0) 
+                self.VelocityMove(0, -0.5, 0) 
             elif ans == 'shift left':
-                self.sport_client.Move(0, 1, 0) 
+                self.VelocityMove(0, 0.5, 0) 
             elif ans == 'turn right':
-                self.sport_client.Move(0, 0, -2) # rotate right 0.5 sec: 1.57 radian = 90 degree/sec w/ horizontal angle of view of 100 degrees
+                self.VelocityMove(0, 0, -1.04) # 1.04 radian = 60 degree/sec w/ horizontal angle of view of 100 degrees
             elif ans == 'turn left':
-                self.sport_client.Move(0, 0, 2) # rotate left
+                self.VelocityMove(0, 0, 1.04)
             elif ans == 'stop':
                 self.sport_client.StopMove()
             elif ans == 'pause':
                 self.sport_client.StopMove()
             else:
                 print("Action not recognized: " + ans)
-                # self.sport_client.StopMove()  # stop 
 
-            time.sleep(2.5) # 행동 하라고 쏘고 완료했는지 확인 없이 일단 코드는 다음으로 진행. 즉, 행동 중에 혹은 심지어 행동 시작도 전에 다음 라운드 캡쳐 이루어질 수 있음. 근데 이제는 langsam 처리 시간이 이 sleep 시간 어느 정도 대체 가능하긴 한데 필요한 듯; 없으면 흔들리는 이미지가 캡쳐됨 그 말은 행동하는 중에 찍혔다는 것임
             return 0
 
     def run_gpt(self):
