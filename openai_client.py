@@ -1,3 +1,4 @@
+# openai_client.py
 import os
 import base64
 import datetime
@@ -9,17 +10,22 @@ from openai import OpenAI
 import cv2
 
 from ai_client_base import AiClientBase, ResponseMessage
-from vision_owl import OWLDepthModel
+from vision import VisionModel
+# from round import Round
+import utils
 from round import Round
+
 
 class OpenaiClient(AiClientBase):
     def __init__(self, env, key):
+        # Call the parent class's constructor to initialize system_prompt and other attributes
+        super().__init__(env)
+        
         self.client = OpenAI(api_key=key)
         self.env = env
         self.image_counter = 0
         self.history = None
-        self.owl_depth_model = OWLDepthModel(env)
-
+        self.vision_model = VisionModel(env)
 
         self.openai_prompt_messages = [
             {"role": "system", "content": self.system_prompt 
@@ -60,92 +66,115 @@ class OpenaiClient(AiClientBase):
         self.target = target
         self.openai_goal["content"][0] = self.get_user_prompt() + "\n# History: \n" + "None"
 
-    def save_round(self, assistant, feedback=None, feedback_factor=None, owl_response=None):
+    def save_round(self, assistant=None, feedback=None, feedback_factor=None, image_analysis=None):
+        # Update history.log
         self.history_log_file.write(f"======= image{len(self.round_list)+1} =======\n")
-        if owl_response is not None:
-            self.history_log_file.write(f"owl_response: {owl_response.description}\n")
-        self.history_log_file.write(f"response: {assistant}\n")
-        self.history_log_file.flush()
+        
+        if image_analysis is None or image_analysis.description == '':
+            self.history_log_file.write(f"Image Analysis:\n None\n")
+        else: 
+            self.history_log_file.write(f"Image Analysis:\n {image_analysis.description}\n")
 
-        self.round_list.append(Round(len(self.round_list) + 1, assistant, feedback, feedback_factor))
-        if (len(self.round_list) == 1):
-            self.history = "# History"
-        if feedback is not None:
-            pauseText = "By trigger" if feedback_factor else "By voluntary"
-            feedbackText = f"There was a user feedback {pauseText}: {feedback}."
-            self.history += f"\nRound {len(self.round_list)}: {feedbackText} You performed the action '{assistant.action}' and updated the position to {assistant.new_position} because {assistant.reason}"
+        if feedback:
+            self.history_log_file.write(f"Feedback:\n {feedback}\n")
         else:
-            self.history += f"\nRound {len(self.round_list)}: From the position {assistant.curr_position}, {owl_response.description} You performed the action '{assistant.action}' and updated the position to {assistant.new_position} because {assistant.reason}"
+            self.history_log_file.write(f"Feedback:\n None\n")  # This prevents logging False
+        
+        if assistant is None:
+            self.history_log_file.write(f"Response:\n None\n")  # This prevents logging False
+        else:
+            self.history_log_file.write(f"Response:\n Action) {assistant.action}\n Reason) {assistant.reason}\n\n")
+            self.history_log_file.flush()
 
-        # The target had been {assistant.target} from the position of the previous round {assistant.curr_position}, where its likelihood score was {assistant.likelihood}. Therefore, in this round, Go2 performed the action '{assistant.action}' updating the position to {assistant.new_position}
+            # Update history for prompt
+            self.round_list.append(Round(len(self.round_list) + 1, assistant, feedback, feedback_factor))
+            feedbackText = f"The user provided feedback: {feedback}."
+            round_number = len(self.round_list)
+            image_description = image_analysis.description if image_analysis is not None else ''
+            self.history = self.history if round_number > 1 else "# History"
 
-        self.openai_goal["content"][0] = self.get_user_prompt() + self.history # for VLM?!
+            self.history += (
+                f"\nRound {round_number}: "
+                f"{feedbackText if feedback is not None else ''} "
+                f"From the position {assistant.curr_position}, "
+                f"{image_description} "
+                f"The detection likelihood score for this position was {assistant.likelihood}. "
+                f"You executed the '{assistant.action}' action and updated the position to {assistant.new_position}. "
+                f"The rationale behind this action you told me was: '{assistant.reason}'"
+            )
 
-    def vision_model_test(self, cv2_image):
-        owl_response = self.owl_depth_model.describe_image(cv2_image)
-        self.store_image(owl_response.frame)
+    def vision_model_test(self, image_pil):
+        image_analysis = self.vision_model.describe_image(image_pil)
+        self.store_image(image_analysis.frame)
+        self.save_round(image_analysis=image_analysis)
 
-    def gpt_vision_test(self, cv2_image):
-        _, buffer = cv2.imencode(".jpg", cv2_image)
+    def gpt_vision_test(self, image_pil):
+        _, buffer = cv2.imencode(".jpg", image_pil)
         decoded = base64.b64encode(buffer).decode("utf-8")
         self.openai_goal["content"][-1] = {"image": decoded}
         result = self.client.chat.completions.create(**self.openai_params)
         rawAssistant = result.choices[0].message.content
-        return rawAssistant
+        assistant = ResponseMessage.parse(rawAssistant)
 
-    def get_response_by_LLM(self, cv2_image):
-        owl_response = self.owl_depth_model.describe_image(cv2_image)
+        return assistant
+
+    def get_response_by_LLM(self, image_pil):
+        image_analysis = self.vision_model.describe_image(image_pil)
 
         # Ensure self.history is initialized if not already
         if self.history is None or self.env["use_test_dataset"]:
             self.history = "# History \nNone."  # Initialize the history if it's missing
 
-        if owl_response.description == "":
+        if image_analysis.description == "":
             image_description_text = "No objects detected in the image."
         else:
-            image_description_text = owl_response.description
+            image_description_text = image_analysis.description
         # prompt input
-        self.openai_goal_for_text["content"] = f"{self.get_user_prompt()}\n \n# Image description (The coordinate (0, 0) is located at the top-left corner of the image.)\n{image_description_text}\n \n{self.history}"
+        self.openai_goal_for_text["content"] = f"{self.get_user_prompt()}\n \n# Image analysis (The image size is {self.env['captured_width']}x{self.env['captured_height']}, with the coordinate (0, 0) located at the top-left corner.)\n{image_description_text}\n \n{self.history}"
         if self.env["print_history"]:
             print(self.history)
-
+            
         result = self.client.chat.completions.create(**self.openai_params_for_text)
         rawAssistant = result.choices[0].message.content
         assistant = ResponseMessage.parse(rawAssistant)
         
-        self.store_image(owl_response.frame)
-        self.save_round(assistant, owl_response=owl_response)
+        self.store_image(image_analysis.frame)
+        self.save_round(assistant, image_analysis=image_analysis)
 
-        return rawAssistant, assistant
+        return assistant
 
-    def get_response_by_image(self, cv2_image):
-        owl_response = self.owl_depth_model.describe_image(cv2_image, False)
-        if owl_response.frame.shape[1] != self.env["captured_width"] or owl_response.frame.shape[0] != self.env["captured_height"]:
-            resized_frame = cv2.resize(owl_response.frame, (self.env["captured_width"], self.env["captured_height"]))
+    def get_response_by_image(self, image_pil):
+        image_analysis = self.vision_model.describe_image(image_pil, False)
+        if image_analysis.frame.shape[1] != self.env["captured_width"] or image_analysis.frame.shape[0] != self.env["captured_height"]:
+            resized_frame = cv2.resize(image_analysis.frame, (self.env["captured_width"], self.env["captured_height"]))
         else:
-            resized_frame = owl_response.frame
+            resized_frame = image_analysis.frame
 
         _, buffer = cv2.imencode(".jpg", resized_frame)
         decoded = base64.b64encode(buffer).decode("utf-8")
+        self.openai_goal["content"][0] = self.get_user_prompt() + self.history # for VLM
         self.openai_goal["content"][-1] = {"image": decoded}
+
         result = self.client.chat.completions.create(**self.openai_params)
         rawAssistant = result.choices[0].message.content
-        
         assistant = ResponseMessage.parse(rawAssistant)
-        self.store_image(resized_frame)
-        self.save_round(assistant, owl_response=owl_response)
 
-        return rawAssistant, assistant
+        resized_image_pil = utils.OpenCV2PIL(resized_frame)
+        self.store_image(resized_image_pil)
+        self.save_round(assistant)
 
-    def get_response_by_feedback(self, feedback, feedback_factor):
-        self.openai_goal_for_text["content"] = self.get_user_prompt() + self.history + f"\n\n# Feedback:{feedback}"
+        return assistant
+
+    def get_response_by_feedback(self, feedback):
+        self.openai_goal_for_text["content"] = self.get_user_prompt() + self.history + f"\n\n# Feedback: {feedback}"
         result = self.client.chat.completions.create(**self.openai_params_for_text)
         rawAssistant = result.choices[0].message.content
         assistant = ResponseMessage.parse(rawAssistant)
-        
-        self.save_round(assistant, feedback_factor)
 
-        return rawAssistant, assistant
+        self.store_image()
+        self.save_round(assistant, feedback)
+
+        return assistant
 
     def stt(self, voice_buffer):
         container = voice_buffer

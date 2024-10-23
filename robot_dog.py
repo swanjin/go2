@@ -1,22 +1,24 @@
+# robot_dog.py
 import signal
 import sys
 import time
 import os
-import sys
+import base64
 import threading
 import queue
 from pathlib import Path
 import glob
 
+from PIL import Image
 import cv2
-
 robot_interface_path = os.path.join(Path(__file__).parent, 'robot_interface/lib/python/x86_64')
 sys.path.append(robot_interface_path)
 import robot_interface as sdk
 
-from vision_owl import OWLDepthModel
-from ai_controller import AiController
+from vision import VisionModel
+from ai_selector import AiSelector
 from ai_client_base import AiClientBase, ResponseMessage
+import utils
 from recorder import SpeechByEnter
 
 class Dog:
@@ -29,11 +31,24 @@ class Dog:
         self.stop_thread1 = False
         self.stop_thread2 = False
         self.capture: cv2.VideoCapture
-        self.ai_client = AiController.getClient(env, apikey[env["ai"]])
-        self.owl_depth_model = OWLDepthModel(env)
+        self.ai_client = AiSelector.getClient(env, apikey[env["ai"]])
+        self.vision_model = VisionModel(env)
         self.pause_by_trigger = False
         self.image_files = None  # To store image paths when using test_dataset
 
+        # Initialize the communication channel and the sport client
+        if self.env["connect_robot"]:
+            try:
+                chan = sdk.ChannelFactory.Instance()
+                chan.Init(0, self.env["network_interface"])
+            except Exception as e:
+                print(f"Error: Failed to initialize the connection with the robot. Please check the network interface name and ensure the robot is connected.")
+                print(f"Details: {e}")
+                return -1
+        
+            self.sport_client = sdk.SportClient(False) # True enables lease management to ensure exclusive robot control by one client
+            self.sport_client.SetTimeout(60.0)
+            self.sport_client.Init()
 
     def signal_handler(self, sig, frame):
         print("SIGINT received, stopping threads and shutting down...")
@@ -105,34 +120,39 @@ class Dog:
         Connect to the robot camera or use built-in camera.
         """
         print("- Connecting to camera")
+
+        # Ensure any previously opened capture is released to free the resource
+        if hasattr(self, 'capture') and self.capture is not None:
+            self.capture.release()  # Release the camera resource if it was previously used
+
         if self.env["connect_robot"]:
             gstreamer_str = self.env["robot_gstreamer"]  # Robot camera resolution: 1280x720
-            self.capture = cv2.VideoCapture(gstreamer_str, cv2.CAP_GSTREAMER)
+            self.capture = cv2.VideoCapture(gstreamer_str, cv2.CAP_GSTREAMER)        
         else:
             self.capture = cv2.VideoCapture(0)  # Built-in webcam
 
+            if not self.capture.isOpened():
+                print("Error: Failed to open the built-in camera. Possible causes:")
+                print("1) The built-in camera may be in use by another application. Close any other applications using the camera and try again.")
+                print("2) The camera resource might not have been properly released from a previous session.")
+
     def read_frame(self):
         """
-        Read frame from the camera or load an image from test_dataset.
+        Read a frame from the camera and return it as a PIL image in RGB format.
         Returns:
-            - frame (np.ndarray): The image/frame as a NumPy array
+            - frame: PIL image in RGB format, or None if an error occurs.
         """
-        if self.env["use_test_dataset"]:
-            # Read images from the test_dataset one by one
-            for image_file in self.image_files:
-                frame = cv2.imread(image_file)
-                if frame is None:
-                    print(f"Failed to load image {image_file}.")
-                    continue
-                yield frame
+        success, capture = self.capture.read()  # Capture a frame from the camera
+        if not success:
+            if self.env["connect_robot"]:
+                print("Failed to retrieve frame from robot camera. Possible causes:")
+                print("1) OpenCV without GStreamer support may have been prioritized.")
+                print("2) Network connection to the robot camera may have failed. Please check your LAN cable and try again.")
+            return None 
         else:
-            while True:
-                success, frame = self.capture.read()
-                time.sleep(3)
-                if not success:
-                    print("Failed to capture frame from camera.")
-                    break
-                yield frame  
+            image_cv = cv2.cvtColor(capture, cv2.COLOR_BGR2RGB)  # Convert to RGB
+            frame = Image.fromarray(image_cv)
+            return frame  # Return the captured frame as a PIL image
 
     def shutdown(self, force=False):
         print("Shutting down the robot dog...")
@@ -156,58 +176,70 @@ class Dog:
         print("All threads have been terminated and resources have been released.")
 
     def queryGPT_for_vision_test(self):
-        for i, frame in enumerate(self.read_frame()):
+        for i in range(self.env["max_round"]):
             if not self.env["use_test_dataset"] and i >= self.env["max_round"]: # If camera capture is used, it stops after a maximum number of rounds. This limit doesn't apply to test images.
                 break
+            frame = self.read_frame()
 
-            rawAssistant = self.ai_client.gpt_vision_test(frame)
-            print(rawAssistant)
+            print(f"Round #{i+1}")
+            assistant = self.ai_client.gpt_vision_test(frame)
+            action_parsed = assistant.action.strip('* ').lower()
+            print(action_parsed)
+            print(assistant.reason)
 
         self.stop_thread1 = True
 
     def queryGPT_by_LLM(self):
         confused_pause = False
-        for i, frame in enumerate(self.read_frame()):
-            if not self.env["use_test_dataset"] and i >= self.env["max_round"]: # If camera capture is used, it stops after a maximum number of rounds. This limit doesn't apply to test images.
-                break
-
-            # print(f"current action #{i}")
-            if not self.feedback_start.empty() or confused_pause: # block till feedback query ends
-                confused_pause = False
-                self.feedback_start.get() # Since the feedback_start queue is not empty, the get() method removes an item from the queue
-                self.feedback_end.get() # Since the feedback_end queue is empty until the feedback query ends, the get() method on this queue blocks the execution of the code. When the feedback query ends, an item is placed into the feedback_end queue via feedback_end.put(1). This action makes the feedback_end queue non-empty, allowing the get() method to remove the item from the queue. Once the item is removed, the blocking ends, and the remaining code can be executed.
-            
-            # Query GPT
-            if not self.feedback_start.empty(): # non-blocking; an example of blocking: input()
-                continue
-            if not self.env["connect_gpt"]:
-                self.ai_client.vision_model_test(frame)
-                print("Assumed GPT answered")
-            else:
-                if self.env["useVLM"]:
-                    rawAssistant, assistant = self.ai_client.get_response_by_image(frame)
-                else:
-                    rawAssistant, assistant = self.ai_client.get_response_by_LLM(frame)
-
-                if not self.feedback_start.empty(): # non-blocking
-                    continue
-                print(assistant.action)
-                print(assistant.reason)
-
-                if assistant.action == "Pause":
-                    print("Go2) I'm confused. Please help me.")
-                    print("Press Enter to start and finish giving your feedback.")
-                    confused_pause = True
-                    self.pause_by_trigger = True
-                    continue
-
-                if not self.feedback_start.empty(): # non-blocking
-                    continue
-                self.activate_sportclient(assistant.action)
-                if self.env["tts"]:
-                    self.ai_client.tts(assistant.action)
+        if self.env["use_test_dataset"]:
+            for i, image_file in enumerate(self.image_files):  # Iterate over the loaded image files
+                print(f"Round #{i+1}")
+                image_cv = cv2.cvtColor(cv2.imread(image_file), cv2.COLOR_BGR2RGB)
+                frame = Image.fromarray(image_cv)
+                self.process_frame(frame, confused_pause)  # Process each frame
+        else:
+            for i in range(self.env["max_round"]):
+                frame = self.read_frame()  # Read from the camera
+                print(f"Round #{i+1}")
+                self.process_frame(frame, confused_pause)  # Process each frame
 
         self.stop_thread1 = True
+
+    def process_frame(self, frame, confused_pause):
+        if not self.feedback_start.empty() or confused_pause: # block till feedback query ends
+            confused_pause = False
+            self.feedback_start.get() # Since the feedback_start queue is not empty, the get() method removes an item from the queue
+            self.feedback_end.get() # Since the feedback_end queue is empty until the feedback query ends, the get() method on this queue blocks the execution of the code. When the feedback query ends, an item is placed into the feedback_end queue via feedback_end.put(1). This action makes the feedback_end queue non-empty, allowing the get() method to remove the item from the queue. Once the item is removed, the blocking ends, and the remaining code can be executed.
+
+        # Query GPT
+        if not self.feedback_start.empty(): # non-blocking; an example of blocking: input()
+            return
+
+        if not self.env["connect_gpt"]:
+            self.ai_client.vision_model_test(frame)
+            print("Assumed GPT answered")
+        else:
+            if self.env["useVLM"]:
+                assistant = self.ai_client.get_response_by_image(frame)
+            else:
+                assistant = self.ai_client.get_response_by_LLM(frame)
+
+            if assistant.action == "Pause":
+                print("Go2) I'm confused. Please help me.")
+                print("Press Enter to start and finish giving your feedback.")
+                confused_pause = True
+                self.pause_by_trigger = True
+                return  # Exit the frame processing and wait for feedback
+
+            if not self.feedback_start.empty():
+                return
+            action_parsed = assistant.action.strip('* ').lower()
+            print(action_parsed)
+            print(assistant.reason)
+            if self.env["tts"]:
+                self.ai_client.tts(action_parsed)
+            
+            self.activate_sportclient(action_parsed)
 
     def user_input(self):
         if self.env["speechable"]:
@@ -230,60 +262,48 @@ class Dog:
             if not self.env["connect_gpt"]:
                 print("Assumed GPT answered")
             else:
-                rawAssistant, assistant = self.ai_client.get_response_by_feedback(feedback, self.pause_by_trigger)
-                print(rawAssistant)
+                assistant = self.ai_client.get_response_by_feedback(feedback)
+                action_parsed = assistant.action.strip('* ').lower()
+                print(action_parsed)
+                print(assistant.reason)
                 self.activate_sportclient(assistant.action)
                 if self.env["tts"]:
                     self.ai_client.tts(assistant.reason)
                 self.pause_by_trigger = False
                 self.feedback_end.put(1)
 
+    def VelocityMove(self, vx, vy, vyaw, elapsed_time = 1, dt = 0.01):
+        for i in range(int(elapsed_time / dt)):
+            self.sport_client.Move(vx, vy, vyaw)
+            time.sleep(dt)
+        for i in range(int(elapsed_time / dt)):
+            self.sport_client.StopMove()
+            time.sleep(dt)
+
     def activate_sportclient(self, ans):
-        # if len(sys.argv) < 2:
-        #     print(f"Usage: {sys.argv[0]} networkInterface")
-        #     return -1
-        
-        # Assuming that the ChannelFactory and Init methods are properly bound in Python
-        # sdk.ChannelFactory.Instance().Init(0, sys.argv[1])
-        
         if not self.env["connect_robot"]:
             print("Assumed action executed: " + ans)
-            time.sleep(5)
             return 0
         else: 
-            chan = sdk.ChannelFactory.Instance()
-            chan.Init(0, "enp58s0")
-
-            # Initialize the sport client, assuming the translated classes have the same functionality
-            sport_client = sdk.SportClient(False)
-            sport_client.SetTimeout(10.0)
-            sport_client.Init()
-            
-            ans = ans.strip().lower()
             if ans == 'move forward':
-                sport_client.Move(5, 0, 0) 
+                self.VelocityMove(1, 0, 0) 
             elif ans == 'move backward':
-                sport_client.Move(-2.5, 0, 0) 
+                self.VelocityMove(-1, 0, 0) 
             elif ans == 'shift right':
-                sport_client.Move(0, -1, 0) 
+                self.VelocityMove(0, -0.5, 0) 
             elif ans == 'shift left':
-                sport_client.Move(0, 1, 0) 
+                self.VelocityMove(0, 0.5, 0) 
             elif ans == 'turn right':
-                sport_client.Move(0, 0, -2) # rotate right 0.5 sec: 1.57 radian = 90 degree/sec w/ horizontal angle of view of 100 degrees
-                # time.sleep(1)
-                # sport_client.Move(0, 0, 3)
-                # sport_client.Move(0, -0.02, -0.09)
+                self.VelocityMove(0, 0, -1.04) # 1.04 radian = 60 degree/sec w/ horizontal angle of view of 100 degrees
             elif ans == 'turn left':
-                sport_client.Move(0, 0, 2) # rotate left
+                self.VelocityMove(0, 0, 1.04)
             elif ans == 'stop':
-                sport_client.StopMove()
+                self.sport_client.StopMove()
             elif ans == 'pause':
-                sport_client.StopMove()
+                self.sport_client.StopMove()
             else:
                 print("Action not recognized: " + ans)
-                # sport_client.StopMove()  # stop 
 
-            #time.sleep(2.5)
             return 0
 
     def run_gpt(self):
