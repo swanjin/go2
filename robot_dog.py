@@ -47,7 +47,7 @@ class Dog:
                 return -1
         
             self.sport_client = sdk.SportClient(False) # True enables lease management to ensure exclusive robot control by one client
-            self.sport_client.SetTimeout(60.0)
+            self.sport_client.SetTimeout(600.0)
             self.sport_client.Init()
 
     def signal_handler(self, sig, frame):
@@ -183,8 +183,7 @@ class Dog:
 
             print(f"Round #{i+1}")
             assistant = self.ai_client.gpt_vision_test(frame)
-            action_parsed = assistant.action.strip('* ').lower()
-            print(action_parsed)
+            print(assistant.action)
             print(assistant.reason)
 
         self.stop_thread1 = True
@@ -233,13 +232,12 @@ class Dog:
 
             if not self.feedback_start.empty():
                 return
-            action_parsed = assistant.action.strip('* ').lower()
-            print(action_parsed)
+            print(assistant.action)
             print(assistant.reason)
             if self.env["tts"]:
-                self.ai_client.tts(action_parsed)
+                self.ai_client.tts(assistant.action)
             
-            self.activate_sportclient(action_parsed)
+            self.activate_sportclient(assistant.action, int(assistant.step))
 
     def user_input(self):
         if self.env["speechable"]:
@@ -263,12 +261,11 @@ class Dog:
                 print("Assumed GPT answered")
             else:
                 assistant = self.ai_client.get_response_by_feedback(feedback)
-                action_parsed = assistant.action.strip('* ').lower()
-                print(action_parsed)
+                print(assistant.action)
                 print(assistant.reason)
-                self.activate_sportclient(assistant.action)
+                self.activate_sportclient(assistant.action, int(assistant.step))
                 if self.env["tts"]:
-                    self.ai_client.tts(assistant.reason)
+                    self.ai_client.tts(assistant.action)
                 self.pause_by_trigger = False
                 self.feedback_end.put(1)
 
@@ -280,29 +277,31 @@ class Dog:
             self.sport_client.StopMove()
             time.sleep(dt)
 
-    def activate_sportclient(self, ans):
+    def activate_sportclient(self, ans, step):
         if not self.env["connect_robot"]:
             print("Assumed action executed: " + ans)
             return 0
         else: 
-            if ans == 'move forward':
-                self.VelocityMove(1, 0, 0) 
-            elif ans == 'move backward':
-                self.VelocityMove(-1, 0, 0) 
-            elif ans == 'shift right':
-                self.VelocityMove(0, -0.5, 0) 
-            elif ans == 'shift left':
-                self.VelocityMove(0, 0.5, 0) 
-            elif ans == 'turn right':
-                self.VelocityMove(0, 0, -1.04) # 1.04 radian = 60 degree/sec w/ horizontal angle of view of 100 degrees
-            elif ans == 'turn left':
-                self.VelocityMove(0, 0, 1.04)
-            elif ans == 'stop':
+            if step == 0:
                 self.sport_client.StopMove()
-            elif ans == 'pause':
-                self.sport_client.StopMove()
-            else:
-                print("Action not recognized: " + ans)
+            else: 
+                for i in range(step):
+                    if ans == 'move forward':
+                        self.VelocityMove(0.5, 0, 0) 
+                    elif ans == 'move backward':
+                        self.VelocityMove(-0.5, 0, 0) 
+                    elif ans == 'shift right':
+                        self.VelocityMove(0, -0.2, 0) 
+                    elif ans == 'shift left':
+                        self.VelocityMove(0, 0.2, 0)
+                    elif ans == "turn right":
+                        self.VelocityMove(0, 0, -1.04) # 1.04 radian = 60 degree/sec w/ horizontal angle of view of 100 degrees
+                    elif ans == "turn left":
+                        self.VelocityMove(0, 0.5, 0)
+                        #elif ans == 'pause':
+                            #self.sport_client.StopMove()
+                    else:
+                        print("Action not recognized: " + ans)
 
             return 0
 
