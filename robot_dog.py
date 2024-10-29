@@ -26,15 +26,16 @@ class Dog:
         signal.signal(signal.SIGINT, self.signal_handler)
 
         self.env = env
-        self.feedback_start = queue.Queue(maxsize=1)
-        self.feedback_end = queue.Queue(maxsize=1)
-        self.stop_thread1 = False
-        self.stop_thread2 = False
+        # self.feedback_start = queue.Queue(maxsize=1)
+        # self.feedback_end = queue.Queue(maxsize=1)
+        # self.stop_thread1 = False
+        # self.stop_thread2 = False
         self.capture: cv2.VideoCapture
         self.ai_client = AiSelector.getClient(env, apikey[env["ai"]])
         self.vision_model = VisionModel(env)
         self.pause_by_trigger = False
         self.image_files = None  # To store image paths when using test_dataset
+        self.feedback = None
 
         # Initialize the communication channel and the sport client
         if self.env["connect_robot"]:
@@ -116,9 +117,6 @@ class Dog:
             self.connect_camera()
 
     def connect_camera(self):
-        """
-        Connect to the robot camera or use built-in camera.
-        """
         print("- Connecting to camera")
 
         # Ensure any previously opened capture is released to free the resource
@@ -156,15 +154,15 @@ class Dog:
 
     def shutdown(self, force=False):
         print("Shutting down the robot dog...")
-        self.stop_thread1 = True
-        self.stop_thread2 = True
+        # self.stop_thread1 = True
+        # self.stop_thread2 = True
         
-        # Wait for thread termination (wait for threads that were signaled to stop by the flag)
-        if not force:
-            if hasattr(self, 'thread1') and self.thread1.is_alive():
-                self.thread1.join()
-            if hasattr(self, 'thread2') and self.thread2.is_alive():
-                self.thread2.join()
+        # # Wait for thread termination (wait for threads that were signaled to stop by the flag)
+        # if not force:
+        #     if hasattr(self, 'thread1') and self.thread1.is_alive():
+        #         self.thread1.join()
+        #     if hasattr(self, 'thread2') and self.thread2.is_alive():
+        #         self.thread2.join()
         
         # Release resources
         # Close camera if capture exists
@@ -190,29 +188,38 @@ class Dog:
 
     def queryGPT_by_LLM(self):
         confused_pause = False
+
         if self.env["use_test_dataset"]:
-            for i, image_file in enumerate(self.image_files):  # Iterate over the loaded image files
+            for i, image_file in enumerate(self.image_files):
                 print(f"Round #{i+1}")
                 image_cv = cv2.cvtColor(cv2.imread(image_file), cv2.COLOR_BGR2RGB)
                 frame = Image.fromarray(image_cv)
-                self.process_frame(frame, confused_pause)  # Process each frame
+                self.process_frame(frame, confused_pause)
         else:
             for i in range(self.env["max_round"]):
                 frame = self.read_frame()  # Read from the camera
-                print(f"Round #{i+1}")
-                self.process_frame(frame, confused_pause)  # Process each frame
+                print(f"\nRound #{i+1}")
 
-        self.stop_thread1 = True
+                if (i + 1) % self.env["feedback_interval"] == 0:
+                    print("Go2) Would you give any feedback? [Y/n]")
+                    if input("User) ").strip().lower() == "y":
+                        print("Go2) Thanks for your help! Please provide your feedback.")
+                        self.feedback = input("User) ")
 
-    def process_frame(self, frame, confused_pause):
-        if not self.feedback_start.empty() or confused_pause: # block till feedback query ends
-            confused_pause = False
-            self.feedback_start.get() # Since the feedback_start queue is not empty, the get() method removes an item from the queue
-            self.feedback_end.get() # Since the feedback_end queue is empty until the feedback query ends, the get() method on this queue blocks the execution of the code. When the feedback query ends, an item is placed into the feedback_end queue via feedback_end.put(1). This action makes the feedback_end queue non-empty, allowing the get() method to remove the item from the queue. Once the item is removed, the blocking ends, and the remaining code can be executed.
+                self.process_frame(frame, confused_pause, self.feedback)
+                self.feedback = None
 
-        # Query GPT
-        if not self.feedback_start.empty(): # non-blocking; an example of blocking: input()
-            return
+        # self.stop_thread1 = True
+
+    def process_frame(self, frame, confused_pause, feedback):
+        # if not self.feedback_start.empty() or confused_pause: # block till feedback query ends
+        #     confused_pause = False
+        #     self.feedback_start.get() # Since the feedback_start queue is not empty, the get() method removes an item from the queue
+        #     self.feedback_end.get() # Since the feedback_end queue is empty until the feedback query ends, the get() method on this queue blocks the execution of the code. When the feedback query ends, an item is placed into the feedback_end queue via feedback_end.put(1). This action makes the feedback_end queue non-empty, allowing the get() method to remove the item from the queue. Once the item is removed, the blocking ends, and the remaining code can be executed.
+
+        # # Query GPT
+        # if not self.feedback_start.empty(): # non-blocking; an example of blocking: input()
+        #     return
 
         if not self.env["connect_gpt"]:
             self.ai_client.vision_model_test(frame)
@@ -221,7 +228,7 @@ class Dog:
             if self.env["useVLM"]:
                 assistant = self.ai_client.get_response_by_image(frame)
             else:
-                assistant = self.ai_client.get_response_by_LLM(frame)
+                assistant = self.ai_client.get_response_by_LLM(frame, feedback)
 
             if assistant.action == "Pause":
                 print("Go2) I'm confused. Please help me.")
@@ -230,8 +237,8 @@ class Dog:
                 self.pause_by_trigger = True
                 return  # Exit the frame processing and wait for feedback
 
-            if not self.feedback_start.empty():
-                return
+            # if not self.feedback_start.empty():
+            #     return
             print(assistant.action)
             print(assistant.reason)
             if self.env["tts"]:
@@ -307,16 +314,18 @@ class Dog:
             return 0
 
     def run_gpt(self):
-        if self.env["gpt_vision_test"]:
-            self.thread1 = threading.Thread(target=self.queryGPT_for_vision_test, daemon=True)
-        else:
-            self.thread1 = threading.Thread(target=self.queryGPT_by_LLM, daemon=True)
-        self.thread1.start()
-        self.thread2 = threading.Thread(target=self.queryGPT_with_feedback, daemon=True)
-        self.thread2.start()
+        self.queryGPT_by_LLM()
+        
+        # if self.env["gpt_vision_test"]:
+        #     self.thread1 = threading.Thread(target=self.queryGPT_for_vision_test, daemon=True)
+        # else:
+        #     self.thread1 = threading.Thread(target=self.queryGPT_by_LLM, daemon=True)
+        # self.thread1.start()
+        # self.thread2 = threading.Thread(target=self.queryGPT_with_feedback, daemon=True)
+        # self.thread2.start()
 
-        while True:
-            time.sleep(0.1)
-            if self.stop_thread1 and self.stop_thread2:
-                print("All threads have ended.")
-                break
+        # while True:
+        #     time.sleep(0.1)
+        #     if self.stop_thread1 and self.stop_thread2:
+        #         print("All threads have ended.")
+        #         break

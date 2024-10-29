@@ -117,39 +117,6 @@ Step: If there is feedback, interpret the feedback to determine the step. If the
         image.save(image_path)
         # print(f"Image saved to {image_path}")
 
-    # def save_round(self, assistant, history, feedback=None, feedback_factor=None, image_analysis=None):
-    #     self.history_log_file.write(f"======= image{len(self.round_list)+1} =======\n")
-        
-    #     if image_analysis:
-    #         self.history_log_file.write(f"Image Analysis:\n {image_analysis.description}\n")
-    #     else: 
-    #         self.history_log_file.write(f"Image Analysis:\n None\n")
-
-    #     if feedback:
-    #         self.history_log_file.write(f"Feedback:\n {feedback}\n")
-    #     else:
-    #         self.history_log_file.write(f"Feedback:\n None\n")  # This prevents logging False
-
-    #     self.history_log_file.write(f"Response:\n Action) {assistant.action}\n Reason) {assistant.reason}\n\n")
-    #     self.history_log_file.flush()
-
-    #     self.round_list.append(Round(len(self.round_list) + 1, assistant, history, feedback, feedback_factor, image_analysis))
-        
-    #     if (len(self.round_list) == 1):
-    #         history = "# History"
-    #     else:
-    #         # pauseText = "by trigger" if feedback_factor else "by voluntary"
-    #         feedbackText = f"The user provided feedback: {feedback}."
-    #         history += (
-    #             f"\nRound {len(self.round_list)}: "
-    #             f"{feedbackText if feedback is not None else ''} "
-    #             f"From the position {assistant.curr_position}, "
-    #             f"{image_analysis.description if image_analysis is not None else ''} "
-    #             f"The detection likelihood score for this position was {assistant.likelihood}. "
-    #             f"You executed the '{assistant.action}' action and updated the position to {assistant.new_position}. "
-    #             f"The rationale behind this action you told me was: '{assistant.reason}'"
-    #         )
-
     def close(self):
         pass
 

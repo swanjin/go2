@@ -64,26 +64,31 @@ class OpenaiClient(AiClientBase):
 
     def set_target(self, target):
         self.target = target
-        self.openai_goal["content"][0] = self.get_user_prompt() + "\n# History: \n" + "None"
+        self.openai_goal["content"][0] = self.get_user_prompt() + "\n# History: \n None."
 
     def save_round(self, assistant=None, feedback=None, feedback_factor=None, image_analysis=None):
         # Update history.log
         self.history_log_file.write(f"======= image{len(self.round_list)+1} =======\n")
         
         if image_analysis is None or image_analysis.description == '':
-            self.history_log_file.write(f"Image Analysis:\n None\n")
+            self.history_log_file.write(f"Image Analysis: \n None. \n")
         else: 
-            self.history_log_file.write(f"Image Analysis:\n {image_analysis.description}\n")
+            self.history_log_file.write(f"Image Analysis: \n{image_analysis.description} \n")
 
         if feedback:
-            self.history_log_file.write(f"Feedback:\n {feedback}\n")
-        else:
-            self.history_log_file.write(f"Feedback:\n None\n")  # This prevents logging False
-        
+            self.history_log_file.write(f"Feedback: \n {feedback} \n")
+
         if assistant is None:
-            self.history_log_file.write(f"Response:\n None\n")  # This prevents logging False
+            self.history_log_file.write(f"Response: \n None.")  # This prevents logging False
         else:
-            self.history_log_file.write(f"Response:\n Action) {assistant.action}\n Reason) {assistant.reason}\n Likelihood) {assistant.likelihood}\n Step) {assistant.step}\n\n")
+            self.history_log_file.write(
+                f"Response: \n"
+                f"Action) {assistant.action} \n"
+                f"Reason) {assistant.reason} \n"
+                f"Likelihood) {assistant.likelihood} \n"
+                f"Step) {assistant.step} \n\n"
+            )
+
             self.history_log_file.flush()
 
             # Update history for prompt
@@ -91,10 +96,10 @@ class OpenaiClient(AiClientBase):
             feedbackText = f"The user provided feedback: {feedback}."
             round_number = len(self.round_list)
             image_description = image_analysis.description if image_analysis is not None else ''
-            self.history = self.history if round_number > 1 else "# History"
+            self.history = self.history if round_number > 1 else "# History: \n"
 
             self.history += (
-                f"\nRound {round_number}: "
+                f"Round {round_number}: "
                 f"{feedbackText if feedback is not None else ''} "
                 f"From the position {assistant.curr_position}, "
                 f"{image_description} "
@@ -119,19 +124,29 @@ class OpenaiClient(AiClientBase):
 
         return assistant
 
-    def get_response_by_LLM(self, image_pil):
+    def get_response_by_LLM(self, image_pil, feedback):
         image_analysis = self.vision_model.describe_image(image_pil)
-
-        # Ensure self.history is initialized if not already
-        if self.history is None or self.env["use_test_dataset"]:
-            self.history = "# History \nNone."  # Initialize the history if it's missing
 
         if image_analysis.description == "":
             image_description_text = "No objects detected in the image."
         else:
             image_description_text = image_analysis.description
-        # prompt input
-        self.openai_goal_for_text["content"] = f"{self.get_user_prompt()}\n \n# Image analysis (The image size is {self.env['captured_width']}x{self.env['captured_height']}, with the coordinate (0, 0) located at the top-left corner.)\n{image_description_text}\n \n{self.history}"
+
+        # Ensure self.history is initialized if not already
+        if self.history is None or self.env["use_test_dataset"]:
+            self.history = "None."  # Initialize the history if it's missing
+
+        if feedback is None:
+            feedback = "None." 
+
+        # input prompt
+        self.openai_goal_for_text["content"] = (
+            f"{self.get_user_prompt()}"
+            f"\n\n# Image analysis (The image size is {self.env['captured_width']}x{self.env['captured_height']}, with the coordinate (0, 0) located at the top-left corner.): \n{image_description_text}"
+            f"\n\n# History: \n{self.history}"
+            f"\n\n# Feedback: \n{feedback}"
+        )
+        
         if self.env["print_history"]:
             print(self.history)
             
@@ -139,8 +154,12 @@ class OpenaiClient(AiClientBase):
         rawAssistant = result.choices[0].message.content
         assistant = ResponseMessage.parse(rawAssistant)
         
-        self.store_image(image_analysis.frame)
-        self.save_round(assistant, image_analysis=image_analysis)
+        if feedback == "None.":
+            self.store_image(image_analysis.frame)
+        else:
+            self.store_image()
+
+        self.save_round(assistant, feedback, image_analysis=image_analysis)
 
         return assistant
 
