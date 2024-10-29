@@ -83,7 +83,7 @@ class OpenaiClient(AiClientBase):
         if assistant is None:
             self.history_log_file.write(f"Response:\n None\n")  # This prevents logging False
         else:
-            self.history_log_file.write(f"Response:\n Action) {assistant.action}\n Reason) {assistant.reason}\n\n")
+            self.history_log_file.write(f"Response:\n Action) {assistant.action}\n Reason) {assistant.reason}\n Likelihood) {assistant.likelihood}\n Step) {assistant.step}\n\n")
             self.history_log_file.flush()
 
             # Update history for prompt
@@ -102,6 +102,7 @@ class OpenaiClient(AiClientBase):
                 f"You executed the '{assistant.action}' action and updated the position to {assistant.new_position}. "
                 f"The rationale behind this action you told me was: '{assistant.reason}'"
             )
+            # self.history += "None"
 
     def vision_model_test(self, image_pil):
         image_analysis = self.vision_model.describe_image(image_pil)
