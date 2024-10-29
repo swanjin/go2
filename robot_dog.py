@@ -284,24 +284,25 @@ class Dog:
         else: 
             if step == 0:
                 self.sport_client.StopMove()
-            else: 
-                for i in range(step):
-                    if ans == 'move forward':
+            else:
+                if ans == 'move forward':  
+                    for i in range(step):
                         self.VelocityMove(0.5, 0, 0) 
-                    elif ans == 'move backward':
+                elif ans == 'move backward':
+                    for i in range(step):
                         self.VelocityMove(-0.5, 0, 0) 
-                    elif ans == 'shift right':
-                        self.VelocityMove(0, -0.2, 0) 
-                    elif ans == 'shift left':
-                        self.VelocityMove(0, 0.2, 0)
-                    elif ans == "turn right":
-                        self.VelocityMove(0, 0, -1.04) # 1.04 radian = 60 degree/sec w/ horizontal angle of view of 100 degrees
-                    elif ans == "turn left":
-                        self.VelocityMove(0, 0.5, 0)
-                        #elif ans == 'pause':
-                            #self.sport_client.StopMove()
-                    else:
-                        print("Action not recognized: " + ans)
+                elif ans == 'shift right':
+                    self.VelocityMove(0, -0.5, 0) 
+                elif ans == 'shift left':
+                    self.VelocityMove(0, 0.5, 0)
+                elif ans == "turn right":
+                    self.VelocityMove(0, 0, -1.04) # 1.04 radian = 60 degree/sec w/ horizontal angle of view of 100 degrees
+                elif ans == "turn left":
+                    self.VelocityMove(0, 0.5, 0)
+                #elif ans == 'pause':
+                    #self.sport_client.StopMove()
+                else:
+                    print("Action not recognized: " + ans)
 
             return 0
 
