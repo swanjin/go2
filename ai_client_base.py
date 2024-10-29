@@ -3,6 +3,7 @@ from dataclasses import dataclass, field, asdict
 import datetime
 from PIL import Image
 import os
+import re
 
 import utils
 
@@ -33,9 +34,8 @@ class AiClientBase:
 You start at (0, 0, 0). One unit shift in x or y corresponds to 0.5 meters. 
 
 Here is the action dictionary, formatted as 'action name: (x shift, y shift, clockwise rotation)':
-- 'stop': (0, 0, 0)
-- 'pause': (0, 0, 0)
-- 'move forward': (0, 1, 0) 
+
+- 'move forward': (0, 0.5, 0) 
 - 'move backward': (0, -0.5, 0) 
 - 'shift right': (1, 0, 0) 
 - 'shift left': (-1, 0, 0) 
@@ -49,10 +49,7 @@ Here is the action dictionary, formatted as 'action name: (x shift, y shift, clo
 2. Target Alignment:
 - If the x-coordinate of at least one detected target is within the middle third of the image (i.e., x-coordinates between {self.env['captured_width']*(1/3)} and {self.env['captured_width']*(2/3)}), adjust your y-coordinate to move closer to that target. 
 - If no targets are within this middle range, adjust your x-coordinate to center the detected target within your field of view. For example, if the target is in the left third of the image, 'shift left' to bring it closer to the center. On the other hand, if the target is in the right third of the image, 'shift right' to center it.
-3. Stopping Condition:
-- If the distance to at least one detected target in the middle third of the image is less than the defined stop distance (i.e., {self.env['stop_hurdle_meter']} meters), execute the "stop" action.
-- If all targets in the middle third are at or beyond the stop distance, do not execute the "stop" action.
-4. Handling Invisible Targets:
+3. Handling Invisible Targets:
 - If the target becomes invisible:
 -- First, explore all possible orientations at the current x and y coordinates before moving to new ones. Use the following orientations: 0°, 60°, 120°, 180°, 240°, 300°.
 -- Refer to the search history to avoid revisiting orientations that have already been explored without success.
@@ -83,6 +80,7 @@ Likelihood: If the target status is 'Visible', set likelihood to 100. If not, as
 Action: The exact action name in the action dictionary you choose by considering all the instructions.
 New Position: Updated tuple (x, y, orientation) after the action.
 Reason: Explain your choice in one concise sentence by mentioning which instructions affected your decision.
+Step: If there is feedback, interpret the feedback to determine the step. If the distance to at least of one detected targets in the middle third of the image is less than the defined stop distance (i.e., {self.env['stop_hurdle_meter']} meters), execute the step = 0. If the distance is between {self.env['stop_hurdle_meter']} and 1.70 meters, execute step = 1, if the distance is between 1.70 meters and 2.3 meters, excute step = 2, else execute step = 3. If the target status is 'Invisible', exectute step = 1.
 """
 
     def set_target(self, target):
@@ -163,19 +161,32 @@ class ResponseMessage:
     action: str
     new_position: str
     reason: str
+    step: str
 
     @staticmethod
     def parse(message: str):
         try:
             # Filter out lines that do not contain ':' and strip empty spaces
             parts = [line.split(":", 1)[1].strip() for line in message.split('\n') if ':' in line and len(line.strip()) > 0]
-            if len(parts) != 6:
-                raise ValueError("Message does not contain exactly six parts")
-            curr_position, target, likelihood, action, new_position, reason = parts
+            if len(parts) != 7:
+                raise ValueError("Message does not contain exactly seven parts")
+            curr_position, target, likelihood, action, new_position, reason, step = parts
+            print(step)
+            step = re.findall(r'\d', step)
+            if step:
+                step = int(''.join(step))
+            else:
+                print("No Step.")
+            if step == 0:
+                action = "stop"
+            if step == None:
+                step = 1
+            action = action.replace("** ", "").strip()
+            print(ResponseMessage(curr_position, target, likelihood, action, new_position, reason, step))
         except Exception as e:
             print("parse failed. Message: ", message, "\nError: ", e)
             return ResponseMessage()
-        return ResponseMessage(curr_position, target, likelihood, action, new_position, reason)
+        return ResponseMessage(curr_position, target, likelihood, action, new_position, reason, step)
     
     def to_dict(self):
         return asdict(self)

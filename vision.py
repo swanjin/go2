@@ -212,8 +212,8 @@ class VisionModel:
                 cv2.rectangle(image_array, (int(x1), int(y1)), (int(x2), int(y2)), (0, 0, 255), 1)
                 org = (int(x1), int(y1) - 10 if y1 - 10 > 10 else int(y1) + 10)
                 font = cv2.FONT_HERSHEY_SIMPLEX
-                # cv2.putText(frame, f"{labels[i]}: {average_depths[i]:.1f}m", org, font, 0.5, (255, 255, 255), 1)
-                cv2.putText(image_array, f"{labels[i]}: {scores[i]:.1f}", org, font, 0.5, (255, 255, 255), 1)
+                # cv2.putText(frame, f"{labels[i]}: {average_depths[i]:.1f}m", org, font, 0.5, (0, 0, 255), 1)
+                cv2.putText(image_array, f"{labels[i]}: {scores[i]:.1f}", org, font, 0.5, (0, 0, 255), 1)
 
         # Return VisionResponse with the frame and the combined description
         return VisionResponse(image_array, "\n".join(description))
