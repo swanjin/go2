@@ -77,10 +77,12 @@ Here is the action dictionary, formatted as 'action name: (x shift, y shift, clo
 Current Position: Tuple (x, y, orientation) before the action.
 Target Status: If any target is detected in the image analysis of this round, not those of previous rounds in the history, mark 'Visible'; otherwise, 'Invisible.'
 Likelihood: If the target status is 'Visible', set likelihood to 100. If not, assign a score from 0-100 based on how likely the target is to be near detected objects or environments, considering contextual correlations.
-Action: The exact action name in the action dictionary you choose by considering all the instructions.
+Action: If the # Feedback section has the comment "None.", select the precise action name from the action dictionary based on all given instructions. If there are additional comments in the # Feedback section (anything other than "None."), interpret the feedback to determine all action names. If there's one action in feedback, execute the exact action name in the action dictionary. If there's two or more actions in feedback, execute the exact action names with comma in order. (ex. Feedback: move forward 3 times and turn right 2 times ----> execute: move forward, turn right).
 New Position: Updated tuple (x, y, orientation) after the action.
 Reason: Explain your choice in one concise sentence by mentioning which instructions affected your decision.
-Step: If there is feedback, interpret the feedback to determine the step. If the distance to at least of one detected targets in the middle third of the image is less than the defined stop distance (i.e., {self.env['stop_hurdle_meter']} meters), execute the step = 0. If the distance is between {self.env['stop_hurdle_meter']} and 1.70 meters, execute step = 1, if the distance is between 1.70 meters and 2.3 meters, excute step = 2, else execute step = 3. If the target status is 'Invisible', exectute step = 1.
+Move: If there is feedback, interpret the feedback to only determine the number of move for "move forward" or "move backward". If you think there's no feedback for number of move, execute 0. If there's no feedback and the distance to at least of one detected targets in the middle third of the image is less than the defined stop distance (i.e., {self.env['stop_hurdle_meter']} meters), execute the step = 0. If the distance is between {self.env['stop_hurdle_meter']} and 1.70 meters, execute step = 1, if the distance is between 1.70 meters and 2.3 meters, excute step = 2, else execute step = 3. If the target status is 'Invisible', exectute step = 1.
+Shift: If there is feedback, interpret the feedback to only determine the number of shift for "shift left" or "shift right". If you think there's no feedback for number of shift, execute 0. If there's no feedback, execute shift = 1.
+Turn: If there is feedback, interpret the feedback to only determine the number of move for "turn right" or turn left". If you think there's no feedback for number of turn, execute 0. If there's no feedback, execute turn = 1.
 """
 
     def set_target(self, target):
@@ -128,32 +130,48 @@ class ResponseMessage:
     action: str
     new_position: str
     reason: str
-    step: str
+    move: str
+    shift: str
+    turn: str
+
+    def parse_step(x: str):
+        x = re.findall(r'\d', x)
+        if x:
+            x = int(''.join(x))
+        else:
+            print("No " + x)
+        return x
+    
+    def parse_action(action: str):
+        actions = [act.strip() for act in action.split('.')]
 
     @staticmethod
     def parse(message: str):
         try:
             # Filter out lines that do not contain ':' and strip empty spaces
             parts = [line.split(":", 1)[1].strip() for line in message.split('\n') if ':' in line and len(line.strip()) > 0]
-            if len(parts) != 7:
-                raise ValueError("Message does not contain exactly seven parts")
-            curr_position, target, likelihood, action, new_position, reason, step = parts
-            print(step)
-            step = re.findall(r'\d', step)
-            if step:
-                step = int(''.join(step))
-            else:
-                print("No Step.")
-            if step == 0:
+            if len(parts) != 9:
+                raise ValueError("Message does not contain exactly nine parts")
+            curr_position, target, likelihood, action, new_position, reason, move, shift, turn = parts
+            
+            # parse action
+            action = ResponseMessage.parse_action(action)
+
+            # parse step
+            print(move, shift, turn)
+            move = ResponseMessage.parse_step(move)
+            shift = ResponseMessage.parse_step(shift)
+            turn = ResponseMessage.parse_step(turn)
+            print(move, shift, turn)
+            
+            total_step = move + shift + turn
+            if total_step == 0:
                 action = "stop"
-            if step == None:
-                step = 1
-            action = action.replace("** ", "").strip()
-            print(ResponseMessage(curr_position, target, likelihood, action, new_position, reason, step))
+            print(ResponseMessage(curr_position, target, likelihood, action, new_position, reason, move, shift, turn))
         except Exception as e:
             print("parse failed. Message: ", message, "\nError: ", e)
             return ResponseMessage()
-        return ResponseMessage(curr_position, target, likelihood, action, new_position, reason, step)
+        return ResponseMessage(curr_position, target, likelihood, action, new_position, reason, move, shift, turn)
     
     def to_dict(self):
         return asdict(self)
