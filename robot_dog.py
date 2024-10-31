@@ -185,7 +185,7 @@ class Dog:
             print(assistant.reason)
 
         self.stop_thread1 = True
-
+        
     def queryGPT_by_LLM(self):
         confused_pause = False
 
@@ -229,14 +229,14 @@ class Dog:
                 assistant = self.ai_client.get_response_by_image(frame)
             else:
                 assistant = self.ai_client.get_response_by_LLM(frame, feedback)
-
+            """
             if assistant.action == "Pause":
                 print("Go2) I'm confused. Please help me.")
                 print("Press Enter to start and finish giving your feedback.")
                 confused_pause = True
                 self.pause_by_trigger = True
                 return  # Exit the frame processing and wait for feedback
-
+            """
             # if not self.feedback_start.empty():
             #     return
             print(assistant.action)
@@ -244,7 +244,7 @@ class Dog:
             if self.env["tts"]:
                 self.ai_client.tts(assistant.action)
             
-            self.activate_sportclient(assistant.action, int(assistant.step))
+            self.activate_sportclient(assistant.action, int(assistant.move), int(assistant.shift), int(assistant.turn))
 
     def user_input(self):
         if self.env["speechable"]:
@@ -270,7 +270,7 @@ class Dog:
                 assistant = self.ai_client.get_response_by_feedback(feedback)
                 print(assistant.action)
                 print(assistant.reason)
-                self.activate_sportclient(assistant.action, int(assistant.step))
+                self.activate_sportclient(assistant.action, int(assistant.move), int(assistant.shift), int(assistant.turn))
                 if self.env["tts"]:
                     self.ai_client.tts(assistant.action)
                 self.pause_by_trigger = False
@@ -284,33 +284,37 @@ class Dog:
             self.sport_client.StopMove()
             time.sleep(dt)
 
-    def activate_sportclient(self, ans, step):
+    def activate_sportclient(self, action, move, shift, turn):
         if not self.env["connect_robot"]:
             print("Assumed action executed: " + ans)
             return 0
         else: 
-            if step == 0:
+            if move + shift + turn == 0:
                 self.sport_client.StopMove()
             else:
-                if ans == 'move forward':  
-                    for i in range(step):
-                        self.VelocityMove(0.5, 0, 0) 
-                elif ans == 'move backward':
-                    for i in range(step):
-                        self.VelocityMove(-0.5, 0, 0) 
-                elif ans == 'shift right':
-                    self.VelocityMove(0, -0.5, 0) 
-                elif ans == 'shift left':
-                    self.VelocityMove(0, 0.5, 0)
-                elif ans == "turn right":
-                    self.VelocityMove(0, 0, -1.04) # 1.04 radian = 60 degree/sec w/ horizontal angle of view of 100 degrees
-                elif ans == "turn left":
-                    self.VelocityMove(0, 0.5, 0)
-                #elif ans == 'pause':
-                    #self.sport_client.StopMove()
-                else:
-                    print("Action not recognized: " + ans)
-
+                for ans in action:
+                    if ans == 'move forward':  
+                        for i in range(move):
+                            self.VelocityMove(0.5, 0, 0)
+                    elif ans == 'move backward':
+                        for i in range(move):
+                            self.VelocityMove(-0.5, 0, 0)
+                    elif ans == 'shift right':
+                        for i in range(shift):
+                            self.VelocityMove(0, -0.5, 0) 
+                    elif ans == 'shift left':
+                        for i in range(shift):
+                            self.VelocityMove(0, 0.5, 0)
+                    elif ans == "turn right":
+                        for i in range(turn):
+                            self.VelocityMove(0, 0, -1.04) # 1.04 radian = 60 degree/sec w/ horizontal angle of view of 100 degrees
+                    elif ans == "turn left":
+                        for i in range(turn):
+                            self.VelocityMove(0, 0, 1.04)
+                    #elif ans == 'pause':
+                        #self.sport_client.StopMove()
+                    else:
+                        print("Action not recognized: " + ans)
             return 0
 
     def run_gpt(self):

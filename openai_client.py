@@ -86,7 +86,9 @@ class OpenaiClient(AiClientBase):
                 f"Action) {assistant.action} \n"
                 f"Reason) {assistant.reason} \n"
                 f"Likelihood) {assistant.likelihood} \n"
-                f"Step) {assistant.step} \n\n"
+                f"Move) {assistant.move} \n"
+                f"Shift) {assistant.shift} \n"
+                f"Turn) {assistant.turn} \n\n"
             )
 
             self.history_log_file.flush()
@@ -137,8 +139,8 @@ class OpenaiClient(AiClientBase):
             self.history = "None."  # Initialize the history if it's missing
 
         if feedback is None:
-            feedback = "None." 
-
+            feedback = "None."
+        
         # input prompt
         self.openai_goal_for_text["content"] = (
             f"{self.get_user_prompt()}"
@@ -146,7 +148,7 @@ class OpenaiClient(AiClientBase):
             f"\n\n# History: \n{self.history}"
             f"\n\n# Feedback: \n{feedback}"
         )
-        
+        print(self.openai_goal_for_text["content"])
         if self.env["print_history"]:
             print(self.history)
             
@@ -205,12 +207,13 @@ class OpenaiClient(AiClientBase):
 		)
         return transcription.text
 
-    def tts(self,reason):
+    def tts(self, reason):
         CHUNK = 1024
+        sentence = " then ".join(reason)
         with self.client.with_streaming_response.audio.speech.create(
         model="tts-1",
         voice="alloy",
-        input=reason,
+        input=sentence,
         response_format= "wav"
         ) as response:
             container = io.BytesIO(response.read())
