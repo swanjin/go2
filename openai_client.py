@@ -64,7 +64,7 @@ class OpenaiClient(AiClientBase):
 
     def set_target(self, target):
         self.target = target
-        self.openai_goal["content"][0] = self.get_user_prompt() + "\n# History: \n None."
+        # self.openai_goal["content"][0] = self.get_user_prompt() + "\n# History: \n None."
 
     def save_round(self, assistant=None, feedback=None, feedback_factor=None, image_analysis=None):
         # Update history.log
@@ -97,7 +97,7 @@ class OpenaiClient(AiClientBase):
             self.round_list.append(Round(len(self.round_list) + 1, assistant, feedback, feedback_factor))
             feedbackText = f"The user provided feedback: {feedback}."
             round_number = len(self.round_list)
-            image_description = image_analysis.description if image_analysis is not None else ''
+            image_description = image_analysis.description if image_analysis is not None else 'Nothing detected.'
             self.history = self.history if round_number > 1 else "# History: \n"
 
             self.history += (
@@ -105,9 +105,9 @@ class OpenaiClient(AiClientBase):
                 f"{feedbackText if feedback is not None else ''} "
                 f"From the position {assistant.curr_position}, "
                 f"{image_description} "
-                f"The detection likelihood score for this position was {assistant.likelihood}. "
-                f"You executed the '{assistant.action}' action and updated the position to {assistant.new_position}. "
-                f"The rationale behind this action you told me was: '{assistant.reason}'"
+                f"The likelihood of targer presence at this position was {assistant.likelihood}. "
+                f"You executed the '{assistant.action}' action which led to the updated position of {assistant.new_position}. "
+                f"The rationale behind this action you told me was: '{assistant.reason}' \n"
             )
             # self.history += "None"
 
@@ -126,7 +126,7 @@ class OpenaiClient(AiClientBase):
 
         return assistant
 
-    def get_response_by_LLM(self, image_pil, feedback):
+    def get_response_by_LLM(self, image_pil, dog_instance, feedback = None):
         image_analysis = self.vision_model.describe_image(image_pil)
 
         if image_analysis.description == "":
@@ -134,32 +134,46 @@ class OpenaiClient(AiClientBase):
         else:
             image_description_text = image_analysis.description
 
-        # Ensure self.history is initialized if not already
         if self.history is None or self.env["use_test_dataset"]:
-            self.history = "None."  # Initialize the history if it's missing
+            self.history = "# History:\n None."
 
         if feedback is None:
             feedback = "None."
         
         # input prompt
         self.openai_goal_for_text["content"] = (
-            f"{self.get_user_prompt()}"
-            f"\n\n# Image analysis (The image size is {self.env['captured_width']}x{self.env['captured_height']}, with the coordinate (0, 0) located at the top-left corner.): \n{image_description_text}"
-            f"\n\n# History: \n{self.history}"
-            f"\n\n# Feedback: \n{feedback}"
+            f"{self.get_user_prompt()}\n\n"
+            f"# Image analysis (The image size is {self.env['captured_width']}x{self.env['captured_height']}, with the coordinate (0, 0) located at the top-left corner.):\n {image_description_text} \n\n"
+            f"# History:\n {self.history}\n\n"
+            f"# Feedback:\n {feedback}"
         )
-        print(self.openai_goal_for_text["content"])
+        
         if self.env["print_history"]:
             print(self.history)
-            
+
+        # Check for feedback interruption early in the function
+        if dog_instance.check_feedback_and_interruption():
+            dog_instance.round_number += 1  # Increment round number before returning
+            return None  # Early exit on interruption
+
         result = self.client.chat.completions.create(**self.openai_params_for_text)
         rawAssistant = result.choices[0].message.content
         assistant = ResponseMessage.parse(rawAssistant)
         
+        # Check for feedback interruption early in the function
+        if dog_instance.check_feedback_and_interruption():
+            dog_instance.round_number += 1 
+            return None  
+
         if feedback == "None.":
             self.store_image(image_analysis.frame)
         else:
             self.store_image()
+
+        # Check for feedback interruption early in the function
+        if dog_instance.check_feedback_and_interruption():
+            dog_instance.round_number += 1 
+            return None  
 
         self.save_round(assistant, feedback, image_analysis=image_analysis)
 

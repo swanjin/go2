@@ -55,15 +55,6 @@ Here is the action dictionary, formatted as 'action name: (x shift, y shift, clo
 -- Refer to the search history to avoid revisiting orientations that have already been explored without success.
 -- If all orientations at the current x and y coordinates have been explored without finding the target, choose the orientation with the highest likelihood of success based on historical data at that location. Revisit that orientation and continue exploring in that direction and its neighboring orientations.
 """ 
-# 발견한 이후, keep centered가 move forward보다 먼저하도록 명시 안해야, move forward하다가 시야에서 사라져서 사람 도움 필요한 failure 상황이 생김.
-# # Instructions
-# - Search for the target object. Use the image analysis and history to guide your decisions, and follow feedback to determine your action.
-# - If the x coodrinate of at least one detected target is in the middle of the image, that is, between {self.env['captured_width']*(1/3)} and {self.env['captured_width']*(2/3)}, adjust your y coordinates to move closer to it. If none of them is in the middle, adjust your x coordinates to center the detected target within your field of view.
-# - If the distance of at least one detected target in the middle is less than {self.env['stop_hurdle_meter']} meters, execute the 'Stop' action. If the distances to all detected targets in the middle are greater than or equal to {self.env['stop_hurdle_meter']} meters, avoid the 'Stop' action.
-# - If the target is invisible, first explore all possible orientations at the same x and y coordinates before moving to new ones. By referring to the history, avoid revisiting orientations already explored without success. If you have explored all possible orientations(0,60,120,180,240,300) at the same x and y coordinates without success, choose your action to revisit the orientation with the highest likelihood based on your history at that x and y coordinates. Once you reach that specific orientation, explore further in that direction and its neighboring ones.
-
-
-
 
     def get_user_prompt(self):
 #### Use w/ gpt_vsion_test() ####        
@@ -144,6 +135,7 @@ class ResponseMessage:
     
     def parse_action(action: str):
         actions = [act.strip() for act in action.split('.')]
+        return actions
 
     @staticmethod
     def parse(message: str):
@@ -158,16 +150,16 @@ class ResponseMessage:
             action = ResponseMessage.parse_action(action)
 
             # parse step
-            print(move, shift, turn)
+            # print(move, shift, turn)
             move = ResponseMessage.parse_step(move)
             shift = ResponseMessage.parse_step(shift)
             turn = ResponseMessage.parse_step(turn)
-            print(move, shift, turn)
+            # print(move, shift, turn)
             
             total_step = move + shift + turn
             if total_step == 0:
                 action = "stop"
-            print(ResponseMessage(curr_position, target, likelihood, action, new_position, reason, move, shift, turn))
+            # print(ResponseMessage(curr_position, target, likelihood, action, new_position, reason, move, shift, turn))
         except Exception as e:
             print("parse failed. Message: ", message, "\nError: ", e)
             return ResponseMessage()
@@ -175,32 +167,3 @@ class ResponseMessage:
     
     def to_dict(self):
         return asdict(self)
-
-
-
-
-# @dataclass
-# class ResponseMessage:
-#     fields: dict = field(default_factory=dict)
-    
-#     @staticmethod
-#     def parse(message: str):
-#         try:
-#             # Split message by lines and filter out any lines that do not contain ':' and strip empty spaces
-#             parts = [line.split(":", 1) for line in message.split('\n') if ':' in line and len(line.strip()) > 0]
-#             # Create a dictionary with dynamic keys and their corresponding values
-#             fields = {key.strip(): value.strip() for key, value in parts}
-#         except Exception as e:
-#             print("parse failed. Message: ", message, "\nError: ", e)
-#             return ResponseMessage()
-
-#         return ResponseMessage(fields)
-
-#     def to_dict(self):
-#         return asdict(self)
-    
-#     def get_field(self, field_name: str):
-#         return self.fields.get(field_name, None)
-
-#     def set_field(self, field_name: str, value: str):
-#         self.fields[field_name] = value
