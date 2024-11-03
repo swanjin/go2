@@ -24,7 +24,7 @@ class OpenaiClient(AiClientBase):
         self.client = OpenAI(api_key=key)
         self.env = env
         self.image_counter = 0
-        self.history = None
+        self.history = "None."
         self.vision_model = VisionModel(env)
 
         self.openai_prompt_messages = [
@@ -68,7 +68,7 @@ class OpenaiClient(AiClientBase):
         self.target = target
         # self.openai_goal["content"][0] = self.get_user_prompt() + "\n# History: \n None."
 
-    def save_round(self, assistant=None, feedback=None, feedback_factor=None, image_analysis=None):
+    def save_round(self, assistant=None, feedback=None, image_analysis=None):
         # Update history.log
         self.history_log_file.write(f"======= image{len(self.round_list)+1} =======\n")
         
@@ -95,24 +95,6 @@ class OpenaiClient(AiClientBase):
 
             self.history_log_file.flush()
 
-            # Update history for prompt
-            self.round_list.append(Round(len(self.round_list) + 1, assistant, feedback, feedback_factor))
-            feedbackText = f"The user provided feedback: {feedback}."
-            round_number = len(self.round_list)
-            image_description = image_analysis.description if image_analysis is not None else 'Nothing detected.'
-            self.history = self.history if round_number > 1 else "# History: \n"
-
-            self.history += (
-                f"Round {round_number}: "
-                f"{feedbackText if feedback is not None else ''} "
-                f"From the position {assistant.curr_position}, "
-                f"{image_description} "
-                f"The likelihood of targer presence at this position was {assistant.likelihood}. "
-                f"You executed the '{assistant.action}' action which led to the updated position of {assistant.new_position}. "
-                f"The rationale behind this action you told me was: '{assistant.reason}' \n"
-            )
-            # self.history += "None"
-
     def vision_model_test(self, image_pil):
         image_analysis = self.vision_model.describe_image(image_pil)
         self.store_image(image_analysis.frame)
@@ -128,6 +110,25 @@ class OpenaiClient(AiClientBase):
 
         return assistant
 
+    def update_history_prompt(self, assistant=None, feedback=None, image_analysis=None):
+        self.round_list.append(Round(len(self.round_list) + 1, assistant, feedback))
+        
+        feedbackText = f"The user provided feedback: {feedback}"
+        round_number = len(self.round_list)
+        image_description = image_analysis.description if image_analysis is not None else 'Nothing detected.'
+        
+        self.history = self.history if round_number > 1 else ""
+        self.history += (
+            f"Round {round_number}: "
+            f"{feedbackText if feedback is not None else ''} "
+            f"From the position {assistant.curr_position}, "
+            f"{image_description} "
+            f"The likelihood of targer presence at this position was {assistant.likelihood}. "
+            f"You executed the '{assistant.action}' action which led to the updated position of {assistant.new_position}. "
+            f"The rationale behind this action you told me was: '{assistant.reason}' \n"
+        )
+        # self.history += "None."
+
     def get_response_by_LLM(self, image_pil, dog_instance, feedback = None):
         image_analysis = self.vision_model.describe_image(image_pil)
 
@@ -136,8 +137,8 @@ class OpenaiClient(AiClientBase):
         else:
             image_description_text = image_analysis.description
 
-        if self.history is None or self.env["use_test_dataset"]:
-            self.history = "# History:\n None."
+        # if self.history is None or self.env["use_test_dataset"]:
+        #     self.history = "# History:\n None."
 
         if feedback is None:
             feedback = "None."
@@ -178,6 +179,7 @@ class OpenaiClient(AiClientBase):
             return None  
 
         self.save_round(assistant, feedback, image_analysis=image_analysis)
+        self.update_history_prompt(assistant, feedback, image_analysis=image_analysis)
 
         return assistant
 
