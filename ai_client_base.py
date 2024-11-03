@@ -64,7 +64,7 @@ Here is the action dictionary, formatted as 'action name: (x shift, y shift, clo
 # Confidence: If visible, provide how much you are sure that the detected object is the target based on the scale 0-100. Please output only the number.
 # Location: If visible, explain its location in the image in one concise short sentence.
 # """
-        return f"""Your target object is '{self.target}'. When you respond, follow the structued format:
+        return f"""Your target object is '{self.target}'. Ensure each response follows the following format precisely. Do not deviate. Before responding, verify that your output exactly matches the structured format.
 Current Position: Tuple (x, y, orientation) before the action.
 Target Status: If any target is detected in the image analysis of this round, not those of previous rounds in the history, mark 'Visible'; otherwise, 'Invisible.'
 Likelihood: If the target status is 'Visible', set likelihood to 100. If not, assign a score from 0-100 based on how likely the target is to be near detected objects or environments, considering contextual correlations.
