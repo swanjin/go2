@@ -37,11 +37,13 @@ class OpenaiClient(AiClientBase):
             "model": "gpt-4o",
             "messages": self.openai_prompt_messages,
             "max_tokens": 200,
+            "temperature": 0
         }
         self.openai_params_for_text = {
             "model": "gpt-4o",
             "messages": self.openai_prompt_messages_for_text,
             "max_tokens": 200,
+            "temperature": 0
         }
         self.openai_goal = {
             "role": "user",
