@@ -97,7 +97,6 @@ class Dog:
                 raise FileNotFoundError(f"No images found in folder {image_folder}")
             print(f"Loaded {len(self.image_files)} images from test_dataset.")
         else:
-            # Connect to camera
             self.connect_camera()
 
     def connect_camera(self):

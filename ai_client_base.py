@@ -14,18 +14,9 @@ class AiClientBase:
         self.image_counter = 0
         self.round_list = []
 
-        # try:
-        #     os.makedirs('test', exist_ok=True)
-        #     self.save_dir = f"test/test_{datetime.datetime.now().strftime('%Y%m%d%H%M%S')}"
-        #     os.mkdir(self.save_dir)
-        #     self.history_log_file = open(f"{self.save_dir}/history.log", "a+") # append: a+ overwrite: w+
-        # except Exception as e:
-        #     print(f"Failed to create directory: {e}")
-        
-        # self.target = None  # Initialize target to None
-
         #### Use w/ gpt_vsion_test() ####        
         # self.system_prompt = """You are Go2, a robot dog."""
+        
         self.system_prompt = f"""You are Go2, a robot dog. Your coordinates and orientation are represented by a position tuple (x, y, orientation), where x and y are your coordinates on a grid, and orientation describes your facing direction in degrees:
 - 0 degrees or 360 degrees means facing north (along the positive Y-axis).
 - 90 degrees or -270 degrees means facing east (along the positive X-axis).
@@ -71,7 +62,7 @@ Likelihood: If the target status is 'Visible', set likelihood to 100. If not, as
 Action: If the # Feedback section has the comment "None.", select the precise action name from the action dictionary based on all given instructions. If there are additional comments in the # Feedback section (anything other than "None."), interpret the feedback to determine all action names. If there's one action in feedback, execute the exact action name in the action dictionary. If there's two or more actions in feedback, execute the exact action names with comma in order. (ex. Feedback: move forward 3 times and turn right 2 times ----> execute: move forward, turn right).
 New Position: Updated tuple (x, y, orientation) after the action.
 Reason: Explain your choice in one concise sentence by mentioning which instructions affected your decision.
-Move: If there is feedback, interpret the feedback to only determine the number of move for "move forward" or "move backward". If you think there's no feedback for number of move, execute 0. If there's no feedback and the distance to at least of one detected targets in the middle third of the image is less than the defined stop distance (i.e., {self.env['stop_hurdle_meter']} meters), execute the step = 0. If the distance is between {self.env['stop_hurdle_meter']} and 1.70 meters, execute step = 1, if the distance is between 1.70 meters and 2.3 meters, excute step = 2, else execute step = 3. If the target status is 'Invisible', exectute step = 1.
+Move: If there is feedback, interpret the feedback to only determine the number of move for "move forward" or "move backward". If you think there's no feedback for number of move, execute 0. If there's no feedback and the distance to at least of one detected targets in the middle third of the image is less than the defined stop distance (i.e., {self.env['stop_hurdle_meter']} meters), execute the step = 0. If the distance is between {self.env['stop_hurdle_meter']} and 1.70 meters, execute step = 1, if the distance is between 1.70 meters and 2.3 meters, execute step = 2, else execute step = 3. If the target status is 'Invisible', execute step = 1.
 Shift: If there is feedback, interpret the feedback to only determine the number of shift for "shift left" or "shift right". If you think there's no feedback for number of shift, execute 0. If there's no feedback, execute shift = 1.
 Turn: If there is feedback, interpret the feedback to only determine the number of move for "turn right" or turn left". If you think there's no feedback for number of turn, execute 0. If there's no feedback, execute turn = 1.
 """
