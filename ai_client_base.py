@@ -59,12 +59,23 @@ Here is the action dictionary, formatted as 'action name: (x shift, y shift, clo
 Current Position: Tuple (x, y, orientation) before the action.
 Target Status: If any target is detected in the image analysis of this round, not those of previous rounds in the history, mark 'Visible'; otherwise, 'Invisible.'
 Likelihood: If the target status is 'Visible', set likelihood to 100. If not, assign a score from 0-100 based on how likely the target is to be near detected objects or environments, considering contextual correlations.
-Action: If the # Feedback section has the comment "None.", select the precise action name from the action dictionary based on all given instructions. If there are additional comments in the # Feedback section (anything other than "None."), interpret the feedback to determine all action names. If there's one action in feedback, execute the exact action name in the action dictionary. If there's two or more actions in feedback, execute the exact action names with comma in order. (ex. Feedback: move forward 3 times and turn right 2 times ----> execute: move forward, turn right).
+Action: 
+1. If the # Feedback section has the comment "None.", select the precise action name from the action dictionary based on all given instructions. \n
+2. If there are additional comments in the # Feedback section (anything other than "None."), interpret the feedback to determine all action names. \n
+A. If there's one action in feedback, execute the exact action name in the action dictionary. \n
+B. If there's two or more actions in feedback, execute the exact action names with comma in order. For example, if there's feedback "move forward 2 times and turn right 1 times", only execute "move forward", "turn right". Do not execute "move forward", "move forward", "turn right" (execute duplicate actions only once).
 New Position: Updated tuple (x, y, orientation) after the action.
 Reason: Explain your choice in one concise sentence by mentioning which instructions affected your decision.
-Move: If there is feedback, interpret the feedback to only determine the number of move for "move forward" or "move backward". If you think there's no feedback for number of move, execute 0. If there's no feedback and the distance to at least of one detected targets in the middle third of the image is less than the defined stop distance (i.e., {self.env['stop_hurdle_meter']} meters), execute the step = 0. If the distance is between {self.env['stop_hurdle_meter']} and 1.70 meters, execute step = 1, if the distance is between 1.70 meters and 2.3 meters, execute step = 2, else execute step = 3. If the target status is 'Invisible', execute step = 1.
-Shift: If there is feedback, interpret the feedback to only determine the number of shift for "shift left" or "shift right". If you think there's no feedback for number of shift, execute 0. If there's no feedback, execute shift = 1.
-Turn: If there is feedback, interpret the feedback to only determine the number of move for "turn right" or turn left". If you think there's no feedback for number of turn, execute 0. If there's no feedback, execute turn = 1.
+Move: 
+1. If there are additional comments in the # Feedback section (anything other than "None."), interpret the feedback to only determine the number of move for "move forward" or "move backward" (ex. feedback: "move forward 2 times" -----> execute move = 2). If there's no mention for "move forward" or "move backward" in feedback section, execute 1. \n
+2. If the # Feedback section has the comment "None." and the distance to at least of one detected targets in the middle third of the image is less than the defined stop distance (i.e., {self.env['stop_hurdle_meter']} meters), execute the move = 0. If the distance is between {self.env['stop_hurdle_meter']} and 1.70 meters, execute move = 1, if the distance is between 1.70 meters and 2.3 meters, excute move = 2, else execute move = 3. If the target status is 'Invisible', exectute move = 0.
+Shift: 
+1. If there are additional comments in the # Feedback section (anything other than "None."), interpret the feedback to only determine the number of shift for "shift left" or "shift right". (ex. feedback: "shift left 2 times" -----> execute shift = 2) 
+If there's no mention for "shift left" or "shift right" in feedback section, execute 1. \n
+2. If the # Feedback section has the comment "None.", execute shift = 1.
+Turn: 
+1. If there are additional comments in the # Feedback section (anything other than "None."), interpret the feedback to only determine the number of move for "turn right" or turn left". (ex. feedback: "turn right 2 times" -----> execute turn = 2) If there's no mention for "turn right" or "turn left" in feedback, execute 1. \n
+2. If the # Feedback section has the comment "None.", execute turn = 1.
 """
 
     def set_target(self, target):
@@ -109,7 +120,7 @@ class ResponseMessage:
     curr_position: str
     target: str
     likelihood: str
-    action: str
+    action: list
     new_position: str
     reason: str
     move: str
@@ -125,7 +136,7 @@ class ResponseMessage:
         return x
     
     def parse_action(action: str):
-        actions = [act.strip() for act in action.split('.')]
+        actions = [act.strip() for act in action.split(',')]
         return actions
 
     @staticmethod

@@ -113,7 +113,7 @@ class OpenaiClient(AiClientBase):
     def update_history_prompt(self, assistant=None, feedback=None, image_analysis=None):
         self.round_list.append(Round(len(self.round_list) + 1, assistant, feedback))
         
-        feedbackText = f"The user provided feedback: {feedback}"
+        feedbackText = f"The user provided feedback: {feedback}."
         round_number = len(self.round_list)
         image_description = image_analysis.description if image_analysis is not None else 'Nothing detected.'
         
@@ -141,7 +141,7 @@ class OpenaiClient(AiClientBase):
         #     self.history = "# History:\n None."
 
         if feedback is None:
-            feedback = "None."
+            feedback = "None"
         
         # input prompt
         self.openai_goal_for_text["content"] = (
@@ -150,14 +150,19 @@ class OpenaiClient(AiClientBase):
             f"# History:\n {self.history}\n\n"
             f"# Feedback:\n {feedback}"
         )
-        
+
+        # Check for feedback interruption early in the function
+        if dog_instance.check_feedback_and_interruption():
+            dog_instance.round_number += 1
+            return None
+
         if self.env["print_history"]:
             print(self.history)
 
         # Check for feedback interruption early in the function
         if dog_instance.check_feedback_and_interruption():
-            dog_instance.round_number += 1  # Increment round number before returning
-            return None  # Early exit on interruption
+            dog_instance.round_number += 1
+            return None
 
         result = self.client.chat.completions.create(**self.openai_params_for_text)
         rawAssistant = result.choices[0].message.content
@@ -206,13 +211,22 @@ class OpenaiClient(AiClientBase):
         return assistant
 
     def get_response_by_feedback(self, feedback):
-        self.openai_goal_for_text["content"] = self.get_user_prompt() + self.history + f"\n\n# Feedback: {feedback}"
+        self.openai_goal_for_text["content"] = (
+            f"{self.get_user_prompt()}\n\n"
+            f"# History:\n {self.history}\n\n"
+            f"# Feedback:\n {feedback}."
+        )
+        
+        if self.env["print_history"]:
+            print(self.history)
+        
         result = self.client.chat.completions.create(**self.openai_params_for_text)
         rawAssistant = result.choices[0].message.content
         assistant = ResponseMessage.parse(rawAssistant)
 
         self.store_image()
         self.save_round(assistant, feedback)
+        self.update_history_prompt(assistant, feedback)
 
         return assistant
 
@@ -225,14 +239,17 @@ class OpenaiClient(AiClientBase):
 		)
         return transcription.text
 
-    def join_response(self, response):
-        if len(response) == 1:
-            return response[0]
-        return " then ".join(response)
+    def parse_action_tts(self, action):
+        sentence = " then ".join(action)
+        return sentence
 
-    def tts(self, response):
+    def tts(self, text):
         CHUNK = 1024
-        
+        if not isinstance(text, list):
+            text = text
+        else:
+            text = self.parse_action_tts(text)
+
         # Open `/dev/null` and redirect `stderr` to it at the OS level
         devnull = os.open(os.devnull, os.O_WRONLY)
         original_stderr = os.dup(2)  # Save original `stderr` file descriptor
@@ -242,7 +259,7 @@ class OpenaiClient(AiClientBase):
             with self.client.with_streaming_response.audio.speech.create(
             model="tts-1",
             voice="alloy",
-            input=self.join_response(response),
+            input = text,
             response_format= "wav"
             ) as response:
                 container = io.BytesIO(response.read())
