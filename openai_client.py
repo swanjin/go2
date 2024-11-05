@@ -225,27 +225,44 @@ class OpenaiClient(AiClientBase):
 		)
         return transcription.text
 
-    def tts(self, reason):
-        CHUNK = 1024
-        sentence = " then ".join(reason)
-        with self.client.with_streaming_response.audio.speech.create(
-        model="tts-1",
-        voice="alloy",
-        input=sentence,
-        response_format= "wav"
-        ) as response:
-            container = io.BytesIO(response.read())
-            with wave.open(container) as wf:
-                p = pyaudio.PyAudio()
-                stream = p.open(format=p.get_format_from_width(wf.getsampwidth()),
-                                channels=wf.getnchannels(),
-                                rate=wf.getframerate(),
-                                output=True)
+    def join_response(self, response):
+        if len(response) == 1:
+            return response[0]
+        return " then ".join(response)
 
-                while len(data := wf.readframes(CHUNK)): 
-                    stream.write(data)
-                stream.close()
-                p.terminate()
+    def tts(self, response):
+        CHUNK = 1024
+        
+        # Open `/dev/null` and redirect `stderr` to it at the OS level
+        devnull = os.open(os.devnull, os.O_WRONLY)
+        original_stderr = os.dup(2)  # Save original `stderr` file descriptor
+        os.dup2(devnull, 2)          # Redirect `stderr` to `/dev/null`
+
+        try:
+            with self.client.with_streaming_response.audio.speech.create(
+            model="tts-1",
+            voice="alloy",
+            input=self.join_response(response),
+            response_format= "wav"
+            ) as response:
+                container = io.BytesIO(response.read())
+                with wave.open(container) as wf:
+                    p = pyaudio.PyAudio()
+                    stream = p.open(format=p.get_format_from_width(wf.getsampwidth()),
+                                    channels=wf.getnchannels(),
+                                    rate=wf.getframerate(),
+                                    output=True)
+
+                    while len(data := wf.readframes(CHUNK)): 
+                        stream.write(data)
+                    stream.close()
+                    p.terminate()
+
+        finally:
+            # Restore original `stderr` and close `/dev/null`
+            os.dup2(original_stderr, 2)
+            os.close(devnull)
+            os.close(original_stderr)
 
     def close(self):
         self.history_log_file.close()
