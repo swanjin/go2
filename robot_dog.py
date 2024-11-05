@@ -173,7 +173,6 @@ class Dog:
         return False  # No interruption, proceed with the current task   
 
     def queryGPT_by_LLM(self):
-
         if self.env["use_test_dataset"]:
             for i, image_file in enumerate(self.image_files):
                 print(f"Round #{i+1}")
@@ -211,7 +210,7 @@ class Dog:
                             continue  # Skip to the next round if interrupted
             
                     if self.check_feedback_and_interruption():
-                        self.round_number += 1  # Increment round number before continuing
+                        self.round_number += 1
                         continue
 
                     print(assistant.action)
@@ -295,28 +294,23 @@ class Dog:
             if move + shift + turn == 0:
                 self.sport_client.StopMove()
             else:
+                action_map = {
+                    'move forward': (0.5, 0, 0),
+                    'move backward': (-0.5, 0, 0),
+                    'shift right': (0, -0.5, 0),
+                    'shift left': (0, 0.5, 0),
+                    'turn right': (0, 0, -1.04),
+                    'turn left': (0, 0, 1.04)
+                }
+                
                 for ans in action:
-                    if ans == 'move forward':  
-                        for i in range(move):
-                            self.VelocityMove(0.5, 0, 0)
-                    elif ans == 'move backward':
-                        for i in range(move):
-                            self.VelocityMove(-0.5, 0, 0)
-                    elif ans == 'shift right':
-                        for i in range(shift):
-                            self.VelocityMove(0, -0.5, 0) 
-                    elif ans == 'shift left':
-                        for i in range(shift):
-                            self.VelocityMove(0, 0.5, 0)
-                    elif ans == "turn right":
-                        for i in range(turn):
-                            self.VelocityMove(0, 0, -1.04) # 1.04 radian = 60 degree/sec w/ horizontal angle of view of 100 degrees
-                    elif ans == "turn left":
-                        for i in range(turn):
-                            self.VelocityMove(0, 0, 1.04)
+                    if ans in action_map:
+                        velocity = action_map[ans]
+                        for _ in range(move if 'move' in ans else shift if 'shift' in ans else turn):
+                            self.VelocityMove(*velocity)
                     else:
                         print("Action not recognized: " + ans)
-            return 0
+        return 0
 
     def run_gpt(self):
         # self.queryGPT_by_LLM()
