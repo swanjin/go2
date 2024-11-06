@@ -115,7 +115,7 @@ class OpenaiClient(AiClientBase):
         
         feedbackText = f"The user provided feedback: {feedback}."
         round_number = len(self.round_list)
-        image_description = image_analysis.description if image_analysis is not None else 'Nothing detected.'
+        image_description = image_analysis.description if not image_analysis.description == "" else "No objects detected in the image."
         
         self.history = self.history if round_number > 1 else ""
         self.history += (
@@ -123,7 +123,7 @@ class OpenaiClient(AiClientBase):
             f"{feedbackText if feedback is not None else ''} "
             f"From the position {assistant.curr_position}, "
             f"{image_description} "
-            f"The likelihood of targer presence at this position was {assistant.likelihood}. "
+            f"The likelihood of target presence at this position was {assistant.likelihood}. "
             f"You executed the '{assistant.action}' action which led to the updated position of {assistant.new_position}. "
             f"The rationale behind this action you told me was: '{assistant.reason}' \n"
         )
@@ -132,11 +132,19 @@ class OpenaiClient(AiClientBase):
     def get_response_by_LLM(self, image_pil, dog_instance, feedback = None):
         image_analysis = self.vision_model.describe_image(image_pil)
 
-        if image_analysis.description == "":
+        # if image_analysis.description == "":
+        #     image_description_text = "No objects detected in the image."
+        # else:
+        #     image_description_text = image_analysis.description
+
+        ## Test likelihood for invisible cases
+        if image_analysis.description == "" and not dog_instance.round_number == 2:
             image_description_text = "No objects detected in the image."
+        elif image_analysis.description == "" and dog_instance.round_number == 2:
+            image_description_text = "You detected refrigerator at coordinates (640, 360) with a distance of 5 meters."
         else:
             image_description_text = image_analysis.description
-
+        
         # if self.history is None or self.env["use_test_dataset"]:
         #     self.history = "# History:\n None."
 
@@ -158,7 +166,7 @@ class OpenaiClient(AiClientBase):
 
         if self.env["print_history"]:
             print(self.history)
-
+        
         # Check for feedback interruption early in the function
         if dog_instance.check_feedback_and_interruption():
             dog_instance.round_number += 1
