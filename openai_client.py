@@ -68,14 +68,14 @@ class OpenaiClient(AiClientBase):
         self.target = target
         # self.openai_goal["content"][0] = self.get_user_prompt() + "\n# History: \n None."
 
-    def save_round(self, assistant=None, feedback=None, image_analysis=None):
+    def save_round(self, image_description_text, feedback, assistant=None):
         # Update history.log
         self.history_log_file.write(f"======= image{len(self.round_list)+1} =======\n")
         
-        if image_analysis is None or image_analysis.description == '':
+        if image_description_text == "No objects detected in the image.":
             self.history_log_file.write(f"Image Analysis: \n None. \n")
         else: 
-            self.history_log_file.write(f"Image Analysis: \n{image_analysis.description} \n")
+            self.history_log_file.write(f"Image Analysis: \n{image_description_text} \n")
 
         if feedback:
             self.history_log_file.write(f"Feedback: \n {feedback} \n")
@@ -110,19 +110,15 @@ class OpenaiClient(AiClientBase):
 
         return assistant
 
-    def update_history_prompt(self, assistant=None, feedback=None, image_analysis=None):
-        self.round_list.append(Round(len(self.round_list) + 1, assistant, feedback))
-        
-        feedbackText = f"The user provided feedback: {feedback}."
+    def update_history_prompt(self, image_description_text, feedback, assistant=None):
+        self.round_list.append(Round(len(self.round_list) + 1, assistant, feedback))      
         round_number = len(self.round_list)
-        image_description = image_analysis.description if not image_analysis.description == "" else "No objects detected in the image."
         
         self.history = self.history if round_number > 1 else ""
         self.history += (
-            f"Round {round_number}: "
-            f"{feedbackText if feedback is not None else ''} "
-            f"From the position {assistant.curr_position}, "
-            f"{image_description} "
+            f"- Round {round_number}: "
+            f"The user provided feedback: {feedback} "
+            f"From the position {assistant.curr_position}, {image_description_text} "
             f"The likelihood of target presence at this position was {assistant.likelihood}. "
             f"You executed the '{assistant.action}' action which led to the updated position of {assistant.new_position}. "
             f"The rationale behind this action you told me was: '{assistant.reason}' \n"
@@ -149,7 +145,7 @@ class OpenaiClient(AiClientBase):
         #     self.history = "# History:\n None."
 
         if feedback is None:
-            feedback = "None"
+            feedback = "None."
         
         # input prompt
         self.openai_goal_for_text["content"] = (
@@ -175,7 +171,7 @@ class OpenaiClient(AiClientBase):
         result = self.client.chat.completions.create(**self.openai_params_for_text)
         rawAssistant = result.choices[0].message.content
         assistant = ResponseMessage.parse(rawAssistant)
-        
+
         # Check for feedback interruption early in the function
         if dog_instance.check_feedback_and_interruption():
             dog_instance.round_number += 1 
@@ -191,8 +187,8 @@ class OpenaiClient(AiClientBase):
             dog_instance.round_number += 1 
             return None  
 
-        self.save_round(assistant, feedback, image_analysis=image_analysis)
-        self.update_history_prompt(assistant, feedback, image_analysis=image_analysis)
+        self.save_round(image_description_text, feedback, assistant)
+        self.update_history_prompt(image_description_text, feedback, assistant)
 
         return assistant
 
