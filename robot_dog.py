@@ -220,7 +220,7 @@ class Dog:
                     
                     self.activate_sportclient(assistant.action, int(assistant.move), int(assistant.shift), int(assistant.turn))
                 self.feedback = None
-                print(f"Round {self.round_number} completed\n")
+                print(f"Round {self.round_number} completed.\n")
                 self.round_number += 1
             
             print("All rounds completed. Press Enter to end session.")
