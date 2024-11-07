@@ -147,7 +147,7 @@ class ResponseMessage:
             if len(parts) != 9:
                 raise ValueError("Message does not contain exactly nine parts")
             curr_position, target, likelihood, action, new_position, reason, move, shift, turn = parts
-            
+            print(curr_position)
             # parse action
             action = ResponseMessage.parse_action(action)
 
