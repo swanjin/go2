@@ -110,7 +110,7 @@ class OpenaiClient(AiClientBase):
 
         return assistant
 
-    def update_history_prompt(self, image_description_text, feedback, assistant=None):
+    def update_history_prompt(self, assistant, feedback, image_description_text=None):
         self.round_list.append(Round(len(self.round_list) + 1, assistant, feedback))      
         round_number = len(self.round_list)
         
@@ -188,7 +188,7 @@ class OpenaiClient(AiClientBase):
             return None  
 
         self.save_round(image_description_text, feedback, assistant)
-        self.update_history_prompt(image_description_text, feedback, assistant)
+        self.update_history_prompt(assistant, feedback, image_description_text)
 
         return assistant
 
@@ -227,10 +227,11 @@ class OpenaiClient(AiClientBase):
         result = self.client.chat.completions.create(**self.openai_params_for_text)
         rawAssistant = result.choices[0].message.content
         assistant = ResponseMessage.parse(rawAssistant)
+        print(assistant.curr_position)
 
         self.store_image()
         self.save_round(assistant, feedback)
-        self.update_history_prompt(assistant, feedback)
+        self.update_history_prompt(assistant, feedback=feedback)
 
         return assistant
 
