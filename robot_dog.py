@@ -70,7 +70,11 @@ class Dog:
         if self.env["use_test_dataset"]:
             target = self.env["target_in_test_dataset"]
         else:
-            print("Go2) Hello! I am Go2, the robot dog. What would you like me to search for?")
+            print("Go2) Hello! I am Go2, the robot dog. What can I help you find?")
+            hello = "Hello! I am Go2, the robot dog. What can I help you find?"
+            if self.env["tts"]:
+                self.ai_client.tts(hello)
+
             if self.env["speechable"]:
                 self.speech = SpeechByEnter()
                 self.speech.setup()
@@ -80,6 +84,9 @@ class Dog:
             else:
                 target = input("User) ")
             print("Go2) Understood! Initiating search now.")
+            start = "Understood! Initiating search now."
+            if self.env["tts"]:
+                self.ai_client.tts(start)
 
         self.setup_input_source(target)
         self.ai_client.set_target(target)
