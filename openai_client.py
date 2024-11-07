@@ -150,9 +150,9 @@ class OpenaiClient(AiClientBase):
         # input prompt
         self.openai_goal_for_text["content"] = (
             f"{self.get_user_prompt()}\n\n"
-            f"# Image analysis (The image size is {self.env['captured_width']}x{self.env['captured_height']}, with the coordinate (0, 0) located at the top-left corner.):\n {image_description_text} \n\n"
+            f"# Image analysis at this round \n (The image size is {self.env['captured_width']}x{self.env['captured_height']}, with the coordinate (0, 0) located at the top-left corner.):\n {image_description_text} \n\n"
             f"# History:\n {self.history}\n\n"
-            f"# Feedback:\n {feedback}"
+            f"# Feedback at this round:\n {feedback}"
         )
 
         # Check for feedback interruption early in the function
