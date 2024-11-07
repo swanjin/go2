@@ -14,18 +14,9 @@ class AiClientBase:
         self.image_counter = 0
         self.round_list = []
 
-        # try:
-        #     os.makedirs('test', exist_ok=True)
-        #     self.save_dir = f"test/test_{datetime.datetime.now().strftime('%Y%m%d%H%M%S')}"
-        #     os.mkdir(self.save_dir)
-        #     self.history_log_file = open(f"{self.save_dir}/history.log", "a+") # append: a+ overwrite: w+
-        # except Exception as e:
-        #     print(f"Failed to create directory: {e}")
-        
-        # self.target = None  # Initialize target to None
-
         #### Use w/ gpt_vsion_test() ####        
         # self.system_prompt = """You are Go2, a robot dog."""
+        
         self.system_prompt = f"""You are Go2, a robot dog. Your coordinates and orientation are represented by a position tuple (x, y, orientation), where x and y are your coordinates on a grid, and orientation describes your facing direction in degrees:
 - 0 degrees or 360 degrees means facing north (along the positive Y-axis).
 - 90 degrees or -270 degrees means facing east (along the positive X-axis).
@@ -55,15 +46,6 @@ Here is the action dictionary, formatted as 'action name: (x shift, y shift, clo
 -- Refer to the search history to avoid revisiting orientations that have already been explored without success.
 -- If all orientations at the current x and y coordinates have been explored without finding the target, choose the orientation with the highest likelihood of success based on historical data at that location. Revisit that orientation and continue exploring in that direction and its neighboring orientations.
 """ 
-# 발견한 이후, keep centered가 move forward보다 먼저하도록 명시 안해야, move forward하다가 시야에서 사라져서 사람 도움 필요한 failure 상황이 생김.
-# # Instructions
-# - Search for the target object. Use the image analysis and history to guide your decisions, and follow feedback to determine your action.
-# - If the x coodrinate of at least one detected target is in the middle of the image, that is, between {self.env['captured_width']*(1/3)} and {self.env['captured_width']*(2/3)}, adjust your y coordinates to move closer to it. If none of them is in the middle, adjust your x coordinates to center the detected target within your field of view.
-# - If the distance of at least one detected target in the middle is less than {self.env['stop_hurdle_meter']} meters, execute the 'Stop' action. If the distances to all detected targets in the middle are greater than or equal to {self.env['stop_hurdle_meter']} meters, avoid the 'Stop' action.
-# - If the target is invisible, first explore all possible orientations at the same x and y coordinates before moving to new ones. By referring to the history, avoid revisiting orientations already explored without success. If you have explored all possible orientations(0,60,120,180,240,300) at the same x and y coordinates without success, choose your action to revisit the orientation with the highest likelihood based on your history at that x and y coordinates. Once you reach that specific orientation, explore further in that direction and its neighboring ones.
-
-
-
 
     def get_user_prompt(self):
 #### Use w/ gpt_vsion_test() ####        
@@ -73,14 +55,27 @@ Here is the action dictionary, formatted as 'action name: (x shift, y shift, clo
 # Confidence: If visible, provide how much you are sure that the detected object is the target based on the scale 0-100. Please output only the number.
 # Location: If visible, explain its location in the image in one concise short sentence.
 # """
-        return f"""Your target object is '{self.target}'. When you respond, follow the structued format:
+        return f"""Your target object is '{self.target}'. Ensure each response follows the following format precisely. Do not deviate. Before responding, verify that your output exactly matches the structured format.
 Current Position: Tuple (x, y, orientation) before the action.
 Target Status: If any target is detected in the image analysis of this round, not those of previous rounds in the history, mark 'Visible'; otherwise, 'Invisible.'
 Likelihood: If the target status is 'Visible', set likelihood to 100. If not, assign a score from 0-100 based on how likely the target is to be near detected objects or environments, considering contextual correlations.
-Action: The exact action name in the action dictionary you choose by considering all the instructions.
+Action: 
+1. If the # Feedback section has the comment "None.", select the precise action name from the action dictionary based on all given instructions. \n
+2. If there are additional comments in the # Feedback section (anything other than "None."), interpret the feedback to determine all action names. \n
+A. If there's one action in feedback, execute the exact action name in the action dictionary. \n
+B. If there's two or more actions in feedback, execute the exact action names with comma in order. For example, if there's feedback "move forward 2 times and turn right 1 times", only execute "move forward", "turn right". Do not execute "move forward", "move forward", "turn right" (execute duplicate actions only once).
 New Position: Updated tuple (x, y, orientation) after the action.
 Reason: Explain your choice in one concise sentence by mentioning which instructions affected your decision.
-Step: If there is feedback, interpret the feedback to determine the step. If the distance to at least of one detected targets in the middle third of the image is less than the defined stop distance (i.e., {self.env['stop_hurdle_meter']} meters), execute the step = 0. If the distance is between {self.env['stop_hurdle_meter']} and 1.70 meters, execute step = 1, if the distance is between 1.70 meters and 2.3 meters, excute step = 2, else execute step = 3. If the target status is 'Invisible', exectute step = 1.
+Move: 
+1. If there are additional comments in the # Feedback section (anything other than "None."), interpret the feedback to only determine the number of move for "move forward" or "move backward" (ex. feedback: "move forward 2 times" -----> execute move = 2). If there's no mention for "move forward" or "move backward" in feedback section, execute 1. \n
+2. If the # Feedback section has the comment "None." and the distance to at least of one detected targets in the middle third of the image is less than the defined stop distance (i.e., {self.env['stop_hurdle_meter']} meters), execute the move = 0. If the distance is between {self.env['stop_hurdle_meter']} and 1.70 meters, execute move = 1, if the distance is between 1.70 meters and 2.3 meters, excute move = 2, else execute move = 3. If the target status is 'Invisible', exectute move = 0.
+Shift: 
+1. If there are additional comments in the # Feedback section (anything other than "None."), interpret the feedback to only determine the number of shift for "shift left" or "shift right". (ex. feedback: "shift left 2 times" -----> execute shift = 2) 
+If there's no mention for "shift left" or "shift right" in feedback section, execute 1. \n
+2. If the # Feedback section has the comment "None.", execute shift = 1.
+Turn: 
+1. If there are additional comments in the # Feedback section (anything other than "None."), interpret the feedback to only determine the number of move for "turn right" or turn left". (ex. feedback: "turn right 2 times" -----> execute turn = 2) If there's no mention for "turn right" or "turn left" in feedback, execute 1. \n
+2. If the # Feedback section has the comment "None.", execute turn = 1.
 """
 
     def set_target(self, target):
@@ -125,64 +120,52 @@ class ResponseMessage:
     curr_position: str
     target: str
     likelihood: str
-    action: str
+    action: list
     new_position: str
     reason: str
-    step: str
+    move: str
+    shift: str
+    turn: str
+
+    def parse_step(x: str):
+        x = re.findall(r'\d', x)
+        if x:
+            x = int(''.join(x))
+        else:
+            print("No " + x)
+        return x
+    
+    def parse_action(action: str):
+        actions = [act.strip() for act in action.split(',')]
+        return actions
 
     @staticmethod
     def parse(message: str):
         try:
             # Filter out lines that do not contain ':' and strip empty spaces
             parts = [line.split(":", 1)[1].strip() for line in message.split('\n') if ':' in line and len(line.strip()) > 0]
-            if len(parts) != 7:
-                raise ValueError("Message does not contain exactly seven parts")
-            curr_position, target, likelihood, action, new_position, reason, step = parts
-            print(step)
-            step = re.findall(r'\d', step)
-            if step:
-                step = int(''.join(step))
-            else:
-                print("No Step.")
-            if step == 0:
+            if len(parts) != 9:
+                raise ValueError("Message does not contain exactly nine parts")
+            curr_position, target, likelihood, action, new_position, reason, move, shift, turn = parts
+            
+            # parse action
+            action = ResponseMessage.parse_action(action)
+
+            # parse step
+            # print(move, shift, turn)
+            move = ResponseMessage.parse_step(move)
+            shift = ResponseMessage.parse_step(shift)
+            turn = ResponseMessage.parse_step(turn)
+            # print(move, shift, turn)
+            
+            total_step = move + shift + turn
+            if total_step == 0:
                 action = "stop"
-            if step == None:
-                step = 1
-            action = action.replace("** ", "").strip()
-            print(ResponseMessage(curr_position, target, likelihood, action, new_position, reason, step))
+            # print(ResponseMessage(curr_position, target, likelihood, action, new_position, reason, move, shift, turn))
         except Exception as e:
             print("parse failed. Message: ", message, "\nError: ", e)
             return ResponseMessage()
-        return ResponseMessage(curr_position, target, likelihood, action, new_position, reason, step)
+        return ResponseMessage(curr_position, target, likelihood, action, new_position, reason, move, shift, turn)
     
     def to_dict(self):
         return asdict(self)
-
-
-
-
-# @dataclass
-# class ResponseMessage:
-#     fields: dict = field(default_factory=dict)
-    
-#     @staticmethod
-#     def parse(message: str):
-#         try:
-#             # Split message by lines and filter out any lines that do not contain ':' and strip empty spaces
-#             parts = [line.split(":", 1) for line in message.split('\n') if ':' in line and len(line.strip()) > 0]
-#             # Create a dictionary with dynamic keys and their corresponding values
-#             fields = {key.strip(): value.strip() for key, value in parts}
-#         except Exception as e:
-#             print("parse failed. Message: ", message, "\nError: ", e)
-#             return ResponseMessage()
-
-#         return ResponseMessage(fields)
-
-#     def to_dict(self):
-#         return asdict(self)
-    
-#     def get_field(self, field_name: str):
-#         return self.fields.get(field_name, None)
-
-#     def set_field(self, field_name: str, value: str):
-#         self.fields[field_name] = value
