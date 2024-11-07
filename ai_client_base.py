@@ -29,20 +29,19 @@ Here is the action dictionary, formatted as 'action name: (x shift, y shift, clo
 - 'move backward': (0, -1, 0) 
 - 'shift right': (1, 0, 0) 
 - 'shift left': (-1, 0, 0) 
-- 'turn right': (0, 0, 90) 
-- 'turn left': (0, 0, -90)
+- 'turn right': (0, 0, 60) 
+- 'turn left': (0, 0, -60)
 
 # Instructions for Action:
-Choose the precise action name from the action dictionary to search for the target object based on the guidance below.
-- Case 1: the target is detected in the '# Image Analysis' section
-  - If the x-coordinate of at least one detected target is within the middle third of the image (i.e., x-coordinates between {self.env['captured_width']*(1/3)} and {self.env['captured_width']*(2/3)}), adjust your y-coordinate to move closer to the target.
-  - If none of the detected targets is within this middle range, adjust your x-coordinate to center the detected target within your field of view. For example, if the target is in the left third of the image, 'shift left' to bring it closer to the center. On the other hand, if the target is in the right third of the image, 'shift right' to center it.
-
-- Case 2: the target is not detected in the '# Image Analysis' section
+Choose the precise action name from the action dictionary to search for the '{self.env['target']}' object based on the guidance below.
+- Case 1: the '{self.env['target']}' is detected in the '# Image Analysis' section
+  - If none of the '{self.env['target']}' is within this middle range, adjust your x-coordinate to center the detected target within your field of view. For example, if the target is in the left third of the image, 'shift left' to bring it closer to the center. On the other hand, if the target is in the right third of the image, 'shift right' to center it.
+  - If the x-coordinate of at least one '{self.env['target']}' is within the middle third of the image (i.e., x-coordinates between {self.env['captured_width']*(1/3)} and {self.env['captured_width']*(2/3)}), adjust your y-coordinate to move closer to the target.
+- Case 2: the '{self.env['target']}' is not detected in the '# Image Analysis' section
   - Case 2.1: the '# Feedback' section has a comment "None."
-    a. If there is a comment "No objects detected in the image." in the '# Image Analysis' section, explore different possible orientations (0°, 90°, 180°, or 270°).
-    b. If any objects (other than the target) are detected in the '# Image Analysis' section **with at least one distance less than {self.env['hurdle_meter_for_non_target']} meters and the likelihood at the current orientation is over 50%**, then **do not change the y-coordinate. Instead, explore different orientations (0°, 90°, 180°, or 270°)**.
-    c. If any objects (other than the target) are detected in the '# Image Analysis' section and **all of their distances are more than {self.env['hurdle_meter_for_non_target']} meters with likelihood > 50%**, then **adjust the y-coordinate in the direction of the detected objects, as movement is now prioritized over orientation**.
+    a. You should explore the different orientations only if the exact comment "No objects detected in the image." is present in the '# Image Analysis' section. Refer to the '# History' section to avoid revisiting orientations that have already been explored without success.
+    b. If '{self.env['object1']}' are detected in the '# Image Analysis' section **with at least one distance less than {self.env['hurdle_meter_for_non_target']} meters and the likelihood at the current orientation is over 50%**, then **do not change the y-coordinate. Instead, explore different orientations**. Refer to the '# History' section to avoid revisiting orientations that have already been explored without success.
+    c. If '{self.env['object1']}' are detected in the '# Image Analysis' section and **all of their distances are more than {self.env['hurdle_meter_for_non_target']} meters with likelihood > 50%**, then **adjust the y-coordinate in the direction of the detected objects, as movement is now prioritized over orientation**.
     d. For b. and c., ensure that the action taken aligns exactly with the criteria specified above:
       - **If at least one proximity is less than {self.env['hurdle_meter_for_non_target']} meters and likelihood > 50%, then explore orientations (Case 2.1.b)**.
       - **If all distances are greater than {self.env['hurdle_meter_for_non_target']} meters and likelihood > 50%, then adjust the y-coordinate (Case 2.1.c)**.
@@ -52,32 +51,35 @@ Choose the precise action name from the action dictionary to search for the targ
 
 # Instructions for Move: for deciding the number of steps of 'move forward' or 'move backward' 
 - Case 1: 
-  - If the chosen action is 'move forward' and the distance to at least one of the detected targets in the middle third of the image is less than the defined stop distance (i.e., {self.env['stop_hurdle_meter_for_target']}), execute the move = 0.
-  - If the chosen action is 'move forward' and the distance is between {self.env['stop_hurdle_meter_for_target']} and 1.70 meters, execute move = 1. 
-  - If the chosen action is 'move forward' and the distance is between 1.70 meters and 2.3 meters, execute move = 2. 
-  - Otherwise, execute move = 3.
+  - If the chosen action is 'move forward' and the distance to at least one of the detected targets in the middle third of the image is less than the defined stop distance (i.e., {self.env['stop_hurdle_meter_for_target']}), execute 0.
+  - If the chosen action is 'move forward' and the distance is between {self.env['stop_hurdle_meter_for_target']} and 1.70 meters, execute 1. 
+  - If the chosen action is 'move forward' and the distance is between 1.70 meters and 2.3 meters, execute 2. 
+  - Otherwise, execute 3.
 - Case 2:
   - Case 2.1:
-    - If 'move forward' or 'move backward' is in the chosen actions, then set the value of move based on the same distance thresholds used in Case 1; otherwise, execute move = 0.
-  - Case 2.2:
-    - If 'move forward' or 'move backward' is in the chosen actions, interpret the feedback to only determine the number of move; otherwise, execute move = 0.
+    - If 'move forward' or 'move backward' is in the chosen actions, 
+      - If the chosen action is 'move forward' and the distance to '{self.env['object1']}' is between {self.env['hurdle_meter_for_non_target']} and 2.0 meters, execute 1. 
+      - If the chosen action is 'move forward' and the distance is between 2.0 meters and 2.5 meters, execute 2. 
+      - Otherwise, execute 3.
+    - If 'move forward' or 'move backward' is not in the chosen actions, execute 0.
+  - Case 2.2: 'move forward' or 'move backward' is in the chosen actions, interpret the feedback to only determine the number of move; otherwise, execute 0.
 
 # Instructions for Shift: for deciding the number of steps of 'shift right' or 'shift left'
 - Case 1:
-  - If the x-coordinate of at least one detected target is within the middle third of the image (i.e., x-coordinates between 427 and 854), execute shift = 0.
-  - If none of the detected targets is within this middle range, execute shift = 1.
+  - If the x-coordinate of at least one detected target is within the middle third of the image (i.e., x-coordinates between 427 and 854), execute 0.
+  - If none of the detected targets is within this middle range, execute 1.
 - Case 2: 
   - Case 2.1: 
-    - Execute shift = 1.
+    - Execute 1.
   - Case 2.2: 
-    - If 'shift right' or 'shift left' is in the chosen actions, interpret the feedback to only determine the number of move; otherwise, execute shift = 0.
+    - If 'shift right' or 'shift left' is in the chosen actions, interpret the feedback to only determine the number of move; otherwise, execute 0.
 
 # Instructions for Turn: for deciding the number of steps of 'turn right' or 'turn left' 
 - Case 2: 
   - Case 2.1: 
-    - If 'turn right' or 'turn left' is in the chosen actions, execute turn = 1; otherwise, execute move = 0.
+    - If 'turn right' or 'turn left' is in the chosen actions, execute 1; otherwise, execute 0.
   - Case 2.2: 
-    - If 'turn right' or 'turn left' is in the chosen actions, interpret the feedback to only determine the number of move; otherwise, execute turn = 0.
+    - If 'turn right' or 'turn left' is in the chosen actions, interpret the feedback to only determine the number of move; otherwise, execute 0.
 """ 
 
     def get_user_prompt(self):
@@ -91,7 +93,8 @@ Choose the precise action name from the action dictionary to search for the targ
         return f"""Your target object is '{self.target}'. Ensure each response follows the following format precisely. Do not deviate. Before responding, verify that your output exactly matches the structured format.
     Current Position: Tuple (x, y, orientation) before the action.
     Target Status: If the target is detected in the 'Image Analysis' section, mark 'Visible'; otherwise, 'Invisible.'
-    Contextual Likelihood: If the target status is 'Visible', set the likelihood as 100. If it is 'Invisible' and there are no detected objects, set 0. If the target status is 'Invisible' but there are some detected objects, assign a score from 0-100 based on how likely the target is contextually correlated with the other detected objects in the image at this round. For example, if the target is apple and banana is detected, the likelihood should be 80.
+    
+    Contextual Likelihood: If the target status is 'Visible', set the likelihood as 100. If it is 'Invisible' and there are no detected objects, set 0. If the target status is 'Invisible' but there are some detected objects, assign a score from 0-100 based on how likely the target is contextually correlated with the other detected objects in the image at this round. For example, if the target is '{self.env['target']}' and '{self.env['object1']}' is detected, the likelihood should be 80.
     Action: Follow the guideline in the '# Instructions for Action' section.
     New Position: Updated tuple (x, y, orientation) after the action.
     Reason: Explain your choice in one concise sentence by mentioning which instructions affected your decision.
@@ -158,6 +161,9 @@ class ResponseMessage:
         return x
     
     def parse_action(action: str):
+        import ast
+        if action.startswith("[") or action.endswith("]"):
+            action = action[2:-2]
         actions = [act.strip() for act in action.split(',')]
         return actions
 
