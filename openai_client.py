@@ -24,7 +24,7 @@ class OpenaiClient(AiClientBase):
         self.client = OpenAI(api_key=key)
         self.env = env
         self.image_counter = 0
-        self.history = None
+        self.history = "None."
         self.vision_model = VisionModel(env)
 
         self.openai_prompt_messages = [
@@ -37,11 +37,13 @@ class OpenaiClient(AiClientBase):
             "model": "gpt-4o",
             "messages": self.openai_prompt_messages,
             "max_tokens": 200,
+            "temperature": 0
         }
         self.openai_params_for_text = {
             "model": "gpt-4o",
             "messages": self.openai_prompt_messages_for_text,
             "max_tokens": 200,
+            "temperature": 0
         }
         self.openai_goal = {
             "role": "user",
@@ -64,16 +66,16 @@ class OpenaiClient(AiClientBase):
 
     def set_target(self, target):
         self.target = target
-        self.openai_goal["content"][0] = self.get_user_prompt() + "\n# History: \n None."
+        # self.openai_goal["content"][0] = self.get_user_prompt() + "\n# History: \n None."
 
-    def save_round(self, assistant=None, feedback=None, feedback_factor=None, image_analysis=None):
+    def save_round(self, image_description_text, feedback, assistant=None):
         # Update history.log
         self.history_log_file.write(f"======= image{len(self.round_list)+1} =======\n")
         
-        if image_analysis is None or image_analysis.description == '':
+        if image_description_text == "No objects detected in the image.":
             self.history_log_file.write(f"Image Analysis: \n None. \n")
         else: 
-            self.history_log_file.write(f"Image Analysis: \n{image_analysis.description} \n")
+            self.history_log_file.write(f"Image Analysis: \n{image_description_text} \n")
 
         if feedback:
             self.history_log_file.write(f"Feedback: \n {feedback} \n")
@@ -86,28 +88,12 @@ class OpenaiClient(AiClientBase):
                 f"Action) {assistant.action} \n"
                 f"Reason) {assistant.reason} \n"
                 f"Likelihood) {assistant.likelihood} \n"
-                f"Step) {assistant.step} \n\n"
+                f"Move) {assistant.move} \n"
+                f"Shift) {assistant.shift} \n"
+                f"Turn) {assistant.turn} \n\n"
             )
 
             self.history_log_file.flush()
-
-            # Update history for prompt
-            self.round_list.append(Round(len(self.round_list) + 1, assistant, feedback, feedback_factor))
-            feedbackText = f"The user provided feedback: {feedback}."
-            round_number = len(self.round_list)
-            image_description = image_analysis.description if image_analysis is not None else ''
-            self.history = self.history if round_number > 1 else "# History: \n"
-
-            self.history += (
-                f"Round {round_number}: "
-                f"{feedbackText if feedback is not None else ''} "
-                f"From the position {assistant.curr_position}, "
-                f"{image_description} "
-                f"The detection likelihood score for this position was {assistant.likelihood}. "
-                f"You executed the '{assistant.action}' action and updated the position to {assistant.new_position}. "
-                f"The rationale behind this action you told me was: '{assistant.reason}'"
-            )
-            # self.history += "None"
 
     def vision_model_test(self, image_pil):
         image_analysis = self.vision_model.describe_image(image_pil)
@@ -124,42 +110,85 @@ class OpenaiClient(AiClientBase):
 
         return assistant
 
-    def get_response_by_LLM(self, image_pil, feedback):
+    def update_history_prompt(self, image_description_text, feedback, assistant=None):
+        self.round_list.append(Round(len(self.round_list) + 1, assistant, feedback))      
+        round_number = len(self.round_list)
+        
+        self.history = self.history if round_number > 1 else ""
+        self.history += (
+            f"- Round {round_number}: "
+            f"The user provided feedback: {feedback} "
+            f"From the position {assistant.curr_position}, {image_description_text} "
+            f"The likelihood of target presence at this position was {assistant.likelihood}. "
+            f"You executed the '{assistant.action}' action which led to the updated position of {assistant.new_position}. "
+            f"The rationale behind this action you told me was: '{assistant.reason}' \n"
+        )
+        # self.history += "None."
+
+    def get_response_by_LLM(self, image_pil, dog_instance, feedback = None):
         image_analysis = self.vision_model.describe_image(image_pil)
 
-        if image_analysis.description == "":
+        # if image_analysis.description == "":
+        #     image_description_text = "No objects detected in the image."
+        # else:
+        #     image_description_text = image_analysis.description
+
+        ## Test likelihood for invisible cases
+        if image_analysis.description == "" and not dog_instance.round_number == 2:
             image_description_text = "No objects detected in the image."
+        elif image_analysis.description == "" and dog_instance.round_number == 2:
+            image_description_text = "You detected refrigerator at coordinates (640, 360) with a distance of 5 meters."
         else:
             image_description_text = image_analysis.description
-
-        # Ensure self.history is initialized if not already
-        if self.history is None or self.env["use_test_dataset"]:
-            self.history = "None."  # Initialize the history if it's missing
+        
+        # if self.history is None or self.env["use_test_dataset"]:
+        #     self.history = "# History:\n None."
 
         if feedback is None:
-            feedback = "None." 
-
+            feedback = "None."
+        
         # input prompt
         self.openai_goal_for_text["content"] = (
-            f"{self.get_user_prompt()}"
-            f"\n\n# Image analysis (The image size is {self.env['captured_width']}x{self.env['captured_height']}, with the coordinate (0, 0) located at the top-left corner.): \n{image_description_text}"
-            f"\n\n# History: \n{self.history}"
-            f"\n\n# Feedback: \n{feedback}"
+            f"{self.get_user_prompt()}\n\n"
+            f"# Image analysis (The image size is {self.env['captured_width']}x{self.env['captured_height']}, with the coordinate (0, 0) located at the top-left corner.):\n {image_description_text} \n\n"
+            f"# History:\n {self.history}\n\n"
+            f"# Feedback:\n {feedback}"
         )
-        
+
+        # Check for feedback interruption early in the function
+        if dog_instance.check_feedback_and_interruption():
+            dog_instance.round_number += 1
+            return None
+
         if self.env["print_history"]:
             print(self.history)
-            
+        
+        # Check for feedback interruption early in the function
+        if dog_instance.check_feedback_and_interruption():
+            dog_instance.round_number += 1
+            return None
+
         result = self.client.chat.completions.create(**self.openai_params_for_text)
         rawAssistant = result.choices[0].message.content
         assistant = ResponseMessage.parse(rawAssistant)
-        
+
+        # Check for feedback interruption early in the function
+        if dog_instance.check_feedback_and_interruption():
+            dog_instance.round_number += 1 
+            return None  
+
         if feedback == "None.":
             self.store_image(image_analysis.frame)
         else:
             self.store_image()
 
-        self.save_round(assistant, feedback, image_analysis=image_analysis)
+        # Check for feedback interruption early in the function
+        if dog_instance.check_feedback_and_interruption():
+            dog_instance.round_number += 1 
+            return None  
+
+        self.save_round(image_description_text, feedback, assistant)
+        self.update_history_prompt(image_description_text, feedback, assistant)
 
         return assistant
 
@@ -186,13 +215,22 @@ class OpenaiClient(AiClientBase):
         return assistant
 
     def get_response_by_feedback(self, feedback):
-        self.openai_goal_for_text["content"] = self.get_user_prompt() + self.history + f"\n\n# Feedback: {feedback}"
+        self.openai_goal_for_text["content"] = (
+            f"{self.get_user_prompt()}\n\n"
+            f"# History:\n {self.history}\n\n"
+            f"# Feedback:\n {feedback}."
+        )
+        
+        if self.env["print_history"]:
+            print(self.history)
+        
         result = self.client.chat.completions.create(**self.openai_params_for_text)
         rawAssistant = result.choices[0].message.content
         assistant = ResponseMessage.parse(rawAssistant)
 
         self.store_image()
         self.save_round(assistant, feedback)
+        self.update_history_prompt(assistant, feedback)
 
         return assistant
 
@@ -205,26 +243,47 @@ class OpenaiClient(AiClientBase):
 		)
         return transcription.text
 
-    def tts(self,reason):
-        CHUNK = 1024
-        with self.client.with_streaming_response.audio.speech.create(
-        model="tts-1",
-        voice="alloy",
-        input=reason,
-        response_format= "wav"
-        ) as response:
-            container = io.BytesIO(response.read())
-            with wave.open(container) as wf:
-                p = pyaudio.PyAudio()
-                stream = p.open(format=p.get_format_from_width(wf.getsampwidth()),
-                                channels=wf.getnchannels(),
-                                rate=wf.getframerate(),
-                                output=True)
+    def parse_action_tts(self, action):
+        sentence = " then ".join(action)
+        return sentence
 
-                while len(data := wf.readframes(CHUNK)): 
-                    stream.write(data)
-                stream.close()
-                p.terminate()
+    def tts(self, text):
+        CHUNK = 1024
+        if not isinstance(text, list):
+            text = text
+        else:
+            text = self.parse_action_tts(text)
+
+        # Open `/dev/null` and redirect `stderr` to it at the OS level
+        devnull = os.open(os.devnull, os.O_WRONLY)
+        original_stderr = os.dup(2)  # Save original `stderr` file descriptor
+        os.dup2(devnull, 2)          # Redirect `stderr` to `/dev/null`
+
+        try:
+            with self.client.with_streaming_response.audio.speech.create(
+            model="tts-1",
+            voice="alloy",
+            input = text,
+            response_format= "wav"
+            ) as response:
+                container = io.BytesIO(response.read())
+                with wave.open(container) as wf:
+                    p = pyaudio.PyAudio()
+                    stream = p.open(format=p.get_format_from_width(wf.getsampwidth()),
+                                    channels=wf.getnchannels(),
+                                    rate=wf.getframerate(),
+                                    output=True)
+
+                    while len(data := wf.readframes(CHUNK)): 
+                        stream.write(data)
+                    stream.close()
+                    p.terminate()
+
+        finally:
+            # Restore original `stderr` and close `/dev/null`
+            os.dup2(original_stderr, 2)
+            os.close(devnull)
+            os.close(original_stderr)
 
     def close(self):
         self.history_log_file.close()
