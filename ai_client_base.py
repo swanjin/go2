@@ -14,7 +14,7 @@ class AiClientBase:
         self.image_counter = 0
         self.round_list = []
 
-        #### Use w/ gpt_vsion_test() ####        
+        #### Use w/ gpt_vsion_test() ####  #      
         # self.system_prompt = """You are Go2, a robot dog."""
         self.system_prompt = f"""You are Go2, a robot dog. Your coordinates and orientation are represented by a position tuple (x, y, orientation), where x and y are your coordinates on a grid, and orientation describes your facing direction in degrees:
 - 0 degrees or 360 degrees means facing north (along the positive Y-axis).
