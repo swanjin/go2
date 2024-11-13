@@ -190,7 +190,7 @@ class OpenaiClient(AiClientBase):
         if dog_instance.check_feedback_and_interruption():
             dog_instance.round_number += 1 
             return None  
-          
+
         self.save_round(assistant, feedback, image_description_text)
         self.update_history_prompt(assistant, feedback, image_description_text)
 
@@ -231,7 +231,6 @@ class OpenaiClient(AiClientBase):
         result = self.client.chat.completions.create(**self.openai_params_for_text)
         rawAssistant = result.choices[0].message.content
         assistant = ResponseMessage.parse(rawAssistant)
-        print(assistant.curr_position)
 
         self.store_image()
         self.save_round(assistant, feedback, None)
