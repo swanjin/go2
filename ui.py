@@ -229,7 +229,8 @@ class RobotDogUI(QMainWindow):
             "what's going on",
             "how is it going",
             "found anything",
-            "see anything"
+            "see anything",
+            "how are you doing"
         ]
 
         if any(q in text.lower() for q in status_questions):
@@ -242,11 +243,25 @@ class RobotDogUI(QMainWindow):
             else:
                 status = "I'm waiting for you to tell me what to search for."
             
-            # First show status message in UI
+            # Only show status message in UI
             self.add_robot_message(status)
-            # Then play TTS after UI update
-            # QTimer.singleShot(300, lambda: self.play_tts(status))
             
+        elif not self.target_set:
+            # Check if "apple" is in the input text
+            if "apple" in text.lower():
+                # Extract just "apple" as the target
+                response = f"I'll start searching for apple now."
+                self.add_robot_message(response)
+                
+                # Set target and start search after UI update
+                QTimer.singleShot(100, lambda: self.process_target("apple", response))
+            else:
+                # Ask user to specify the target clearly
+                clarify_msg = "Please tell me specifically about the target you want me to find."
+                self.add_robot_message(clarify_msg)
+                if self.dog.env["tts"]:
+                    QTimer.singleShot(300, lambda: self.play_tts(clarify_msg))
+                
         elif text.lower() == "feedback":
             # First pause the search
             self.dog.feedback_complete_event.clear()
@@ -270,14 +285,6 @@ class RobotDogUI(QMainWindow):
                 
                 # Execute action after UI update
                 QTimer.singleShot(300, lambda: self.execute_feedback_action(assistant))
-        elif not self.target_set:
-            # First show the response in UI
-            response = f"I'll start searching for {text} now."
-            self.add_robot_message(response)
-            
-            # Then set target and start search after UI update
-            QTimer.singleShot(100, lambda: self.process_target(text, response))
-                
         else:
             self.dog.feedback = text
 

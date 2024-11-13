@@ -303,13 +303,22 @@ class Dog:
         return 0
 
     def run_gpt(self):
-        # self.queryGPT_by_LLM()
-        
-        if self.env["gpt_vision_test"]:
-            self.robot_auto_thread = threading.Thread(target=self.queryGPT_for_vision_test)
-        else:
-            self.robot_auto_thread = threading.Thread(target=self.queryGPT_by_LLM)
-        self.feedback_thread = threading.Thread(target=self.queryGPT_with_feedback)
-
-        self.robot_auto_thread.start()
-        self.feedback_thread.start()
+        round_num = 1
+        while True:
+            print(f"\nStarting round #{round_num}")
+            if self.env["tts"]:
+                self.ai_client.tts(f"Starting round {round_num}")
+            
+            # ... (existing code) ...
+            
+            if self.interrupt_round_flag.is_set():
+                if self.env["tts"]:
+                    self.ai_client.tts("Search interrupted for feedback")
+                print("Round interrupted for feedback.")
+                self.interrupt_round_flag.clear()
+                self.feedback_complete_event.wait()
+                if self.env["tts"]:
+                    self.ai_client.tts("Resuming search")
+                continue
+            
+            round_num += 1
