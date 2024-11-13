@@ -68,7 +68,7 @@ class OpenaiClient(AiClientBase):
         self.target = target
         # self.openai_goal["content"][0] = self.get_user_prompt() + "\n# History: \n None."
 
-    def save_round(self, image_description_text, feedback, assistant=None):
+    def save_round(self, assistant, feedback, image_description_text):
         # Update history.log
         self.history_log_file.write(f"======= image{len(self.round_list)+1} =======\n")
         
@@ -128,31 +128,35 @@ class OpenaiClient(AiClientBase):
     def get_response_by_LLM(self, image_pil, dog_instance, feedback = None):
         image_analysis = self.vision_model.describe_image(image_pil)
 
-        # if image_analysis.description == "":
-        #     image_description_text = "No objects detected in the image."
-        # else:
-        #     image_description_text = image_analysis.description
-
-        ## Test likelihood for invisible cases
-        if image_analysis.description == "" and not dog_instance.round_number == 2:
+        if image_analysis.description == "":
             image_description_text = "No objects detected in the image."
-        elif image_analysis.description == "" and dog_instance.round_number == 2:
-            image_description_text = "You detected refrigerator at coordinates (640, 360) with a distance of 5 meters."
         else:
             image_description_text = image_analysis.description
+
+        # ## Test likelihood for invisible cases
+        # if image_analysis.description == "" and not dog_instance.round_number == 2:
+        #     image_description_text = "No objects detected in the image."
+        # elif image_analysis.description == "" and dog_instance.round_number == 2:
+        #     image_description_text = "You detected refrigerator at coordinates (640, 360) with a distance of 5 meters."
+        # else:
+        #     image_description_text = image_analysis.description
         
         # if self.history is None or self.env["use_test_dataset"]:
         #     self.history = "# History:\n None."
 
         if feedback is None:
             feedback = "None."
-        
+
+        # #### test
+        # if dog_instance.round_number == 2:
+        #     image_description_text = "You detected refrigerator at coordinates (665, 236) with a distance of 2.65 meters."
+
         # input prompt
         self.openai_goal_for_text["content"] = (
             f"{self.get_user_prompt()}\n\n"
-            f"# Image analysis (The image size is {self.env['captured_width']}x{self.env['captured_height']}, with the coordinate (0, 0) located at the top-left corner.):\n {image_description_text} \n\n"
+            f"# Image analysis at this round \n (The image size is {self.env['captured_width']}x{self.env['captured_height']}, with the coordinate (0, 0) located at the top-left corner.):\n {image_description_text} \n\n"
             f"# History:\n {self.history}\n\n"
-            f"# Feedback:\n {feedback}"
+            f"# Feedback at this round:\n {feedback}"
         )
 
         # Check for feedback interruption early in the function
@@ -186,8 +190,8 @@ class OpenaiClient(AiClientBase):
         if dog_instance.check_feedback_and_interruption():
             dog_instance.round_number += 1 
             return None  
-
-        self.save_round(image_description_text, feedback, assistant)
+          
+        self.save_round(assistant, feedback, image_description_text)
         self.update_history_prompt(assistant, feedback, image_description_text)
 
         return assistant
@@ -230,7 +234,7 @@ class OpenaiClient(AiClientBase):
         print(assistant.curr_position)
 
         self.store_image()
-        self.save_round(assistant, feedback)
+        self.save_round(assistant, feedback, None)
         self.update_history_prompt(assistant, feedback=feedback)
 
         return assistant
