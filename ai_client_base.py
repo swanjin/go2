@@ -43,30 +43,33 @@ Choose the precise action name from the action dictionary to search for the '{se
        - If the feedback comment includes '{self.env['object1']}', use the information in the '# History' section. For example, if the feedback says, "Go to where the '{self.env['object1']}' is located you saw before," check the position of the previous rounds in which the '{self.env['object1']}' was detected and adjust your action to get there again by comparing your current position at this round. If you think multiple different actions should be involved to get there, list each unique action name once, separated by commas, in the order given.
 
 ### Instructions for New Position:
-Remember that position and orientation are represented by a tuple `(x, y, orientation)`, where:
+Position and orientation are represented by a tuple (x, y, orientation), where:
+- x and y represent grid coordinates.
+- orientation represents the facing direction in degrees.
 
-* `x` and `y` represent grid coordinates.
-* `orientation` represents the facing direction in degrees.
-
-Orientation determines all directional movements. Refer to this precise mapping of orientations:
-
-* **0° or 360° (North)**: Facing the positive Y-axis.
-* **90° or -270° (East)**: Facing the positive X-axis.
-* **180° or -180° (South)**: Facing the negative Y-axis.
-* **270° or -90° (West)**: Facing the negative X-axis.
+Orientation determines all directional movements. Use the following orientation mappings:
+- 0° or 360° (North): Facing the positive Y-axis.
+- 90° or -270° (East): Facing the positive X-axis.
+- 180° or -180° (South): Facing the negative Y-axis.
+- 270° or -90° (West): Facing the negative X-axis.
 
 Movement & Shift Table by Orientation:
+Each action’s effect on x and y coordinates depends on the orientation as shown:
 
-Each action's effect on `x` and `y` coordinates depends directly on the orientation, as outlined below:
+| Orientation | move forward | move backward | shift right | shift left |
+|-------------|--------------|---------------|-------------|------------|
+| 0° (North)  | (x, y + 1)   | (x, y - 1)    | (x + 1, y)  | (x - 1, y) |
+| 90° (East)  | (x + 1, y)   | (x - 1, y)    | (x, y - 1)  | (x, y + 1) |
+| 180° (South)| (x, y - 1)   | (x, y + 1)    | (x - 1, y)  | (x + 1, y) |
+| 270° (West) | (x - 1, y)   | (x + 1, y)    | (x, y + 1)  | (x, y - 1) |
 
-| **Orientation** | **Move Forward** | **Move Backward** | **Shift Right** | **Shift Left** |
-|-----------------|------------------|-------------------|-----------------|----------------|
-| **0° (North)**  | `(x, y + 1)`    | `(x, y - 1)`     | `(x + 1, y)`    | `(x - 1, y)`   |
-| **90° (East)**  | `(x + 1, y)`    | `(x - 1, y)`     | `(x, y - 1)`    | `(x, y + 1)`   |
-| **180° (South)**| `(x, y - 1)`    | `(x, y + 1)`     | `(x - 1, y)`    | `(x + 1, y)`   |
-| **270° (West)** | `(x - 1, y)`    | `(x + 1, y)`     | `(x, y + 1)`    | `(x, y - 1)`   |
+turn right / turn left (Orientation Changes Only):
+- turn right: Increases orientation by 90°.
+- turn left: Decreases orientation by 90°.
+After each turn, normalize the orientation to a range of 0° to 360° (e.g., -90° becomes 270°).
 
-**Verification Step**: Always cross-check that each `x` or `y` coordinate change reflects the intended action, confirming it aligns precisely with the orientation-based table.
+Verification Step:
+Confirm each x or y coordinate change reflects the intended movement or shift by double-checking against the table above to ensure consistency with the specified orientation.
 
 ### Instructions for Move: for deciding the number of steps of 'move forward' or 'move backward'
 - **Case 1**:
@@ -84,7 +87,7 @@ Each action's effect on `x` and `y` coordinates depends directly on the orientat
        - If 'move forward' or 'move backward' is not in the chosen actions, execute 0.
    - **Case 2.2**: 
        - If 'move forward' or 'move backward' is in the chosen actions, interpret the feedback to only determine the number of move; otherwise, execute 0.
-       - If the feedback comment includes '{self.env['object1']}', use the information in the '# History' section. For example, if the feedback says, "Go to where the '{self.env['object1']}' is located you saw before," check the position of the previous rounds in which the '{self.env['object1']}' was detected and adjust the number of move to get there again by comparing your current position at this round.
+       - If the feedback comment includes '{self.env['object2']}', use the information in the '# History' section. For example, if the feedback says, "Go to where the '{self.env['object2']}' is located you saw before," check the position of the previous rounds in which the '{self.env['object1']}' was detected and adjust the number of move to get there again by comparing your current position at this round.
 
 ### Instructions for Shift: for deciding the number of steps of 'shift right' or 'shift left'
 - **Case 1**:
@@ -94,14 +97,14 @@ Each action's effect on `x` and `y` coordinates depends directly on the orientat
    - **Case 2.1**: Execute 1.
    - **Case 2.2**: 
        - If 'shift right' or 'shift left' is in the chosen actions, interpret the feedback to only determine the number of shift; otherwise, execute 0.
-       - If the feedback comment includes '{self.env['object1']}', use the information in the '# History' section. For example, if the feedback says, "Go to where the '{self.env['object1']}' is located you saw before," check the position of the previous rounds in which the '{self.env['object1']}' was detected and adjust the number of shift to get there again by comparing your current position at this round.
+       - If the feedback comment includes '{self.env['object2']}', use the information in the '# History' section. For example, if the feedback says, "Go to where the '{self.env['object2']}' is located you saw before," check the position of the previous rounds in which the '{self.env['object1']}' was detected and adjust the number of shift to get there again by comparing your current position at this round.
 
 ### Instructions for Turn: for deciding the number of steps of 'turn right' or 'turn left'
 - **Case 2**:
    - **Case 2.1**: If 'turn right' or 'turn left' is in the chosen actions, execute 1; otherwise, execute 0.
    - **Case 2.2**: 
        - If 'turn right' or 'turn left' is in the chosen actions, interpret the feedback to only determine the number of turn; otherwise, execute 0.
-       - If the feedback comment includes '{self.env['object1']}', use the information in the '# History' section. For example, if the feedback says, "Go to where the '{self.env['object1']}' is located you saw before," check the position of the previous rounds in which the '{self.env['object1']}' was detected and adjust the number of turn to get there again by comparing your current position at this round.""" 
+       - If the feedback comment includes '{self.env['object2']}', use the information in the '# History' section. For example, if the feedback says, "Go to where the '{self.env['object2']}' is located you saw before," check the position of the previous rounds in which the '{self.env['object1']}' was detected and adjust the number of turn to get there again by comparing your current position at this round.""" 
 
     def get_user_prompt(self):
 #### Use w/ gpt_vsion_test() ####        
@@ -183,6 +186,8 @@ class ResponseMessage:
     
     def parse_action(action: str):
         import ast
+        action = action.replace(".", "").lower()
+
         if action.startswith("[") or action.endswith("]"):
             action = action[2:-2]
         actions = [act.strip() for act in action.split(',')]
