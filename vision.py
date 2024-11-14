@@ -11,7 +11,7 @@ from transformers import pipeline
 from torchvision.ops import nms
 from PIL import Image, ImageDraw
 import numpy as np
-# from lang_sam import LangSAM
+from lang_sam import LangSAM
 
 import utils
 
