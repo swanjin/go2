@@ -82,7 +82,9 @@ Each action's effect on `x` and `y` coordinates depends directly on the orientat
            - If the chosen action is 'move forward' and the distance is between 2.0 meters and 2.5 meters, execute 2.
            - Otherwise, execute 3.
        - If 'move forward' or 'move backward' is not in the chosen actions, execute 0.
-   - **Case 2.2**: If 'move forward' or 'move backward' is in the chosen actions, interpret the feedback to only determine the number of moves; otherwise, execute 0.
+   - **Case 2.2**: 
+       - If 'move forward' or 'move backward' is in the chosen actions, interpret the feedback to only determine the number of move; otherwise, execute 0.
+       - If the feedback comment includes '{self.env['object1']}', use the information in the '# History' section. For example, if the feedback says, "Go to where the '{self.env['object1']}' is located you saw before," check the position of the previous rounds in which the '{self.env['object1']}' was detected and adjust the number of move to get there again by comparing your current position at this round.
 
 ### Instructions for Shift: for deciding the number of steps of 'shift right' or 'shift left'
 - **Case 1**:
@@ -90,13 +92,16 @@ Each action's effect on `x` and `y` coordinates depends directly on the orientat
    - If none of the detected targets is within this middle range, execute 1.
 - **Case 2**:
    - **Case 2.1**: Execute 1.
-   - **Case 2.2**: If 'shift right' or 'shift left' is in the chosen actions, interpret the feedback to only determine the number of moves; otherwise, execute 0.
+   - **Case 2.2**: 
+       - If 'shift right' or 'shift left' is in the chosen actions, interpret the feedback to only determine the number of shift; otherwise, execute 0.
+       - If the feedback comment includes '{self.env['object1']}', use the information in the '# History' section. For example, if the feedback says, "Go to where the '{self.env['object1']}' is located you saw before," check the position of the previous rounds in which the '{self.env['object1']}' was detected and adjust the number of shift to get there again by comparing your current position at this round.
 
 ### Instructions for Turn: for deciding the number of steps of 'turn right' or 'turn left'
 - **Case 2**:
    - **Case 2.1**: If 'turn right' or 'turn left' is in the chosen actions, execute 1; otherwise, execute 0.
-   - **Case 2.2**: If 'turn right' or 'turn left' is in the chosen actions, interpret the feedback to only determine the number of moves; otherwise, execute 0.
-""" 
+   - **Case 2.2**: 
+       - If 'turn right' or 'turn left' is in the chosen actions, interpret the feedback to only determine the number of turn; otherwise, execute 0.
+       - If the feedback comment includes '{self.env['object1']}', use the information in the '# History' section. For example, if the feedback says, "Go to where the '{self.env['object1']}' is located you saw before," check the position of the previous rounds in which the '{self.env['object1']}' was detected and adjust the number of turn to get there again by comparing your current position at this round.""" 
 
     def get_user_prompt(self):
 #### Use w/ gpt_vsion_test() ####        
