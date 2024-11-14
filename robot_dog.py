@@ -289,8 +289,8 @@ class Dog:
                     'move backward': (-0.5, 0, 0),
                     'shift right': (0, -0.5, 0),
                     'shift left': (0, 0.5, 0),
-                    'turn right': (0, 0, -1.04),
-                    'turn left': (0, 0, 1.04)
+                    'turn right': (0, 0, -1.5),
+                    'turn left': (0, 0, 1.5)
                 }
                 
                 for ans in action:
