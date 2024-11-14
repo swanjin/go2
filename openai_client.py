@@ -110,18 +110,23 @@ class OpenaiClient(AiClientBase):
 
         return assistant
 
-    def update_history_prompt(self, assistant, feedback, image_description_text=None):
-        self.round_list.append(Round(len(self.round_list) + 1, assistant, feedback))      
+    def update_history_prompt(self, assistant, feedback, image_description_text):
+        self.round_list.append(Round(len(self.round_list) + 1, assistant, feedback))
         round_number = len(self.round_list)
         
         self.history = self.history if round_number > 1 else ""
+        
+        #### Test feedback prompt
+        if round_number == 1:
+            image_description_text = "You detected banana at coordinates (640, 360) with a distance of 5 meters."
+    
         self.history += (
             f"- Round {round_number}: "
-            f"The user provided feedback: {feedback} "
+            f"The user provided feedback: {feedback}. "
             f"From the position {assistant.curr_position}, {image_description_text} "
             f"The likelihood of target presence at this position was {assistant.likelihood}. "
-            f"You executed the '{assistant.action}' action which led to the updated position of {assistant.new_position}. "
-            f"The rationale behind this action you told me was: '{assistant.reason}' \n"
+            f"You executed the '{assistant.action}' action which led to the updated position of {assistant.new_position}. \n"
+            # f"The rationale behind this action you told me was: '{assistant.reason}' \n"
         )
         # self.history += "None."
 
@@ -145,7 +150,7 @@ class OpenaiClient(AiClientBase):
         #     self.history = "# History:\n None."
 
         if feedback is None:
-            feedback = "None."
+            feedback = "None"
 
         # #### test
         # if dog_instance.round_number == 2:
@@ -154,9 +159,9 @@ class OpenaiClient(AiClientBase):
         # input prompt
         self.openai_goal_for_text["content"] = (
             f"{self.get_user_prompt()}\n\n"
-            f"# Image analysis at this round \n (The image size is {self.env['captured_width']}x{self.env['captured_height']}, with the coordinate (0, 0) located at the top-left corner.):\n {image_description_text} \n\n"
-            f"# History:\n {self.history}\n\n"
-            f"# Feedback at this round:\n {feedback}"
+            f"### Image analysis:\n (The image size is {self.env['captured_width']}x{self.env['captured_height']}, with the coordinate (0, 0) located at the top-left corner.):\n {image_description_text} \n\n"
+            f"### History:\n {self.history}\n\n"
+            f"### Feedback:\n {feedback}."
         )
 
         # Check for feedback interruption early in the function
@@ -181,7 +186,7 @@ class OpenaiClient(AiClientBase):
             dog_instance.round_number += 1 
             return None  
 
-        if feedback == "None.":
+        if feedback == "None":
             self.store_image(image_analysis.frame)
         else:
             self.store_image()
@@ -221,8 +226,8 @@ class OpenaiClient(AiClientBase):
     def get_response_by_feedback(self, feedback):
         self.openai_goal_for_text["content"] = (
             f"{self.get_user_prompt()}\n\n"
-            f"# History:\n {self.history}\n\n"
-            f"# Feedback:\n {feedback}."
+            f"### History:\n {self.history}\n\n"
+            f"### Feedback:\n {feedback}."
         )
         
         if self.env["print_history"]:
@@ -234,7 +239,7 @@ class OpenaiClient(AiClientBase):
 
         self.store_image()
         self.save_round(assistant, feedback, None)
-        self.update_history_prompt(assistant, feedback=feedback)
+        self.update_history_prompt(assistant, feedback=feedback, image_description_text="No objects detected in the image.")
 
         return assistant
 
