@@ -43,7 +43,7 @@ Choose the precise action name from the action dictionary to search for the '{se
        - If the feedback comment includes '{self.env['object1']}', use the information in the '# History' section. For example, if the feedback says, "Go to where the '{self.env['object1']}' is located you saw before," check the position of the previous rounds in which the '{self.env['object1']}' was detected and adjust your action to get there again by comparing your current position at this round. If you think multiple different actions should be involved to get there, list each unique action name once, separated by commas, in the order given.
 
 ### Instructions for New Position:
-Position and orientation are represented by a tuple (x, y, orientation), where:
+Position and orientation are represented by a tuple '(x, y, orientation)', where:
 - x and y represent grid coordinates.
 - orientation represents the facing direction in degrees.
 
@@ -54,7 +54,7 @@ Orientation determines all directional movements. Use the following orientation 
 - 270° or -90° (West): Facing the negative X-axis.
 
 Movement & Shift Table by Orientation:
-Each action’s effect on x and y coordinates depends on the orientation as shown:
+The effect of each action on x and y coordinates depends on the orientation as shown:
 
 | Orientation | move forward | move backward | shift right | shift left |
 |-------------|--------------|---------------|-------------|------------|
