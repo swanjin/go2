@@ -195,28 +195,37 @@ class RobotDogUI(QMainWindow):
         
         # Create status buttons
         status_questions = [
-            "Robot Status",
-            "Feedback"
+            ("🤖 Robot Status", "Robot Status"),  # (button text, message to send)
+            ("💭 Feedback", "feedback")
         ]
         
-        for question in status_questions:
-            btn = QPushButton(question)
+        for button_text, message in status_questions:
+            btn = QPushButton(button_text)
             btn.setStyleSheet("""
                 QPushButton {
-                    background-color: #F1F3F4;
+                    background-color: #E3F2FD;
                     color: #1A73E8;
-                    border: 1px solid #E0E0E0;
-                    border-radius: 15px;
-                    padding: 8px 15px;
-                    font-size: 13px;
+                    border: 2px solid #1A73E8;
+                    border-radius: 20px;
+                    padding: 10px 20px;
+                    font-size: 14px;
+                    font-weight: bold;
+                    min-width: 150px;
+                    margin: 0 10px;
                 }
                 QPushButton:hover {
-                    background-color: #E8F0FE;
+                    background-color: #BBDEFB;
+                    color: #0D47A1;
+                    border: 2px solid #0D47A1;
+                }
+                QPushButton:pressed {
+                    background-color: #90CAF9;
+                    padding: 11px 19px 9px 21px;
                 }
             """)
-            btn.clicked.connect(lambda checked, q=question: self.send_status_question(q))
+            btn.clicked.connect(lambda checked, m=message: self.send_status_question(m))
             status_layout.addWidget(btn)
-        
+
         self.status_buttons.hide()
         layout.addWidget(self.status_buttons)
 
