@@ -81,6 +81,11 @@ class RobotDogUI(QMainWindow):
         self.conversation_started = False
         self.pending_feedback_action = None
         self.awaiting_feedback = False
+
+        self.processing_timer = QTimer()
+        self.processing_timer.timeout.connect(self.update_processing_animation)
+        self.processing_dots = 0
+
         self.initUI()
         
     def initUI(self):
@@ -298,6 +303,31 @@ class RobotDogUI(QMainWindow):
         if self.dog.env["tts"]:
             QTimer.singleShot(100, lambda: self.dog.ai_client.tts(welcome_message))
 
+    def update_processing_animation(self):
+        self.processing_dots = (self.processing_dots + 1) % 4
+        dots = "." * self.processing_dots
+        self.processing_label.setText(f"Processing{dots.ljust(3)}")
+
+    def start_processing_animation(self):
+        self.processing_label = QLabel("Processing...")
+        self.processing_label.setStyleSheet("""
+            QLabel {
+                color: #1A73E8;
+                font-size: 14px;
+                font-weight: bold;
+                padding: 10px;
+            }
+        """)
+        self.chat_layout.addWidget(self.processing_label)
+        self.processing_timer.start(500)  # Update every 500ms
+        self._scroll_to_bottom()
+
+    def stop_processing_animation(self):
+        self.processing_timer.stop()
+        if hasattr(self, 'processing_label'):
+            self.processing_label.deleteLater()
+            self.processing_label = None
+
     def send_message(self):
         if not self.conversation_started:
             return
@@ -344,6 +374,7 @@ class RobotDogUI(QMainWindow):
                 self.add_robot_message(response)
                 self.status_buttons.show()
                 QTimer.singleShot(100, lambda: self.process_target("apple", response))
+                QTimer.singleShot(1000, self.start_processing_animation)
             else:
                 clarify_msg = "Please tell me specifically about the target you want me to find."
                 self.add_robot_message(clarify_msg)
@@ -365,10 +396,14 @@ class RobotDogUI(QMainWindow):
                 QTimer.singleShot(300, lambda: self.play_tts(feedback_msg))
             
         elif self.feedback_mode and self.awaiting_feedback:
+
             self.add_user_message(text)
             self.message_input.clear()
             QApplication.processEvents()
+
             assistant = self.dog.ai_client.get_response_by_feedback(text)
+
+
             if assistant:
                 self.pending_feedback_action = assistant
                 
@@ -383,7 +418,7 @@ class RobotDogUI(QMainWindow):
                     elif 'turn' in action:
                         times = assistant.turn
                         action_descriptions.append(f"<b>{action}</b> <b>{times}</b> time{'s' if times > 1 else ''}")
-                
+
                 confirmation_msg = "I understand you want me to " + " and ".join(action_descriptions) + ". Is this correct?"
                 self.add_robot_message(confirmation_msg)
                 
@@ -521,6 +556,7 @@ class RobotDogUI(QMainWindow):
         self.search_started = True
 
     def handle_status_update(self, status, image=None):
+        self.stop_processing_animation()
         self.add_robot_message(status, image)
 
     def update_camera_feed(self, image):
