@@ -297,8 +297,8 @@ class RobotDogUI(QMainWindow):
         if not text:
             return
         
-        self.add_user_message(text)
-        self.message_input.clear()
+        #self.add_user_message(text)
+        #self.message_input.clear()
 
         status_questions = [
             "what are you doing",
@@ -314,6 +314,8 @@ class RobotDogUI(QMainWindow):
         ]
 
         if any(q in text.lower() for q in status_questions):
+            self.add_user_message(text)
+            self.message_input.clear()
             if self.target_set:
                 status = f"I'm currently searching for {self.dog.target}. "
                 if self.feedback_mode:
@@ -326,6 +328,8 @@ class RobotDogUI(QMainWindow):
             self.add_robot_message(status)
             
         elif not self.target_set:
+            self.add_user_message(text)
+            self.message_input.clear()
             if "apple" in text.lower():
                 response = f"I'll start searching for apple now."
                 self.add_robot_message(response)
@@ -338,6 +342,8 @@ class RobotDogUI(QMainWindow):
                     QTimer.singleShot(300, lambda: self.play_tts(clarify_msg))
                 
         elif text.lower() == "feedback":
+            self.add_user_message(text)
+            self.message_input.clear()
             self.dog.feedback_complete_event.clear()
             self.dog.interrupt_round_flag.set()
             self.feedback_mode = True
@@ -350,7 +356,9 @@ class RobotDogUI(QMainWindow):
                 QTimer.singleShot(300, lambda: self.play_tts(feedback_msg))
             
         elif self.feedback_mode and self.awaiting_feedback:
-
+            self.add_user_message(text)
+            self.message_input.clear()
+            QApplication.processEvents()
             assistant = self.dog.ai_client.get_response_by_feedback(text)
             if assistant:
                 self.pending_feedback_action = assistant
@@ -377,6 +385,8 @@ class RobotDogUI(QMainWindow):
                 if self.dog.env["tts"]:
                     QTimer.singleShot(300, lambda: self.play_tts(confirmation_msg))
         else:
+            self.add_user_message(text)
+            self.message_input.clear()
             self.dog.feedback = text
 
     def confirm_feedback(self):
