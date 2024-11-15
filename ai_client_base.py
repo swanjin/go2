@@ -37,11 +37,11 @@ Choose the precise action name from the action dictionary to search for the '{se
        d. For b. and c., ensure that the action taken aligns exactly with the criteria specified above:
            - **If at least one proximity is less than '{self.env['hurdle_meter_for_non_target']}' meters and likelihood > 50%, then explore orientations (Case 2.1.b)**.
            - **If all distances are greater than '{self.env['hurdle_meter_for_non_target']}' meters and likelihood > 50%, then adjust the y-coordinate (Case 2.1.c)**.
-   - **Case 2.2**: the '# Feedback' section has a comment, anything other than "None."
+   - **Case 2.2**: the '### Feedback' section has a comment, anything other than "None."
        - If different actions are involved in the feedback comment, list each unique action name once, separated by commas, in the order given.
-       - If the feedback comment contains something related to previous rounds, use the information in the '# History' section. For example, if the feedback says, "Return to the previous position," check the position of the very previous round and adjust your action to get there by comparing your current position at this round.
-       - If the feedback comment includes '{self.env['object2']}', use the information in the '# History' section. For example, if the feedback says, "Go to where the '{self.env['object2']}' is located you saw before," check the position of the previous rounds in which the '{self.env['object2']}' was detected and adjust your action to get there again by comparing your current position at this round. If you think multiple different actions should be involved to get there, list each unique action name once, separated by commas, in the order given.
-       - If the feedback comment means to go near to one of the following objects, follow the guideline in the '### Instructions for Targeting Landmark Proximity' section.
+       - If the feedback comment contains something related to previous rounds, use the information in the '# History' section. For example, if the feedback says, "Return to the previous position," check the position of the very previous round and adjust your action to get there by comparing with your current position at this round.
+       - If the feedback comment includes '{self.env['object2']}', use the information in the '# History' section. For example, if the feedback says, "Go to where the '{self.env['object2']}' is located you saw before," check the position of the previous rounds in which the '{self.env['object2']}' was detected and adjust your action to get there again by comparing with your current position at this round. If you think multiple different actions should be involved to get there, list each unique action name once, separated by commas, in the order given.
+       - If the feedback comment in the '### Feedback' section means to go near to one of the following landmark objects, calculate the landmark proximity as per the '### Instructions for Landmark Proximity' section. Use the proximity position, not the exact landmark coordinates, as the new target position.
            - {self.env['landmark1']}
            - {self.env['landmark2']}
            - {self.env['landmark3']}
@@ -50,35 +50,33 @@ Choose the precise action name from the action dictionary to search for the '{se
            - {self.env['landmark6']}
 
 ### Instructions for Landmark Proximity
-To calculate the dog's target position and orientation near each landmark (i.e.,'Landmark Proximity'), follow these rules:
+First, calculate your target position and orientation near each landmark (i.e.,'Landmark Proximity') by following the rules below. Once you have calculated 'Landmark Proximity', adjust your action to get 'Landmark Proximity' by comparing with your current position at this round. If you think multiple different actions should be involved to get there, list each unique action name once, separated by commas, in the order given.
 
-1. Opposite Orientation:
-   - The dog should face the landmark by taking the opposite orientation.
+1. The tuple `(x, y, orientation)` of the landmark point: 
+- {self.env['landmark1']}: (-4, -4, 0)
+- {self.env['landmark2']}: (0, -4, 0)
+- {self.env['landmark3']}: (4, 0, 270)
+- {self.env['landmark4']}: (4, 4, 180)
+- {self.env['landmark5']}: (0, 4, 180)
+- {self.env['landmark6']}: (-4, 4, 90)
+
+2. Opposite Orientation:
+   - You should face the landmark by taking the opposite orientation of the landmark.
    - This is calculated by:
      - If the landmark's orientation is less than 180 degrees, add 180 to it.
      - If the landmark's orientation is 180 degrees or more, subtract 180.
-   - This ensures the dog faces directly toward the landmark.
+   - This ensures you face directly toward the landmark.
 
-2. Target Position Adjustment Based on Landmark Orientation:
-   - If the landmark faces 0 degrees (north), adjust the dog's position by moving it one unit north in the y-direction.
-   - If the landmark faces 180 degrees (south), adjust the dog's position by moving it one unit south in the y-direction.
-   - If the landmark faces 90 degrees (east), adjust the dog's position by moving it one unit east in the x-direction.
-   - If the landmark faces 270 degrees (west), adjust the dog's position by moving it one unit west in the x-direction.
-
-3. The (x, y) position and its facing orientation of the landmark: 
-- refrigerator: (-4, -4, 0)
-- kitchen: (0, -4, 0)
-- TV: (4, 0, 270)
-- desk: (4, 4, 180)
-- cabinet: (0, 4, 180)
-- sofa: (-4, 4, 90)
-
-Once you have calculated 'Landmark Proximity', adjust your action to get there by comparing your current position at this round. If you think multiple different actions should be involved to get there, list each unique action name once, separated by commas, in the order given.
+3. Position Adjustment Based on Landmark Orientation:
+   - If the landmark faces 0 degrees (north), adjust your position by moving it one unit north in the y-direction.
+   - If the landmark faces 180 degrees (south), adjust your position by moving it one unit south in the y-direction.
+   - If the landmark faces 90 degrees (east), adjust your position by moving it one unit east in the x-direction.
+   - If the landmark faces 270 degrees (west), adjust your position by moving it one unit west in the x-direction.
 
 ### Instructions for New Position:
-Position and orientation are represented by a tuple (x, y, orientation), where:
-- x and y represent grid coordinates.
-- orientation represents the facing direction in degrees.
+Remember that position and orientation are represented by a tuple `(x, y, orientation)`, where:
+- `x` and `y` represent grid coordinates.
+- `orientation` represents the facing direction in degrees.
 
 Orientation determines all directional movements. Use the following orientation mappings:
 - 0° or 360° (North): Facing the positive Y-axis.
@@ -104,14 +102,6 @@ After each turn, normalize the orientation to a range of 0° to 360° (e.g., -90
 Verification Step:
 Confirm each x or y coordinate change reflects the intended movement or shift by double-checking against the table above to ensure consistency with the specified orientation.
 
-If the feedback comment means to go near to one of the following objects, 'New Position' is simply the 'Landmark Proximity' computed in the '### Instructions for Landmark Proximity' section.
-- {self.env['landmark1']}
-- {self.env['landmark2']}
-- {self.env['landmark3']}
-- {self.env['landmark4']}
-- {self.env['landmark5']}
-- {self.env['landmark6']}
-
 ### Instructions for Move: for deciding the number of steps of 'move forward' or 'move backward'
 - **Case 1**:
    - If the chosen action is 'move forward' and the distance to at least one of the detected targets in the middle third of the image is less than the defined stop distance (i.e., '{self.env['stop_hurdle_meter_for_target']}'), execute 0.
@@ -128,8 +118,8 @@ If the feedback comment means to go near to one of the following objects, 'New P
        - If 'move forward' or 'move backward' is not in the chosen actions, execute 0.
    - **Case 2.2**: 
        - If 'move forward' or 'move backward' is in the chosen actions, interpret the feedback to only determine the number of move; otherwise, execute 0.
-       - If the feedback comment includes '{self.env['object2']}', use the information in the '# History' section. For example, if the feedback says, "Go to where the '{self.env['object2']}' is located you saw before," check the position of the previous rounds in which the '{self.env['object2']}' was detected and adjust the number of move to get there again by comparing your current position at this round.
-       - If the feedback comment means to go near to one of the following objects, check the 'Landmark Proximity Target' and adjust the number of move to get there by comparing your current position at this round.
+       - If the feedback comment includes '{self.env['object2']}', use the information in the '# History' section. For example, if the feedback says, "Go to where the '{self.env['object2']}' is located you saw before," check the position of the previous rounds in which the '{self.env['object2']}' was detected and adjust the number of move to get there again by comparing with your current position at this round.
+       - If the feedback comment in the '### Feedback' section means to go near to one of the following landmark objects, check the 'Landmark Proximity' and adjust the number of move to get there by comparing with your current position at this round.
            - {self.env['landmark1']}
            - {self.env['landmark2']}
            - {self.env['landmark3']}
@@ -145,8 +135,8 @@ If the feedback comment means to go near to one of the following objects, 'New P
    - **Case 2.1**: Execute 1.
    - **Case 2.2**: 
        - If 'shift right' or 'shift left' is in the chosen actions, interpret the feedback to only determine the number of shift; otherwise, execute 0.
-       - If the feedback comment includes '{self.env['object2']}', use the information in the '# History' section. For example, if the feedback says, "Go to where the '{self.env['object2']}' is located you saw before," check the position of the previous rounds in which the '{self.env['object2']}' was detected and adjust the number of shift to get there again by comparing your current position at this round.
-       - If the feedback comment means to go near to one of the following objects, check the 'Landmark Proximity Target' and adjust the number of shift to get there by comparing your current position at this round.
+       - If the feedback comment includes '{self.env['object2']}', use the information in the '# History' section. For example, if the feedback says, "Go to where the '{self.env['object2']}' is located you saw before," check the position of the previous rounds in which the '{self.env['object2']}' was detected and adjust the number of shift to get there again by comparing with your current position at this round.
+       - If the feedback comment in the '### Feedback' section means to go near to one of the following landmark objects, check the 'Landmark Proximity' and adjust the number of shift to get there by comparing with your current position at this round.
            - {self.env['landmark1']}
            - {self.env['landmark2']}
            - {self.env['landmark3']}
@@ -159,8 +149,8 @@ If the feedback comment means to go near to one of the following objects, 'New P
    - **Case 2.1**: If 'turn right' or 'turn left' is in the chosen actions, execute 1; otherwise, execute 0.
    - **Case 2.2**: 
        - If 'turn right' or 'turn left' is in the chosen actions, interpret the feedback to only determine the number of turn; otherwise, execute 0.
-       - If the feedback comment includes '{self.env['object2']}', use the information in the '# History' section. For example, if the feedback says, "Go to where the '{self.env['object2']}' is located you saw before," check the position of the previous rounds in which the '{self.env['object2']}' was detected and adjust the number of turn to get there again by comparing your current position at this round.
-       - If the feedback comment means to go near to one of the following objects, check the 'Landmark Proximity Target' and adjust the number of turn to get there by comparing your current position at this round.
+       - If the feedback comment includes '{self.env['object2']}', use the information in the '# History' section. For example, if the feedback says, "Go to where the '{self.env['object2']}' is located you saw before," check the position of the previous rounds in which the '{self.env['object2']}' was detected and adjust the number of turn to get there again by comparing with your current position at this round.
+       - If the feedback comment in the '### Feedback' section means to go near to one of the following landmark objects, check the 'Landmark Proximity' and adjust the number of turn to get there by comparing with your current position at this round.
            - {self.env['landmark1']}
            - {self.env['landmark2']}
            - {self.env['landmark3']}
@@ -168,6 +158,15 @@ If the feedback comment means to go near to one of the following objects, 'New P
            - {self.env['landmark5']}
            - {self.env['landmark6']}   
 """
+
+
+# If the feedback comment in the '### Feedback' section means to go near to one of the following objects, 'New Position' should be simply the 'Landmark Proximity' computed in the '### Instructions for Landmark Proximity' section.
+# - {self.env['landmark1']}
+# - {self.env['landmark2']}
+# - {self.env['landmark3']}
+# - {self.env['landmark4']}
+# - {self.env['landmark5']}
+# - {self.env['landmark6']}
         
     def get_user_prompt(self):
 #### Use w/ gpt_vsion_test() ####        
