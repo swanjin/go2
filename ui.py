@@ -349,16 +349,24 @@ class RobotDogUI(QMainWindow):
                 QTimer.singleShot(300, lambda: self.play_tts(feedback_msg))
             
         elif self.feedback_mode and self.awaiting_feedback:
+
             assistant = self.dog.ai_client.get_response_by_feedback(text)
             if assistant:
                 self.pending_feedback_action = assistant
                 
-                confirmation_msg = (
-                    f"I understand you want me to:\n"
-                    f"Action: {assistant.action}\n"
-                    f"Steps: Move {assistant.move}, Shift {assistant.shift}, Turn {assistant.turn}\n"
-                    f"Is this correct?"
-                )
+                action_descriptions = []
+                for action in assistant.action:
+                    if 'move' in action:
+                        times = assistant.move
+                        action_descriptions.append(f"<b>{action}</b> <b>{times}</b> time{'s' if times > 1 else ''}")
+                    elif 'shift' in action:
+                        times = assistant.shift
+                        action_descriptions.append(f"<b>{action}</b> <b>{times}</b> time{'s' if times > 1 else ''}")
+                    elif 'turn' in action:
+                        times = assistant.turn
+                        action_descriptions.append(f"<b>{action}</b> <b>{times}</b> time{'s' if times > 1 else ''}")
+                
+                confirmation_msg = "I understand you want me to " + " and ".join(action_descriptions) + ". Is this correct?"
                 self.add_robot_message(confirmation_msg)
                 
                 self.confirm_widget.show()
@@ -374,7 +382,7 @@ class RobotDogUI(QMainWindow):
         """사용자가 해석된 피드백을 승인할 때"""
         if self.pending_feedback_action:
             print("Pending feedback action:", self.pending_feedback_action)  # 디버그 출력
-            response_text = f"Executing: {self.pending_feedback_action.action}"
+            response_text = f"Executing your request..."
             self.add_robot_message(response_text)
             
             # 피드백 액션을 직접 변수에 저장
