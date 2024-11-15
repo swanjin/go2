@@ -4,6 +4,7 @@ import datetime
 from PIL import Image
 import os
 import re
+import math
 
 import utils
 
@@ -40,36 +41,40 @@ Choose the precise action name from the action dictionary to search for the '{se
    - **Case 2.2**: the '# Feedback' section has a comment, anything other than "None."
        - If different actions are involved in the feedback comment, list each unique action name once, separated by commas, in the order given.
        - If the feedback comment contains something related to previous rounds, use the information in the '# History' section. For example, if the feedback says, "Return to the previous position," check the position of the very previous round and adjust your action to get there by comparing your current position at this round.
-       - If the feedback comment includes '{self.env['object1']}', use the information in the '# History' section. For example, if the feedback says, "Go to where the '{self.env['object1']}' is located you saw before," check the position of the previous rounds in which the '{self.env['object1']}' was detected and adjust your action to get there again by comparing your current position at this round. If you think multiple different actions should be involved to get there, list each unique action name once, separated by commas, in the order given.
+       - If the feedback comment includes '{self.env['object2']}', use the information in the '# History' section. For example, if the feedback says, "Go to where the '{self.env['object2']}' is located you saw before," check the position of the previous rounds in which the '{self.env['object2']}' was detected and adjust your action to get there again by comparing your current position at this round. If you think multiple different actions should be involved to get there, list each unique action name once, separated by commas, in the order given.
 
 ### Instructions for New Position:
-Position and orientation are represented by a tuple (x, y, orientation), where:
-- x and y represent grid coordinates.
-- orientation represents the facing direction in degrees.
+Position and orientation are represented by a tuple `(x, y, orientation)`, where:
+- `x` and `y` represent grid coordinates.
+- `orientation` represents the facing direction in degrees.
 
 Orientation determines all directional movements. Use the following orientation mappings:
-- 0° or 360° (North): Facing the positive Y-axis.
-- 90° or -270° (East): Facing the positive X-axis.
-- 180° or -180° (South): Facing the negative Y-axis.
-- 270° or -90° (West): Facing the negative X-axis.
+- **0° or 360°**: Facing the positive Y-axis.
+- **60°**: Facing the positive X-axis and positive Y-axis (diagonal).
+- **120°**: Facing the positive X-axis and negative Y-axis (diagonal).
+- **180° or -180°**: Facing the negative Y-axis.
+- **240°**: Facing the negative X-axis and negative Y-axis (diagonal).
+- **300° or -60°**: Facing the negative X-axis and positive Y-axis (diagonal).
 
 Movement & Shift Table by Orientation:
-Each action’s effect on x and y coordinates depends on the orientation as shown:
+The effect of each action on `x` and `y` coordinates depends on the orientation as shown:
 
-| Orientation | move forward | move backward | shift right | shift left |
-|-------------|--------------|---------------|-------------|------------|
-| 0° (North)  | (x, y + 1)   | (x, y - 1)    | (x + 1, y)  | (x - 1, y) |
-| 90° (East)  | (x + 1, y)   | (x - 1, y)    | (x, y - 1)  | (x, y + 1) |
-| 180° (South)| (x, y - 1)   | (x, y + 1)    | (x - 1, y)  | (x + 1, y) |
-| 270° (West) | (x - 1, y)   | (x + 1, y)    | (x, y + 1)  | (x, y - 1) |
+| Orientation | move forward      | move backward     | shift right      | shift left       |
+|-------------|-------------------|-------------------|------------------|------------------|
+| **0° (North)**  | `(x, y + 1)`      | `(x, y - 1)`      | `(x + 1, y)`      | `(x - 1, y)`      |
+| **60°**         | `(x + {math.sqrt(3)/2:.1f}, y + {1/2})`  | `(x - {math.sqrt(3)/2:.1f}, y - {1/2})`  | `(x + {math.sqrt(3)/2:.1f}, y - {1/2})`  | `(x - {math.sqrt(3)/2:.1f}, y + {1/2})`  |
+| **120°**        | `(x + {math.sqrt(3)/2:.1f}, y - {1/2})`  | `(x - {math.sqrt(3)/2:.1f}, y + {1/2})`  | `(x - {math.sqrt(3)/2:.1f}, y - {1/2})`  | `(x + {math.sqrt(3)/2:.1f}, y + {1/2})`  |
+| **180° (South)**| `(x, y - 1)`      | `(x, y + 1)`      | `(x - 1, y)`      | `(x + 1, y)`      |
+| **240°**        | `(x - {math.sqrt(3)/2:.1f}, y - {1/2})`  | `(x + {math.sqrt(3)/2:.1f}, y + {1/2})`  | `(x - {math.sqrt(3)/2:.1f}, y + {1/2})`  | `(x + {math.sqrt(3)/2:.1f}, y - {1/2})`  |
+| **300°**        | `(x - {math.sqrt(3)/2:.1f}, y + {1/2})`  | `(x + {math.sqrt(3)/2:.1f}, y - {1/2})`  | `(x + {math.sqrt(3)/2:.1f}, y + {1/2})`  | `(x - {math.sqrt(3)/2:.1f}, y - {1/2})`  |
 
-turn right / turn left (Orientation Changes Only):
-- turn right: Increases orientation by 90°.
-- turn left: Decreases orientation by 90°.
-After each turn, normalize the orientation to a range of 0° to 360° (e.g., -90° becomes 270°).
+Turn Right / Turn Left (Orientation Changes Only):
+- **Turn Right**: Increases orientation by 60°.
+- **Turn Left**: Decreases orientation by 60°.
+After each turn, normalize the orientation to a range of `0°` to `360°` (e.g., `-60°` becomes `300°`).
 
 Verification Step:
-Confirm each x or y coordinate change reflects the intended movement or shift by double-checking against the table above to ensure consistency with the specified orientation.
+Confirm each `x` or `y` coordinate change reflects the intended movement or shift by double-checking against the table above to ensure consistency with the specified orientation.
 
 ### Instructions for Move: for deciding the number of steps of 'move forward' or 'move backward'
 - **Case 1**:
@@ -116,9 +121,9 @@ Confirm each x or y coordinate change reflects the intended movement or shift by
 # """
         return f"""Your target object is '{self.target}'. You start at position (0, 0, 0). Ensure each response follows the following format precisely. Do not deviate. Before responding, verify that your output exactly matches the structured format.
 
-Current Position: (x, y, orientation) before the action.
+Current Position: '(x, y, orientation)' before the action.
 Target Status: If the target is detected in the 'Image Analysis' section, mark 'Visible'; otherwise, 'Invisible.'
-Contextual Likelihood: If the target status is 'Visible', set the likelihood as 100. If it is 'Invisible' and there are no detected objects, set 0. If the target status is 'Invisible' but there are some detected objects, assign a score from 0-100 based on how likely the target is contextually correlated with the other detected objects in the image at this round. For example, if the target is '{self.env['target']}' and '{self.env['object1']}' is detected, the likelihood should be 80.
+Contextual Likelihood: If the target status is 'Visible', set the likelihood as '100'. If it is 'Invisible' and there are no detected objects, set '0'. If the target status is 'Invisible' but there are some detected objects, assign a score from 0-100 based on how likely the target is contextually correlated with the other detected objects in the image at this round. For example, if the target is '{self.env['target']}' and '{self.env['object1']}' is detected, the likelihood should be '80'.
 Action: Follow the guideline in the '### Instructions for Action' section.
 New Position: Follow the guideline in the '### Instructions for New Position' section.
 Reason: Specify the orientation used in the calculation to confirm alignment with movement directions, explaining your choice in one concise sentence and mentioning which instructions affected your decision without mentioning the case number.
