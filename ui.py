@@ -182,6 +182,43 @@ class RobotDogUI(QMainWindow):
         self.confirm_widget.hide()
         layout.addWidget(self.confirm_widget)
 
+        # Add status buttons container
+        self.status_buttons = QWidget()
+        self.status_buttons.setStyleSheet("""
+            QWidget {
+                background-color: white;
+                border-top: 1px solid #E0E0E0;
+            }
+        """)
+        status_layout = QHBoxLayout(self.status_buttons)
+        status_layout.setContentsMargins(20, 10, 20, 10)
+        
+        # Create status buttons
+        status_questions = [
+            "Robot Status"
+        ]
+        
+        for question in status_questions:
+            btn = QPushButton(question)
+            btn.setStyleSheet("""
+                QPushButton {
+                    background-color: #F1F3F4;
+                    color: #1A73E8;
+                    border: 1px solid #E0E0E0;
+                    border-radius: 15px;
+                    padding: 8px 15px;
+                    font-size: 13px;
+                }
+                QPushButton:hover {
+                    background-color: #E8F0FE;
+                }
+            """)
+            btn.clicked.connect(lambda checked, q=question: self.send_status_question(q))
+            status_layout.addWidget(btn)
+        
+        self.status_buttons.hide()
+        layout.addWidget(self.status_buttons)
+
         # Input area
         self.input_widget = QWidget()
         self.input_widget.setStyleSheet("""
@@ -291,6 +328,7 @@ class RobotDogUI(QMainWindow):
             if "apple" in text.lower():
                 response = f"I'll start searching for apple now."
                 self.add_robot_message(response)
+                self.status_buttons.show()
                 QTimer.singleShot(100, lambda: self.process_target("apple", response))
             else:
                 clarify_msg = "Please tell me specifically about the target you want me to find."
@@ -467,6 +505,14 @@ class RobotDogUI(QMainWindow):
         if hasattr(self, 'dog'):
             self.dog.shutdown()
         event.accept()
+
+    def send_status_question(self, question):
+        """Handle status button clicks by sending the question as a message"""
+        if not self.conversation_started:
+            return
+        
+        self.message_input.setText(question)
+        self.send_message()
 
 class CameraThread(QThread):
     frame_update = pyqtSignal(QImage)
