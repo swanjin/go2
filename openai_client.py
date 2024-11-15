@@ -37,13 +37,13 @@ class OpenaiClient(AiClientBase):
             "model": "gpt-4o",
             "messages": self.openai_prompt_messages,
             "max_tokens": 200,
-            "temperature": 0
+            # "temperature": 0
         }
         self.openai_params_for_text = {
             "model": "gpt-4o",
             "messages": self.openai_prompt_messages_for_text,
             "max_tokens": 200,
-            "temperature": 0
+            # "temperature": 0
         }
         self.openai_goal = {
             "role": "user",
@@ -85,12 +85,12 @@ class OpenaiClient(AiClientBase):
         else:
             self.history_log_file.write(
                 f"Response: \n"
-                f"Action) {assistant.action} \n"
-                f"Reason) {assistant.reason} \n"
                 f"Likelihood) {assistant.likelihood} \n"
+                f"Action) {assistant.action} \n"
                 f"Move) {assistant.move} \n"
                 f"Shift) {assistant.shift} \n"
                 f"Turn) {assistant.turn} \n\n"
+                f"Reason) {assistant.reason} \n"
             )
 
             self.history_log_file.flush()
@@ -116,9 +116,9 @@ class OpenaiClient(AiClientBase):
         
         self.history = self.history if round_number > 1 else ""
         
-        # #### Test feedback prompt
-        # if round_number == 1:
-        #     image_description_text = "You detected banana at coordinates (640, 360) with a distance of 5 meters."
+        #### Test feedback prompt
+        if round_number == 1:
+            image_description_text = "You detected banana at coordinates (640, 360) with a distance of 5 meters."
     
         self.history += (
             f"- Round {round_number}: "

@@ -39,8 +39,8 @@ Choose the precise action name from the action dictionary to search for the '{se
            - **If all distances are greater than '{self.env['hurdle_meter_for_non_target']}' meters and likelihood > 50%, then adjust the y-coordinate (Case 2.1.c)**.
    - **Case 2.2**: the '# Feedback' section has a comment, anything other than "None."
        - If different actions are involved in the feedback comment, list each unique action name once, separated by commas, in the order given.
-       - If the feedback comment contains something related to previous rounds, use the information in the '# History' section. For example, if the feedback says, "Return to the previous position," check the position of the very previous round and adjust your action to get there by comparing your current position at this round.
-       - If the feedback comment includes '{self.env['object1']}', use the information in the '# History' section. For example, if the feedback says, "Go to where the '{self.env['object1']}' is located you saw before," check the position of the previous rounds in which the '{self.env['object1']}' was detected and adjust your action to get there again by comparing your current position at this round. If you think multiple different actions should be involved to get there, list each unique action name once, separated by commas, in the order given.
+       - If the feedback comment contains something related to previous rounds, use the information in the '# History' section. For example, if the feedback says, "Return to the previous position," check the position of the very previous round and adjust your action to get there by comparing with your current position at this round.
+       - If the feedback comment includes '{self.env['object2']}', use the information in the '# History' section. For example, if the feedback says, "Go to where the '{self.env['object2']}' is located you saw before," check the position of the previous rounds in which the '{self.env['object2']}' was detected and adjust your action to get there again by comparing with your current position at this round. If you think multiple different actions should be involved to get there, list each unique action name once, separated by commas, in the order given.
 
 ### Instructions for New Position:
 Position and orientation are represented by a tuple '(x, y, orientation)', where:
@@ -58,14 +58,14 @@ The effect of each action on x and y coordinates depends on the orientation as s
 
 | Orientation | move forward | move backward | shift right | shift left |
 |-------------|--------------|---------------|-------------|------------|
-| 0° (North)  | (x, y + 1)   | (x, y - 1)    | (x + 1, y)  | (x - 1, y) |
-| 90° (East)  | (x + 1, y)   | (x - 1, y)    | (x, y - 1)  | (x, y + 1) |
-| 180° (South)| (x, y - 1)   | (x, y + 1)    | (x - 1, y)  | (x + 1, y) |
-| 270° (West) | (x - 1, y)   | (x + 1, y)    | (x, y + 1)  | (x, y - 1) |
+| 0° (North)  | (x, y + 1*Move)   | (x, y - 1*Move)    | (x + 1*Shift, y)  | (x - 1*Shift, y) |
+| 90° (East)  | (x + 1*Move, y)   | (x - 1*Move, y)    | (x, y - 1*Shift)  | (x, y + 1*Shift) |
+| 180° (South)| (x, y - 1*Move)   | (x, y + 1*Move)    | (x - 1*Shift, y)  | (x + 1*Shift, y) |
+| 270° (West) | (x - 1*Move, y)   | (x + 1*Move, y)    | (x, y + 1*Shift)  | (x, y - 1*Shift) |
 
 turn right / turn left (Orientation Changes Only):
-- turn right: Increases orientation by 90°.
-- turn left: Decreases orientation by 90°.
+- turn right: Increases orientation by 90°*Turn.
+- turn left: Decreases orientation by 90°*Turn.
 After each turn, normalize the orientation to a range of 0° to 360° (e.g., -90° becomes 270°).
 
 Verification Step:
@@ -87,7 +87,7 @@ Confirm each x or y coordinate change reflects the intended movement or shift by
        - If 'move forward' or 'move backward' is not in the chosen actions, execute 0.
    - **Case 2.2**: 
        - If 'move forward' or 'move backward' is in the chosen actions, interpret the feedback to only determine the number of move; otherwise, execute 0.
-       - If the feedback comment includes '{self.env['object2']}', use the information in the '# History' section. For example, if the feedback says, "Go to where the '{self.env['object2']}' is located you saw before," check the position of the previous rounds in which the '{self.env['object2']}' was detected and adjust the number of move to get there again by comparing your current position at this round.
+       - If the feedback comment includes '{self.env['object2']}', use the information in the '# History' section. For example, if the feedback says, "Go to where the '{self.env['object2']}' is located you saw before," check the position of the previous rounds in which the '{self.env['object2']}' was detected and adjust the number of move to get there again by comparing with your current position at this round.
 
 ### Instructions for Shift: for deciding the number of steps of 'shift right' or 'shift left'
 - **Case 1**:
@@ -97,14 +97,15 @@ Confirm each x or y coordinate change reflects the intended movement or shift by
    - **Case 2.1**: Execute 1.
    - **Case 2.2**: 
        - If 'shift right' or 'shift left' is in the chosen actions, interpret the feedback to only determine the number of shift; otherwise, execute 0.
-       - If the feedback comment includes '{self.env['object2']}', use the information in the '# History' section. For example, if the feedback says, "Go to where the '{self.env['object2']}' is located you saw before," check the position of the previous rounds in which the '{self.env['object2']}' was detected and adjust the number of shift to get there again by comparing your current position at this round.
+       - If the feedback comment includes '{self.env['object2']}', use the information in the '# History' section. For example, if the feedback says, "Go to where the '{self.env['object2']}' is located you saw before," check the position of the previous rounds in which the '{self.env['object2']}' was detected and adjust the number of shift to get there again by comparing with your current position at this round.
 
 ### Instructions for Turn: for deciding the number of steps of 'turn right' or 'turn left'
 - **Case 2**:
    - **Case 2.1**: If 'turn right' or 'turn left' is in the chosen actions, execute 1; otherwise, execute 0.
    - **Case 2.2**: 
        - If 'turn right' or 'turn left' is in the chosen actions, interpret the feedback to only determine the number of turn; otherwise, execute 0.
-       - If the feedback comment includes '{self.env['object2']}', use the information in the '# History' section. For example, if the feedback says, "Go to where the '{self.env['object2']}' is located you saw before," check the position of the previous rounds in which the '{self.env['object2']}' was detected and adjust the number of turn to get there again by comparing your current position at this round.""" 
+       - If the feedback comment includes '{self.env['object2']}', use the information in the '# History' section. For example, if the feedback says, "Go to where the '{self.env['object2']}' is located you saw before," check the position of the previous rounds in which the '{self.env['object2']}' was detected and adjust the number of turn to get there again by comparing with your current position at this round.
+""" 
 
     def get_user_prompt(self):
 #### Use w/ gpt_vsion_test() ####        
@@ -114,17 +115,18 @@ Confirm each x or y coordinate change reflects the intended movement or shift by
 # Confidence: If visible, provide how much you are sure that the detected object is the target based on the scale 0-100. Please output only the number.
 # Location: If visible, explain its location in the image in one concise short sentence.
 # """
-        return f"""Your target object is '{self.target}'. You start at position (0, 0, 0). Ensure each response follows the following format precisely. Do not deviate. Before responding, verify that your output exactly matches the structured format.
+        return f"""
+        Your target object is '{self.target}'. You start at position (0, 0, 0). Ensure each response follows the following format precisely. Do not deviate. Before responding, verify that your output exactly matches the structured format.
 
-Current Position: (x, y, orientation) before the action.
+Current Position: compute '(x, y, orientation)' before you take any action at this round.
 Target Status: If the target is detected in the 'Image Analysis' section, mark 'Visible'; otherwise, 'Invisible.'
-Contextual Likelihood: If the target status is 'Visible', set the likelihood as 100. If it is 'Invisible' and there are no detected objects, set 0. If the target status is 'Invisible' but there are some detected objects, assign a score from 0-100 based on how likely the target is contextually correlated with the other detected objects in the image at this round. For example, if the target is '{self.env['target']}' and '{self.env['object1']}' is detected, the likelihood should be 80.
+Likelihood: If the target status is 'Visible', set the likelihood as 100. If it is 'Invisible' and there are no detected objects, set 0. If the target status is 'Invisible' but there are some detected objects, assign a score from 0-100 based on how likely the target is contextually correlated with the other detected objects in the image at this round. For example, if the target is '{self.env['target']}' and '{self.env['object1']}' is detected, the likelihood should be 80.
 Action: Follow the guideline in the '### Instructions for Action' section.
-New Position: Follow the guideline in the '### Instructions for New Position' section.
-Reason: Specify the orientation used in the calculation to confirm alignment with movement directions, explaining your choice in one concise sentence and mentioning which instructions affected your decision without mentioning the case number.
 Move: Follow the guideline in the '### Instructions for Move' section.
 Shift: Follow the guideline in the '### Instructions for Shift' section.
 Turn: Follow the guideline in the '### Instructions for Turn' section.
+New Position: Follow the guideline in the '### Instructions for New Position' section.
+Reason: Explain your choice of actions and mentioning which instructions affected your decision without mentioning the case number in one concise sentence.
 """
 
     def set_target(self, target):
@@ -170,19 +172,22 @@ class ResponseMessage:
     target: str
     likelihood: str
     action: list
-    new_position: str
-    reason: str
     move: str
     shift: str
     turn: str
+    new_position: str
+    reason: str
 
+    @staticmethod
     def parse_step(x: str):
-        x = re.findall(r'\d', x)
-        if x:
-            x = int(''.join(x))
-        else:
-            print("No " + x)
-        return x
+        # Remove any quotes and parentheses
+        x = x.strip("'\"()") 
+        # Find all numbers in the string
+        numbers = re.findall(r'\d+', x)
+        if numbers:
+            return int(numbers[0])  # Return first number found
+        print(f"No numeric value found in: {x}")
+        return 0  # Return 0 as default if no number found
     
     def parse_action(action: str):
         import ast
@@ -200,26 +205,35 @@ class ResponseMessage:
             parts = [line.split(":", 1)[1].strip() for line in message.split('\n') if ':' in line and len(line.strip()) > 0]
             if len(parts) != 9:
                 raise ValueError("Message does not contain exactly nine parts")
-            curr_position, target, likelihood, action, new_position, reason, move, shift, turn = parts
-            print(curr_position)
+            curr_position, target, likelihood, action, move, shift, turn, new_position, reason = parts
+            
             # parse action
             action = ResponseMessage.parse_action(action)
 
-            # parse step
-            # print(move, shift, turn)
+            # parse numeric values
             move = ResponseMessage.parse_step(move)
             shift = ResponseMessage.parse_step(shift)
             turn = ResponseMessage.parse_step(turn)
-            # print(move, shift, turn)
             
             total_step = move + shift + turn
             if total_step == 0:
                 action = "stop"
-            # print(ResponseMessage(curr_position, target, likelihood, action, new_position, reason, move, shift, turn))
+                
         except Exception as e:
-            print("parse failed. Message: ", message, "\nError: ", e)
-            return ResponseMessage()
-        return ResponseMessage(curr_position, target, likelihood, action, new_position, reason, move, shift, turn)
+            print(f"Parse failed. Message: {message}\nError: {e}")
+            # Return default values when parsing fails
+            return ResponseMessage(
+                curr_position="(0, 0, 0)",
+                target="unknown",
+                likelihood="0",
+                action=["stop"],
+                move="0",
+                shift="0",
+                turn="0",
+                new_position="(0, 0, 0)",
+                reason="Parse error"
+            )
+        return ResponseMessage(curr_position, target, likelihood, action, move, shift, turn, new_position, reason)
     
     def to_dict(self):
         return asdict(self)
