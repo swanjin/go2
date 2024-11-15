@@ -195,7 +195,8 @@ class RobotDogUI(QMainWindow):
         
         # Create status buttons
         status_questions = [
-            "Robot Status"
+            "Robot Status",
+            "Feedback"
         ]
         
         for question in status_questions:
@@ -381,7 +382,7 @@ class RobotDogUI(QMainWindow):
     def confirm_feedback(self):
         """사용자가 해석된 피드백을 승인할 때"""
         if self.pending_feedback_action:
-            print("Pending feedback action:", self.pending_feedback_action)  # 디버그 출력
+            print("Pending feedback action:", self.pending_feedback_action)
             response_text = f"Executing your request..."
             self.add_robot_message(response_text)
             
