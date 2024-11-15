@@ -400,6 +400,7 @@ class RobotDogUI(QMainWindow):
             self.add_user_message(text)
             self.message_input.clear()
             QApplication.processEvents()
+            self.status_buttons.hide()
 
             assistant = self.dog.ai_client.get_response_by_feedback(text)
 
@@ -421,7 +422,7 @@ class RobotDogUI(QMainWindow):
 
                 confirmation_msg = "I understand you want me to " + " and ".join(action_descriptions) + ". Is this correct?"
                 self.add_robot_message(confirmation_msg)
-                
+
                 self.confirm_widget.show()
                 self.input_widget.hide()
                 self.awaiting_feedback = False
@@ -438,6 +439,7 @@ class RobotDogUI(QMainWindow):
         if self.pending_feedback_action:
             print("Pending feedback action:", self.pending_feedback_action)
             response_text = f"Executing your request..."
+            self.status_buttons.show()
             self.add_robot_message(response_text)
             
             # 피드백 액션을 직접 변수에 저장
