@@ -256,14 +256,15 @@ class Dog:
                     self.feedback_complete_event.clear()  # Pause queryGPT_by_LLM while feedback is in progress
                     self.interrupt_round_flag.set()  # Set the flag to skip the current round
                     print("Giving feedback... (Press Enter when done)")
-                    feedback = input("User) ") # Wait for feedback completion
                     
-                    assistant = self.ai_client.get_response_by_feedback(feedback)
-                    print(assistant.action)
-                    print(assistant.reason)
-                    self.activate_sportclient(assistant.action, int(assistant.move), int(assistant.shift), int(assistant.turn))
-                    if self.env["tts"]:
-                        self.ai_client.tts(assistant.action)
+                    frame = self.read_frame()
+                    assistant = self.ai_client.get_response_by_feedback(frame)
+                    if assistant is not None:
+                        print(assistant.action)
+                        print(assistant.reason)
+                        self.activate_sportclient(assistant.action, int(assistant.move), int(assistant.shift), int(assistant.turn))
+                        if self.env["tts"]:
+                            self.ai_client.tts(assistant.action)
                             
                     self.feedback_complete_event.set()  # Allow round_sequence to continue after feedback
                     print("Feedback complete. Moving to next round...")

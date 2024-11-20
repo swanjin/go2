@@ -131,6 +131,11 @@ class OpenaiClient(AiClientBase):
         # self.history += "None."
 
     def get_response_by_LLM(self, image_pil, dog_instance, feedback = None):
+        # Check for feedback interruption early in the function
+        if dog_instance.check_feedback_and_interruption():
+            dog_instance.round_number += 1
+            return None
+        
         image_analysis = self.vision_model.describe_image(image_pil)
 
         if image_analysis.description == "":
@@ -161,7 +166,7 @@ class OpenaiClient(AiClientBase):
             f"{self.get_user_prompt()}\n\n"
             f"### Image analysis:\n (The image size is {self.env['captured_width']}x{self.env['captured_height']}, with the coordinate (0, 0) located at the top-left corner.):\n {image_description_text} \n\n"
             f"### History:\n {self.history}\n\n"
-            f"### Feedback:\n {feedback}."
+            f"### Conversation:\n {feedback}."
         )
 
         # Check for feedback interruption early in the function
@@ -223,18 +228,55 @@ class OpenaiClient(AiClientBase):
 
         return assistant
 
-    def get_response_by_feedback(self, feedback):
-        self.openai_goal_for_text["content"] = (
-            f"{self.get_user_prompt()}\n\n"
-            f"### History:\n {self.history}\n\n"
-            f"### Feedback:\n {feedback}."
-        )
+    def get_response_by_feedback(self,image_pil):
+        image_analysis = self.vision_model.describe_image(image_pil)
+
+        if image_analysis.description == "":
+            image_description_text = "No objects detected in the image."
+        else:
+            image_description_text = image_analysis.description
         
+        self.openai_goal_for_text["content"] = (
+            f"### Image analysis:\n (The image size is {self.env['captured_width']}x{self.env['captured_height']}, with the coordinate (0, 0) located at the top-left corner.):\n {image_description_text} \n\n"
+            f"### History:\n {self.history}\n\n"
+            f"### Conversation:\n Refer to the below conversation between you and the user."
+        )
+        self.openai_prompt_messages_for_text.append(self.openai_goal_for_text)
         if self.env["print_history"]:
             print(self.history)
         
+        while True:
+            # Get user input    
+            feedback = input("User) ") # Wait for feedback completion
+            if feedback.lower() == "exit":
+                assistant = None
+                print("Returning to the auto search mode...")
+                break
+            elif feedback.endswith("!"):
+                assistant = self.feedback_to_action(feedback)
+                break
+
+            self.openai_prompt_messages_for_text.append({"role": "user", "content": feedback})
+            self.openai_prompt_messages_for_text.append({"role": "user", "content": self.get_user_prompt_for_questions()})
+
+            # print(self.openai_prompt_messages_for_text)
+
+            result = self.client.chat.completions.create(**self.openai_params_for_text)
+            rawAssistant = result.choices[0].message.content
+            self.openai_prompt_messages_for_text.append({"role": "assistant", "content": rawAssistant})
+            print(rawAssistant)
+       
+        return assistant
+
+    def feedback_to_action(self, feedback):
+        self.openai_prompt_messages_for_text.append({"role": "user", "content": feedback})
+        self.openai_prompt_messages_for_text.append({"role": "user", "content": self.get_user_prompt()})
+        # print(self.openai_prompt_messages_for_text)
+        
         result = self.client.chat.completions.create(**self.openai_params_for_text)
         rawAssistant = result.choices[0].message.content
+        self.openai_prompt_messages_for_text.append({"role": "assistant", "content": rawAssistant})
+        
         assistant = ResponseMessage.parse(rawAssistant)
 
         self.store_image()
@@ -242,6 +284,7 @@ class OpenaiClient(AiClientBase):
         self.update_history_prompt(assistant, feedback=feedback, image_description_text="No objects detected in the image.")
 
         return assistant
+
 
     def stt(self, voice_buffer):
         container = voice_buffer
