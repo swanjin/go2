@@ -116,7 +116,7 @@ Confirm each x or y coordinate change reflects the intended movement or shift by
 # Location: If visible, explain its location in the image in one concise short sentence.
 # """
         return f"""
-        Your target object is '{self.target}'. You start at position (0, 0, 0). Ensure each response follows the following format precisely. Do not deviate. Before responding, verify that your output exactly matches the structured format.
+        Your target object is '{self.env['target']}'. You start at position (0, 0, 0). Ensure each response follows the following format precisely. Do not deviate. Before responding, verify that your output exactly matches the structured format.
 
 Current Position: compute '(x, y, orientation)' before you take any action at this round.
 Target Status: If the target is detected in the 'Image Analysis' section, mark 'Visible'; otherwise, 'Invisible.'
