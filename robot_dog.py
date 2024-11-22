@@ -35,10 +35,12 @@ class Dog:
         
         self.capture: cv2.VideoCapture
         self.ai_client = AiSelector.getClient(env, apikey[env["ai"]])
+        self.ai_client.dog = self  # Give the client a reference to the dog instance
         self.vision_model = VisionModel(env)
         self.image_files = None  # To store image paths when using test_dataset
         self.feedback = None
         self.round_number = 1
+        self.window = None  # Will be set by the UI
 
         # Initialize the communication channel and the sport client
         if self.env["connect_robot"]:

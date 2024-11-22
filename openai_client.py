@@ -228,8 +228,15 @@ class OpenaiClient(AiClientBase):
 
         return assistant
 
-    def get_response_by_feedback(self,image_pil):
+    def get_response_by_feedback(self, image_pil, text):
+        print("\n=== Starting get_response_by_feedback ===")
+        if not hasattr(self, 'dog') or not hasattr(self.dog, 'window'):
+            print("Warning: UI window reference not properly set")
+            return None
+        
+        print(f"Processing feedback text: {text}")
         image_analysis = self.vision_model.describe_image(image_pil)
+        print(f"Image analysis result: {image_analysis.description}")
 
         if image_analysis.description == "":
             image_description_text = "No objects detected in the image."
@@ -237,53 +244,77 @@ class OpenaiClient(AiClientBase):
             image_description_text = image_analysis.description
         
         self.openai_goal_for_text["content"] = (
-            f"### Image analysis:\n (The image size is {self.env['captured_width']}x{self.env['captured_height']}, with the coordinate (0, 0) located at the top-left corner.):\n {image_description_text} \n\n"
+            f"### Image Analysis:\n (The image size is {self.env['captured_width']}x{self.env['captured_height']}, with the coordinate (0, 0) located at the top-left corner.):\n {image_description_text} \n\n"
             f"### History:\n {self.history}\n\n"
             f"### Conversation:\n Refer to the below conversation between you and the user."
         )
+        print("Added initial context to messages")
         self.openai_prompt_messages_for_text.append(self.openai_goal_for_text)
-        if self.env["print_history"]:
-            print(self.history)
         
-        while True:
-            # Get user input    
-            feedback = input("User) ") # Wait for feedback completion
-            if feedback.lower() == "exit":
-                assistant = None
-                print("Returning to the auto search mode...")
-                break
-            elif feedback.endswith("!"):
-                assistant = self.feedback_to_action(feedback)
-                break
+        if text.endswith("!"):
+            print("Text ends with '!', calling feedback_to_action")
+            assistant = self.feedback_to_action(text)
+            return assistant
 
-            self.openai_prompt_messages_for_text.append({"role": "user", "content": feedback})
-            self.openai_prompt_messages_for_text.append({"role": "user", "content": self.get_user_prompt_for_questions()})
+        # Store user message for OpenAI
+        user_message = {"role": "user", "content": text}
+        self.openai_prompt_messages_for_text.append(user_message)
+        print("Added user message to conversation")
+        
+        # Store system prompt for questions
+        system_prompt = {"role": "system", "content": self.get_user_prompt_for_questions()}
+        self.openai_prompt_messages_for_text.append(system_prompt)
+        print("Added system prompt to conversation")
 
-            # print(self.openai_prompt_messages_for_text)
-
+        try:
+            print("Sending request to OpenAI...")
             result = self.client.chat.completions.create(**self.openai_params_for_text)
             rawAssistant = result.choices[0].message.content
-            self.openai_prompt_messages_for_text.append({"role": "assistant", "content": rawAssistant})
-            print(rawAssistant)
-       
-        return assistant
+            print(f"Received response from OpenAI: {rawAssistant}")
+            
+            # Store assistant's response
+            assistant_message = {"role": "assistant", "content": rawAssistant}
+            self.openai_prompt_messages_for_text.append(assistant_message)
+            
+            # Parse the response into an action
+            print("Parsing response into action...")
+            assistant = self.feedback_to_action(rawAssistant)
+            print(f"Parsed assistant response: {assistant}")
+            
+            return assistant
+            
+        except Exception as e:
+            print(f"Error getting response from OpenAI: {str(e)}")
+            self.dog.window.add_robot_message(f"Error: Failed to process feedback. {str(e)}")
+            return None
 
     def feedback_to_action(self, feedback):
+        print("\n=== Starting feedback_to_action ===")
+        print(f"Processing feedback: {feedback}")
+        
         self.openai_prompt_messages_for_text.append({"role": "user", "content": feedback})
         self.openai_prompt_messages_for_text.append({"role": "user", "content": self.get_user_prompt()})
-        # print(self.openai_prompt_messages_for_text)
+        print("Added feedback and user prompt to messages")
         
-        result = self.client.chat.completions.create(**self.openai_params_for_text)
-        rawAssistant = result.choices[0].message.content
-        self.openai_prompt_messages_for_text.append({"role": "assistant", "content": rawAssistant})
-        
-        assistant = ResponseMessage.parse(rawAssistant)
+        try:
+            print("Sending request to OpenAI for action...")
+            result = self.client.chat.completions.create(**self.openai_params_for_text)
+            rawAssistant = result.choices[0].message.content
+            print(f"Received action response: {rawAssistant}")
+            
+            self.openai_prompt_messages_for_text.append({"role": "assistant", "content": rawAssistant})
+            
+            assistant = ResponseMessage.parse(rawAssistant)
+            print(f"Parsed assistant response: {assistant}")
 
-        self.store_image()
-        self.save_round(assistant, feedback, None)
-        self.update_history_prompt(assistant, feedback=feedback, image_description_text="No objects detected in the image.")
+            self.store_image()
+            self.save_round(assistant, feedback, None)
+            self.update_history_prompt(assistant, feedback=feedback, image_description_text="No objects detected in the image.")
 
-        return assistant
+            return assistant
+        except Exception as e:
+            print(f"Error in feedback_to_action: {str(e)}")
+            return None
 
 
     def stt(self, voice_buffer):
