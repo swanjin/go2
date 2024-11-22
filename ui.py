@@ -456,6 +456,7 @@ class RobotDogUI(QMainWindow):
             self.pending_feedback_action = None
             self.awaiting_feedback = False
 
+
     def reject_feedback(self):
         """사용자가 해석된 피드백을 거부할 때"""
         reject_msg = "Please provide more specific feedback about what you want me to do."
@@ -511,7 +512,7 @@ class RobotDogUI(QMainWindow):
             )
             
             # 실행 완료 처리
-            QTimer.singleShot(2000, self.complete_feedback)
+            QTimer.singleShot(2000, self.complete_feedback())
             
         except Exception as e:
             print(f"Error in execute_feedback_action: {str(e)}")
