@@ -131,6 +131,11 @@ class OpenaiClient(AiClientBase):
         # self.history += "None."
 
     def get_response_by_LLM(self, image_pil, dog_instance, feedback = None):
+
+        # self.openai_prompt_messages_for_text = [
+        #     {"role": "system", "content": self.system_prompt 
+        # }]
+
         image_analysis = self.vision_model.describe_image(image_pil)
 
         if image_analysis.description == "":
@@ -157,6 +162,8 @@ class OpenaiClient(AiClientBase):
         #     image_description_text = "You detected refrigerator at coordinates (665, 236) with a distance of 2.65 meters."
 
         # input prompt
+        print(self.openai_prompt_messages_for_text)
+
         self.openai_goal_for_text["content"] = (
             f"{self.get_user_prompt()}\n\n"
             f"### Image analysis:\n (The image size is {self.env['captured_width']}x{self.env['captured_height']}, with the coordinate (0, 0) located at the top-left corner.):\n {image_description_text} \n\n"
@@ -222,26 +229,69 @@ class OpenaiClient(AiClientBase):
         self.save_round(assistant)
 
         return assistant
+    
+    def feedback_mode_on(self, image_pil):
+        
+        # self.openai_prompt_messages_for_text = [
+        #     {"role": "system", "content": self.system_prompt 
+        # }]
 
-    def get_response_by_feedback(self, feedback):
+        image_analysis = self.vision_model.describe_image(image_pil)
+
+        if image_analysis.description == "":
+            image_description_text = "No objects detected in the image."
+        else:
+            image_description_text = image_analysis.description
+        
         self.openai_goal_for_text["content"] = (
-            f"{self.get_user_prompt()}\n\n"
+            f"### Image analysis:\n (The image size is {self.env['captured_width']}x{self.env['captured_height']}, with the coordinate (0, 0) located at the top-left corner.):\n {image_description_text} \n\n"
             f"### History:\n {self.history}\n\n"
-            f"### Feedback:\n {feedback}."
+            f"### Conversation:\n Refer to the below conversation between you and the user."
         )
+        self.openai_prompt_messages_for_text.append(self.openai_goal_for_text)
         
         if self.env["print_history"]:
             print(self.history)
+
+
+    def get_response_by_feedback(self, text):
+
+        self.openai_prompt_messages_for_text.append({"role": "user", "content": text})
+        self.openai_prompt_messages_for_text.append({"role": "user", "content": self.get_user_prompt_for_questions()})
+
+        result = self.client.chat.completions.create(**self.openai_params_for_text)
+        response = result.choices[0].message.content
+        self.openai_prompt_messages_for_text.append({"role": "assistant", "content": response})
+
+        return response
+        
+    
+    def feedback_to_action(self, feedback):
+        
+        self.openai_prompt_messages_for_text.append({"role": "user", "content": feedback})
+        self.openai_prompt_messages_for_text.append({"role": "user", "content": self.get_user_prompt_for_questions()})
+        result = self.client.chat.completions.create(**self.openai_params_for_text)
+        confirmation_msg = result.choices[0].message.content
+        self.openai_prompt_messages_for_text.append({"role": "assistant", "content": confirmation_msg})
+        print(confirmation_msg)
+
+        self.openai_prompt_messages_for_text.append({"role": "user", "content": self.get_user_prompt()})
+        # print(self.openai_prompt_messages_for_text)
         
         result = self.client.chat.completions.create(**self.openai_params_for_text)
         rawAssistant = result.choices[0].message.content
+        self.openai_prompt_messages_for_text.append({"role": "assistant", "content": rawAssistant})
+        
         assistant = ResponseMessage.parse(rawAssistant)
 
         self.store_image()
         self.save_round(assistant, feedback, None)
         self.update_history_prompt(assistant, feedback=feedback, image_description_text="No objects detected in the image.")
 
-        return assistant
+        return confirmation_msg, assistant
+    
+    def clear_gpt_message(self):
+        self.openai_prompt_messages_for_text.clear()
 
     def stt(self, voice_buffer):
         container = voice_buffer

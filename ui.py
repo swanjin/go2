@@ -81,6 +81,8 @@ class RobotDogUI(QMainWindow):
         self.conversation_started = False
         self.pending_feedback_action = None
         self.awaiting_feedback = False
+        self.feedback_conversation_started = False
+        self.current_frame = None
 
         self.processing_timer = QTimer()
         self.processing_timer.timeout.connect(self.update_processing_animation)
@@ -394,6 +396,9 @@ class RobotDogUI(QMainWindow):
             
             if self.dog.env["tts"]:
                 QTimer.singleShot(300, lambda: self.play_tts(feedback_msg))
+                
+            frame = self.dog.read_frame()
+            self.dog.ai_client.feedback_mode_on(frame)
             
         elif self.feedback_mode and self.awaiting_feedback:
 
@@ -402,33 +407,50 @@ class RobotDogUI(QMainWindow):
             QApplication.processEvents()
             self.status_buttons.hide()
 
-            assistant = self.dog.ai_client.get_response_by_feedback(text)
+            if text.lower() == "exit":
+                self.feedback_mode = False
+                self.awaiting_feedback = False
+                # self.dog.ai_client.clear_gpt_message()
+                self.resume_auto_mode()
 
-
-            if assistant:
+            elif text.endswith("!"):
+                confirmation_msg, assistant = self.dog.ai_client.feedback_to_action(text)
                 self.pending_feedback_action = assistant
-                
-                action_descriptions = []
-                for action in assistant.action:
-                    if 'move' in action:
-                        times = assistant.move
-                        action_descriptions.append(f"<b>{action}</b> <b>{times}</b> time{'s' if times > 1 else ''}")
-                    elif 'shift' in action:
-                        times = assistant.shift
-                        action_descriptions.append(f"<b>{action}</b> <b>{times}</b> time{'s' if times > 1 else ''}")
-                    elif 'turn' in action:
-                        times = assistant.turn
-                        action_descriptions.append(f"<b>{action}</b> <b>{times}</b> time{'s' if times > 1 else ''}")
-
-                confirmation_msg = "I understand you want me to " + " and ".join(action_descriptions) + ". Is this correct?"
                 self.add_robot_message(confirmation_msg)
-
                 self.confirm_widget.show()
                 self.input_widget.hide()
                 self.awaiting_feedback = False
+                self.feedback_mode = False
+            
+            else:
+                result = self.dog.ai_client.get_response_by_feedback(text)
+                if result:
+                    self.add_robot_message(result)
+
+            # if assistant:
+            #     self.pending_feedback_action = assistant
                 
-                if self.dog.env["tts"]:
-                    QTimer.singleShot(300, lambda: self.play_tts(confirmation_msg))
+            #     action_descriptions = []
+            #     for action in assistant.action:
+            #         if 'move' in action:
+            #             times = assistant.move
+            #             action_descriptions.append(f"<b>{action}</b> <b>{times}</b> time{'s' if times > 1 else ''}")
+            #         elif 'shift' in action:
+            #             times = assistant.shift
+            #             action_descriptions.append(f"<b>{action}</b> <b>{times}</b> time{'s' if times > 1 else ''}")
+            #         elif 'turn' in action:
+            #             times = assistant.turn
+            #             action_descriptions.append(f"<b>{action}</b> <b>{times}</b> time{'s' if times > 1 else ''}")
+
+            #     confirmation_msg = "I understand you want me to " + " and ".join(action_descriptions) + ". Is this correct?"
+            #     self.add_robot_message(confirmation_msg)
+
+            #     self.confirm_widget.show()
+            #     self.input_widget.hide()
+            #     self.awaiting_feedback = False
+                
+            #     if self.dog.env["tts"]:
+            #         QTimer.singleShot(300, lambda: self.play_tts(confirmation_msg))
         else:
             self.add_user_message(text)
             self.message_input.clear()
@@ -527,6 +549,7 @@ class RobotDogUI(QMainWindow):
         if self.dog.env["tts"]:
             QTimer.singleShot(300, lambda: self.play_tts(resume_msg))
         
+        # self.dog.ai_client.clear_gpt_message()
         QTimer.singleShot(600, lambda: self.resume_auto_mode())
 
     def resume_auto_mode(self):

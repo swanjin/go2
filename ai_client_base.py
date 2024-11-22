@@ -30,17 +30,17 @@ Choose the precise action name from the action dictionary to search for the '{se
    - If the x-coordinate of at least one '{self.env['target']}' is within the middle third of the image (i.e., x-coordinates between '{self.env['captured_width']*(1/3)}' and '{self.env['captured_width']*(2/3)}'), adjust your y-coordinate to move closer to the target.
 
 - **Case 2**: the '{self.env['target']}' is not detected in the '### Image Analysis' section.
-   - **Case 2.1**: the '### Feedback' section has a comment "None."
+   - **Case 2.1**: the '### Conversation' section has a comment "None."
        a. You should explore different orientations only if the exact comment "No objects detected in the image." is present in the '### Image Analysis' section. Refer to the '### History' section to avoid revisiting orientations that have already been explored without success.
        b. If '{self.env['object1']}' is detected in the '### Image Analysis' section **with at least one distance less than '{self.env['hurdle_meter_for_non_target']}' meters and the likelihood at the current orientation is over 50%**, then **do not change the y-coordinate. Instead, explore different orientations**. Refer to the '### History' section to avoid revisiting orientations that have already been explored without success.
        c. If '{self.env['object1']}' is detected in the '### Image Analysis' section and **all of their distances are more than '{self.env['hurdle_meter_for_non_target']}' meters with likelihood > 50%**, then **adjust the y-coordinate in the direction of the detected objects, as movement is now prioritized over orientation**.
        d. For b. and c., ensure that the action taken aligns exactly with the criteria specified above:
            - **If at least one proximity is less than '{self.env['hurdle_meter_for_non_target']}' meters and likelihood > 50%, then explore orientations (Case 2.1.b)**.
            - **If all distances are greater than '{self.env['hurdle_meter_for_non_target']}' meters and likelihood > 50%, then adjust the y-coordinate (Case 2.1.c)**.
-   - **Case 2.2**: the '### Feedback' section has a comment, anything other than "None."
-       - If different actions are involved in the feedback comment, list each unique action name once, separated by commas, in the order given.
-       - If the feedback comment contains something related to previous rounds, use the information in the '# History' section. For example, if the feedback says, "Return to the previous position," check the position of the very previous round and adjust your action to get there by comparing with your current position at this round.
-       - If the feedback comment includes '{self.env['object2']}', use the information in the '# History' section. For example, if the feedback says, "Go to where the '{self.env['object2']}' is located you saw before," check the position of the previous rounds in which the '{self.env['object2']}' was detected and adjust your action to get there again by comparing with your current position at this round. If you think multiple different actions should be involved to get there, list each unique action name once, separated by commas, in the order given.
+   - **Case 2.2**: the '### Conversation' section has a comment, anything other than "None."
+       - If different actions are involved in the conversation, list each unique action name once, separated by commas, in the order given.
+       - If the conversation contains something related to previous rounds, use the information in the '### History' section. For example, if the user wants you to "Return to the previous position," check the position of the very previous round and adjust your action to get there by comparing with your current position at this round.
+       - If the conversation includes '{self.env['object2']}', use the information in the '### History' section. For example, if the the user wants you to "Go to where the '{self.env['object2']}' is located you saw before," check the position of the previous rounds in which the '{self.env['object2']}' was detected and adjust your action to get there again by comparing with your current position at this round. If you think multiple different actions should be involved to get there, list each unique action name once, separated by commas, in the order given.
 
 ### Instructions for New Position:
 Position and orientation are represented by a tuple '(x, y, orientation)', where:
@@ -86,8 +86,8 @@ Confirm each x or y coordinate change reflects the intended movement or shift by
            - Otherwise, execute 3.
        - If 'move forward' or 'move backward' is not in the chosen actions, execute 0.
    - **Case 2.2**: 
-       - If 'move forward' or 'move backward' is in the chosen actions, interpret the feedback to only determine the number of move; otherwise, execute 0.
-       - If the feedback comment includes '{self.env['object2']}', use the information in the '# History' section. For example, if the feedback says, "Go to where the '{self.env['object2']}' is located you saw before," check the position of the previous rounds in which the '{self.env['object2']}' was detected and adjust the number of move to get there again by comparing with your current position at this round.
+       - If 'move forward' or 'move backward' is in the chosen actions, interpret the conversation between you and the user to only determine the number of move; otherwise, execute 0.
+       - If the conversation includes '{self.env['object2']}', use the information in the '# History' section. For example, if the user wants you to "Go to where the '{self.env['object2']}' is located you saw before," check the position of the previous rounds in which the '{self.env['object2']}' was detected and adjust the number of move to get there again by comparing with your current position at this round.
 
 ### Instructions for Shift: for deciding the number of steps of 'shift right' or 'shift left'
 - **Case 1**:
@@ -96,15 +96,15 @@ Confirm each x or y coordinate change reflects the intended movement or shift by
 - **Case 2**:
    - **Case 2.1**: Execute 1.
    - **Case 2.2**: 
-       - If 'shift right' or 'shift left' is in the chosen actions, interpret the feedback to only determine the number of shift; otherwise, execute 0.
-       - If the feedback comment includes '{self.env['object2']}', use the information in the '# History' section. For example, if the feedback says, "Go to where the '{self.env['object2']}' is located you saw before," check the position of the previous rounds in which the '{self.env['object2']}' was detected and adjust the number of shift to get there again by comparing with your current position at this round.
+       - If 'shift right' or 'shift left' is in the chosen actions, interpret  the conversation between you and the user to only determine the number of shift; otherwise, execute 0.
+       - If the conversation includes '{self.env['object2']}', use the information in the '# History' section. For example, if the user wants you to "Go to where the '{self.env['object2']}' is located you saw before," check the position of the previous rounds in which the '{self.env['object2']}' was detected and adjust the number of shift to get there again by comparing with your current position at this round.
 
 ### Instructions for Turn: for deciding the number of steps of 'turn right' or 'turn left'
 - **Case 2**:
    - **Case 2.1**: If 'turn right' or 'turn left' is in the chosen actions, execute 1; otherwise, execute 0.
    - **Case 2.2**: 
-       - If 'turn right' or 'turn left' is in the chosen actions, interpret the feedback to only determine the number of turn; otherwise, execute 0.
-       - If the feedback comment includes '{self.env['object2']}', use the information in the '# History' section. For example, if the feedback says, "Go to where the '{self.env['object2']}' is located you saw before," check the position of the previous rounds in which the '{self.env['object2']}' was detected and adjust the number of turn to get there again by comparing with your current position at this round.
+       - If 'turn right' or 'turn left' is in the chosen actions, interpret the conversation between you and the user to only determine the number of turn; otherwise, execute 0.
+       - If the conversation includes '{self.env['object2']}', use the information in the '# History' section. For example, if the user wants you to "Go to where the '{self.env['object2']}' is located you saw before," check the position of the previous rounds in which the '{self.env['object2']}' was detected and adjust the number of turn to get there again by comparing with your current position at this round.
 """ 
 
     def get_user_prompt(self):
@@ -128,6 +128,17 @@ Turn: Follow the guideline in the '### Instructions for Turn' section.
 New Position: Follow the guideline in the '### Instructions for New Position' section.
 Reason: Explain your choice of actions and mentioning which instructions affected your decision without mentioning the case number in one concise sentence.
 """
+    def get_user_prompt_for_questions(self):
+    #### Use w/ gpt_vsion_test() ####        
+            # return f"""Go2, find {self.target}. Respond with the specified format:
+    # Go2)
+    # Target: Please assess whether the target is visible in the captured image. If the target object is detected, mark it as 'Visible'. If the target is not detected, mark it as 'Invisible'.
+    # Confidence: If visible, provide how much you are sure that the detected object is the target based on the scale 0-100. Please output only the number.
+    # Location: If visible, explain its location in the image in one concise short sentence.
+    # """
+            return f"""
+    You should respond in one concise sentence, ensuring it is short and to the point.
+    """
 
     def set_target(self, target):
         self.target = target
