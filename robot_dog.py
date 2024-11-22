@@ -113,7 +113,19 @@ class Dog:
         Returns:
             - frame: PIL image in RGB format, or None if an error occurs.
         """
-        success, capture = self.capture.read()
+        # Redirect stderr to /dev/null
+        devnull = os.open(os.devnull, os.O_WRONLY)
+        original_stderr = os.dup(2)
+        os.dup2(devnull, 2)
+
+        try:
+            success, capture = self.capture.read()
+        finally:
+            # Restore original stderr
+            os.dup2(original_stderr, 2)
+            os.close(devnull)
+            os.close(original_stderr)
+
         if not success:
             if self.env["connect_robot"]:
                 print("Failed to retrieve frame from robot camera. Possible causes:")

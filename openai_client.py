@@ -116,9 +116,9 @@ class OpenaiClient(AiClientBase):
         
         self.history = self.history if round_number > 1 else ""
         
-        #### Test feedback prompt
-        if round_number == 1:
-            image_description_text = "You detected banana at coordinates (640, 360) with a distance of 5 meters."
+        # #### Test feedback prompt
+        # if round_number == 1:
+        #     image_description_text = "You detected banana at coordinates (640, 360) with a distance of 5 meters."
     
         self.history += (
             f"- Round {round_number}: "

@@ -81,6 +81,11 @@ class RobotDogUI(QMainWindow):
         self.conversation_started = False
         self.pending_feedback_action = None
         self.awaiting_feedback = False
+
+        self.processing_timer = QTimer()
+        self.processing_timer.timeout.connect(self.update_processing_animation)
+        self.processing_dots = 0
+
         self.initUI()
         
     def initUI(self):
@@ -182,6 +187,53 @@ class RobotDogUI(QMainWindow):
         self.confirm_widget.hide()
         layout.addWidget(self.confirm_widget)
 
+        # Add status buttons container
+        self.status_buttons = QWidget()
+        self.status_buttons.setStyleSheet("""
+            QWidget {
+                background-color: white;
+                border-top: 1px solid #E0E0E0;
+            }
+        """)
+        status_layout = QHBoxLayout(self.status_buttons)
+        status_layout.setContentsMargins(20, 10, 20, 10)
+        
+        # Create status buttons
+        status_questions = [
+            ("🤖 Robot Status", "Robot Status"),  # (button text, message to send)
+            ("💭 Feedback", "feedback")
+        ]
+        
+        for button_text, message in status_questions:
+            btn = QPushButton(button_text)
+            btn.setStyleSheet("""
+                QPushButton {
+                    background-color: #E3F2FD;
+                    color: #1A73E8;
+                    border: 2px solid #1A73E8;
+                    border-radius: 20px;
+                    padding: 10px 20px;
+                    font-size: 14px;
+                    font-weight: bold;
+                    min-width: 150px;
+                    margin: 0 10px;
+                }
+                QPushButton:hover {
+                    background-color: #BBDEFB;
+                    color: #0D47A1;
+                    border: 2px solid #0D47A1;
+                }
+                QPushButton:pressed {
+                    background-color: #90CAF9;
+                    padding: 11px 19px 9px 21px;
+                }
+            """)
+            btn.clicked.connect(lambda checked, m=message: self.send_status_question(m))
+            status_layout.addWidget(btn)
+
+        self.status_buttons.hide()
+        layout.addWidget(self.status_buttons)
+
         # Input area
         self.input_widget = QWidget()
         self.input_widget.setStyleSheet("""
@@ -251,6 +303,31 @@ class RobotDogUI(QMainWindow):
         if self.dog.env["tts"]:
             QTimer.singleShot(100, lambda: self.dog.ai_client.tts(welcome_message))
 
+    def update_processing_animation(self):
+        self.processing_dots = (self.processing_dots + 1) % 4
+        dots = "." * self.processing_dots
+        self.processing_label.setText(f"Processing{dots.ljust(3)}")
+
+    def start_processing_animation(self):
+        self.processing_label = QLabel("Processing...")
+        self.processing_label.setStyleSheet("""
+            QLabel {
+                color: #1A73E8;
+                font-size: 14px;
+                font-weight: bold;
+                padding: 10px;
+            }
+        """)
+        self.chat_layout.addWidget(self.processing_label)
+        self.processing_timer.start(500)  # Update every 500ms
+        self._scroll_to_bottom()
+
+    def stop_processing_animation(self):
+        self.processing_timer.stop()
+        if hasattr(self, 'processing_label'):
+            self.processing_label.deleteLater()
+            self.processing_label = None
+
     def send_message(self):
         if not self.conversation_started:
             return
@@ -259,8 +336,8 @@ class RobotDogUI(QMainWindow):
         if not text:
             return
         
-        self.add_user_message(text)
-        self.message_input.clear()
+        #self.add_user_message(text)
+        #self.message_input.clear()
 
         status_questions = [
             "what are you doing",
@@ -276,6 +353,8 @@ class RobotDogUI(QMainWindow):
         ]
 
         if any(q in text.lower() for q in status_questions):
+            self.add_user_message(text)
+            self.message_input.clear()
             if self.target_set:
                 status = f"I'm currently searching for {self.dog.target}. "
                 if self.feedback_mode:
@@ -288,10 +367,14 @@ class RobotDogUI(QMainWindow):
             self.add_robot_message(status)
             
         elif not self.target_set:
+            self.add_user_message(text)
+            self.message_input.clear()
             if "apple" in text.lower():
                 response = f"I'll start searching for apple now."
                 self.add_robot_message(response)
+                self.status_buttons.show()
                 QTimer.singleShot(100, lambda: self.process_target("apple", response))
+                QTimer.singleShot(1000, self.start_processing_animation)
             else:
                 clarify_msg = "Please tell me specifically about the target you want me to find."
                 self.add_robot_message(clarify_msg)
@@ -299,6 +382,8 @@ class RobotDogUI(QMainWindow):
                     QTimer.singleShot(300, lambda: self.play_tts(clarify_msg))
                 
         elif text.lower() == "feedback":
+            self.add_user_message(text)
+            self.message_input.clear()
             self.dog.feedback_complete_event.clear()
             self.dog.interrupt_round_flag.set()
             self.feedback_mode = True
@@ -311,18 +396,33 @@ class RobotDogUI(QMainWindow):
                 QTimer.singleShot(300, lambda: self.play_tts(feedback_msg))
             
         elif self.feedback_mode and self.awaiting_feedback:
+
+            self.add_user_message(text)
+            self.message_input.clear()
+            QApplication.processEvents()
+            self.status_buttons.hide()
+
             assistant = self.dog.ai_client.get_response_by_feedback(text)
+
+
             if assistant:
                 self.pending_feedback_action = assistant
                 
-                confirmation_msg = (
-                    f"I understand you want me to:\n"
-                    f"Action: {assistant.action}\n"
-                    f"Steps: Move {assistant.move}, Shift {assistant.shift}, Turn {assistant.turn}\n"
-                    f"Is this correct?"
-                )
+                action_descriptions = []
+                for action in assistant.action:
+                    if 'move' in action:
+                        times = assistant.move
+                        action_descriptions.append(f"<b>{action}</b> <b>{times}</b> time{'s' if times > 1 else ''}")
+                    elif 'shift' in action:
+                        times = assistant.shift
+                        action_descriptions.append(f"<b>{action}</b> <b>{times}</b> time{'s' if times > 1 else ''}")
+                    elif 'turn' in action:
+                        times = assistant.turn
+                        action_descriptions.append(f"<b>{action}</b> <b>{times}</b> time{'s' if times > 1 else ''}")
+
+                confirmation_msg = "I understand you want me to " + " and ".join(action_descriptions) + ". Is this correct?"
                 self.add_robot_message(confirmation_msg)
-                
+
                 self.confirm_widget.show()
                 self.input_widget.hide()
                 self.awaiting_feedback = False
@@ -330,13 +430,16 @@ class RobotDogUI(QMainWindow):
                 if self.dog.env["tts"]:
                     QTimer.singleShot(300, lambda: self.play_tts(confirmation_msg))
         else:
+            self.add_user_message(text)
+            self.message_input.clear()
             self.dog.feedback = text
 
     def confirm_feedback(self):
         """사용자가 해석된 피드백을 승인할 때"""
         if self.pending_feedback_action:
-            print("Pending feedback action:", self.pending_feedback_action)  # 디버그 출력
-            response_text = f"Executing: {self.pending_feedback_action.action}"
+            print("Pending feedback action:", self.pending_feedback_action)
+            response_text = f"Executing your request..."
+            self.status_buttons.show()
             self.add_robot_message(response_text)
             
             # 피드백 액션을 직접 변수에 저장
@@ -455,6 +558,7 @@ class RobotDogUI(QMainWindow):
         self.search_started = True
 
     def handle_status_update(self, status, image=None):
+        self.stop_processing_animation()
         self.add_robot_message(status, image)
 
     def update_camera_feed(self, image):
@@ -467,6 +571,14 @@ class RobotDogUI(QMainWindow):
         if hasattr(self, 'dog'):
             self.dog.shutdown()
         event.accept()
+
+    def send_status_question(self, question):
+        """Handle status button clicks by sending the question as a message"""
+        if not self.conversation_started:
+            return
+        
+        self.message_input.setText(question)
+        self.send_message()
 
 class CameraThread(QThread):
     frame_update = pyqtSignal(QImage)
