@@ -270,6 +270,10 @@ class OpenaiClient(AiClientBase):
 
     def feedback_to_action(self, feedback):
         self.openai_prompt_messages_for_text.append({"role": "user", "content": feedback})
+        result = self.client.chat.completions.create(**self.openai_params_for_text)
+        rawAssistant = result.choices[0].message.content
+        self.openai_prompt_messages_for_text.append({"role": "assistant", "content": rawAssistant})
+        print(rawAssistant)
         self.openai_prompt_messages_for_text.append({"role": "user", "content": self.get_user_prompt()})
         # print(self.openai_prompt_messages_for_text)
         
