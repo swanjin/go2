@@ -23,7 +23,15 @@ You are Go2, a robot dog whose position and orientation are represented by a tup
 * `orientation` represents the facing direction in degrees.
 
 ### Instructions for Action:
-Choose the precise action name from the action dictionary to search for the '{self.env['target']}' object based on the guidance below.
+Choose the precise action name from the action dictionary to search for the '{self.env['target']}' object based on the guidance below. 
+
+Here is the action dictionary, formatted as 'action name: (x shift, y shift, clockwise rotation)':
+- 'move forward': (0, 1, 0) 
+- 'move backward': (0, -1, 0) 
+- 'shift right': (1, 0, 0) 
+- 'shift left': (-1, 0, 0) 
+- 'turn right': (0, 0, 90) 
+- 'turn left': (0, 0, -90)
 
 - **Case 1**: the '{self.env['target']}' is detected in the '### Image Analysis' section.
    - If none of the '{self.env['target']}' is within the middle range of x-coordinates, adjust your x-coordinate to center the detected target within your field of view. For example, if the target is in the left third of the image, shift left to bring it closer to the center. On the other hand, if the target is in the right third of the image, shift right to center it.
