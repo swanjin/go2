@@ -534,7 +534,7 @@ class RobotDogUI(QMainWindow):
             )
             
             # 실행 완료 처리
-            QTimer.singleShot(2000, self.complete_feedback())
+            QTimer.singleShot(2000, self.complete_feedback)
             
         except Exception as e:
             print(f"Error in execute_feedback_action: {str(e)}")
