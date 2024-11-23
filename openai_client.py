@@ -131,7 +131,6 @@ class OpenaiClient(AiClientBase):
         # self.history += "None."
 
     def get_response_by_LLM(self, image_pil, dog_instance, feedback = None):
-
         # Reset to the initial state
         self.openai_prompt_messages_for_text.clear()
         self.openai_prompt_messages_for_text.append(
@@ -150,18 +149,7 @@ class OpenaiClient(AiClientBase):
             image_description_text = "No objects detected in the image."
         else:
             image_description_text = image_analysis.description
-
-        # ## Test likelihood for invisible cases
-        # if image_analysis.description == "" and not dog_instance.round_number == 2:
-        #     image_description_text = "No objects detected in the image."
-        # elif image_analysis.description == "" and dog_instance.round_number == 2:
-        #     image_description_text = "You detected refrigerator at coordinates (640, 360) with a distance of 5 meters."
-        # else:
-        #     image_description_text = image_analysis.description
-        
-        # if self.history is None or self.env["use_test_dataset"]:
-        #     self.history = "# History:\n None."
-
+      
         if feedback is None:
             feedback = "None"
 
@@ -176,11 +164,6 @@ class OpenaiClient(AiClientBase):
             f"### History:\n {self.history}\n\n"
             f"### Feedback:\n {feedback}."
         )
-        # Check for feedback interruption early in the function
-        if dog_instance.check_feedback_and_interruption():
-            dog_instance.round_number += 1
-            return None
-
         if self.env["print_history"]:
             print(self.history)
         
@@ -247,11 +230,10 @@ class OpenaiClient(AiClientBase):
         return assistant
     
     def feedback_mode_on(self, image_pil):
-        
         # Reset to the initial state
         self.openai_prompt_messages_for_text.clear()
         self.openai_prompt_messages_for_text.append(
-            {"role": "system", "content": self.system_prompt}
+            {"role": "system", "content": self.system_prompt_feedback}
         )
         self.openai_goal_for_text = {
             "role": "user",
@@ -272,11 +254,11 @@ class OpenaiClient(AiClientBase):
             f"### History:\n {self.history}\n\n"
             f"### Conversation:\n Refer to the below conversation between you and the user."
         )
-        self.openai_prompt_messages_for_text.append(self.openai_goal_for_text)
-        
         if self.env["print_history"]:
             print(self.history)
 
+        self.openai_prompt_messages_for_text.append(self.openai_goal_for_text)
+        
 
     def get_response_by_feedback(self, text):
         self.openai_prompt_messages_for_text.append({"role": "user", "content": text})
@@ -303,7 +285,7 @@ class OpenaiClient(AiClientBase):
         rawAssistant = result.choices[0].message.content
         self.openai_prompt_messages_for_text.append({"role": "assistant", "content": rawAssistant})
         
-        assistant = ResponseMessage.parse(rawAssistant)
+        assistant = ResponseMessage.parse_feedback(rawAssistant)
 
         self.store_image()
         self.save_round(assistant, feedback, None)

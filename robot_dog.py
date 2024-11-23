@@ -188,12 +188,6 @@ class Dog:
                 frame = self.read_frame()
                 print(f"Starting round #{self.round_number}")
 
-                if (self.round_number) % self.env["feedback_interval"] == 0:
-                    print("Go2) Would you give any feedback? [Y/n]")
-                    if input("User) ").strip().lower() == "y":
-                        print("Go2) Thanks for your help! Please provide your feedback.")
-                        self.feedback = input("User) ")
-
                 if self.check_feedback_and_interruption():
                     self.round_number += 1  # Increment round number before continuing
                     continue  # Skip the rest of the current iteration and proceed to the next one.

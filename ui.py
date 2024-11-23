@@ -497,6 +497,7 @@ class RobotDogUI(QMainWindow):
             self.dog.ai_client.tts(message)
 
     def process_target(self, text, response):
+        print(f"Processing target: {text}")  # Debugging statement
         self.dog.target = text
         self.dog.ai_client.set_target(text)
         self.target_set = True
@@ -549,12 +550,18 @@ class RobotDogUI(QMainWindow):
         if self.dog.env["tts"]:
             QTimer.singleShot(300, lambda: self.play_tts(resume_msg))
         
-        # self.dog.ai_client.clear_gpt_message()
+        # Debugging: Check if resume_auto_mode is called
+        print("Setting up timer to call resume_auto_mode")
         QTimer.singleShot(600, lambda: self.resume_auto_mode())
 
     def resume_auto_mode(self):
+        # Debugging: Confirm method entry
+        print("Entered resume_auto_mode")
+        
         self.feedback_mode = False
         self.dog.feedback_complete_event.set()
+        # Debugging: Confirm state changes
+        print("Feedback mode set to False, feedback_complete_event set")
 
     def add_user_message(self, text):
         message = ChatMessage(text, is_user=True)
@@ -572,6 +579,7 @@ class RobotDogUI(QMainWindow):
         ))
 
     def start_search(self):
+        print("Starting search...")  # Debugging statement
         self.camera_thread = CameraThread(self.dog)
         self.camera_thread.frame_update.connect(self.update_camera_feed)
         self.camera_thread.start()
@@ -582,6 +590,7 @@ class RobotDogUI(QMainWindow):
         self.search_started = True
 
     def handle_status_update(self, status, image=None):
+        print(f"Status update received: {status}")  # Debugging statement
         self.stop_processing_animation()
         self.add_robot_message(status, image)
 
