@@ -113,7 +113,19 @@ class Dog:
         Returns:
             - frame: PIL image in RGB format, or None if an error occurs.
         """
-        success, capture = self.capture.read()
+        # Redirect stderr to /dev/null
+        devnull = os.open(os.devnull, os.O_WRONLY)
+        original_stderr = os.dup(2)
+        os.dup2(devnull, 2)
+
+        try:
+            success, capture = self.capture.read()
+        finally:
+            # Restore original stderr
+            os.dup2(original_stderr, 2)
+            os.close(devnull)
+            os.close(original_stderr)
+
         if not success:
             if self.env["connect_robot"]:
                 print("Failed to retrieve frame from robot camera. Possible causes:")
@@ -256,15 +268,14 @@ class Dog:
                     self.feedback_complete_event.clear()  # Pause queryGPT_by_LLM while feedback is in progress
                     self.interrupt_round_flag.set()  # Set the flag to skip the current round
                     print("Giving feedback... (Press Enter when done)")
+                    feedback = input("User) ") # Wait for feedback completion
                     
-                    frame = self.read_frame()
-                    assistant = self.ai_client.get_response_by_feedback(frame)
-                    if assistant is not None:
-                        print(assistant.action)
-                        print(assistant.reason)
-                        self.activate_sportclient(assistant.action, int(assistant.move), int(assistant.shift), int(assistant.turn))
-                        if self.env["tts"]:
-                            self.ai_client.tts(assistant.action)
+                    assistant = self.ai_client.get_response_by_feedback(feedback)
+                    print(assistant.action)
+                    print(assistant.reason)
+                    self.activate_sportclient(assistant.action, int(assistant.move), int(assistant.shift), int(assistant.turn))
+                    if self.env["tts"]:
+                        self.ai_client.tts(assistant.action)
                             
                     self.feedback_complete_event.set()  # Allow round_sequence to continue after feedback
                     print("Feedback complete. Moving to next round...")
@@ -290,8 +301,8 @@ class Dog:
                     'move backward': (-0.5, 0, 0),
                     'shift right': (0, -0.5, 0),
                     'shift left': (0, 0.5, 0),
-                    'turn right': (0, 0, -1.5),
-                    'turn left': (0, 0, 1.5)
+                    'turn right': (0, 0, -1.57),
+                    'turn left': (0, 0, 1.57)
                 }
                 
                 for ans in action:

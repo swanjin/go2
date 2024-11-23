@@ -130,7 +130,20 @@ class OpenaiClient(AiClientBase):
         )
         # self.history += "None."
 
+    def reset_gpt_message(self):
+        self.openai_prompt_messages_for_text.clear()
+        self.openai_prompt_messages_for_text.append(
+            {"role": "system", "content": self.system_prompt}
+        )
+        self.openai_goal_for_text = {
+            "role": "user",
+            "content": ""
+        }
+        self.openai_prompt_messages_for_text.append(self.openai_goal_for_text)
+
     def get_response_by_LLM(self, image_pil, dog_instance, feedback = None):
+        self.reset_gpt_message()
+        
         # Check for feedback interruption early in the function
         if dog_instance.check_feedback_and_interruption():
             dog_instance.round_number += 1
@@ -229,6 +242,8 @@ class OpenaiClient(AiClientBase):
         return assistant
 
     def get_response_by_feedback(self,image_pil):
+        self.reset_gpt_message()
+
         image_analysis = self.vision_model.describe_image(image_pil)
 
         if image_analysis.description == "":
@@ -270,6 +285,7 @@ class OpenaiClient(AiClientBase):
 
     def feedback_to_action(self, feedback):
         self.openai_prompt_messages_for_text.append({"role": "user", "content": feedback})
+        self.openai_prompt_messages_for_text.append({"role": "user", "content": self.get_user_prompt_for_questions()})
         result = self.client.chat.completions.create(**self.openai_params_for_text)
         rawAssistant = result.choices[0].message.content
         self.openai_prompt_messages_for_text.append({"role": "assistant", "content": rawAssistant})
