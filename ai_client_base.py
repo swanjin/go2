@@ -196,12 +196,12 @@ Reason: Explain your choice of actions in one concise sentence.
 """
         return prompt
 
-    def get_user_prompt_for_questions(self):
-        prompt =  f"""
-There are two cases: 
-1. If the user asks you to find a specific object other than {self.env['target']}, {self.env['object1']}, or {self.env['object2']}, kindly inform them that you cannot find that object and request their help by providing an example prompt, such as "turn right 2 times and then move forward 3 times," while explaining that such guidance helps you locate objects more effectively. 
-2. Otherwise, respond in one concise sentence, ensuring it is short and to the point.
-"""
+    def get_user_prompt_for_questions(self, user_input):
+        if any(keyword in user_input.lower() for keyword in ("kitchen", "sink", "refrigerator", "banana", "bottle")):            
+            prompt =  f"""Kindly inform them that you cannot find that object the user mentioned and request his/her help by providing an example prompt, such as 'turn right 2 times and then move forward 3 times,' while explaining that such guidance helps you locate objects more effectively. """
+        else:
+            prompt = """Respond in one concise sentence, ensuring it is short and to the point."""
+        
         return prompt
 
     def set_target(self, target):

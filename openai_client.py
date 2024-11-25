@@ -262,7 +262,7 @@ class OpenaiClient(AiClientBase):
 
     def get_response_by_feedback(self, text):
         self.openai_prompt_messages_for_text.append({"role": "user", "content": text})
-        self.openai_prompt_messages_for_text.append({"role": "user", "content": self.get_user_prompt_for_questions()})
+        self.openai_prompt_messages_for_text.append({"role": "user", "content": self.get_user_prompt_for_questions(text)})
 
         result = self.client.chat.completions.create(**self.openai_params_for_text)
         response = result.choices[0].message.content
@@ -273,7 +273,7 @@ class OpenaiClient(AiClientBase):
     
     def feedback_to_action(self, feedback):
         self.openai_prompt_messages_for_text.append({"role": "user", "content": feedback})
-        self.openai_prompt_messages_for_text.append({"role": "user", "content": self.get_user_prompt_for_questions()})
+        self.openai_prompt_messages_for_text.append({"role": "user", "content": self.get_user_prompt_for_questions(feedback)})
         result = self.client.chat.completions.create(**self.openai_params_for_text)
         confirmation_msg = result.choices[0].message.content
         self.openai_prompt_messages_for_text.append({"role": "assistant", "content": confirmation_msg})
