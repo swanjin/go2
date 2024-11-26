@@ -26,7 +26,7 @@ def timeoutInput(timeout):
             signal.alarm(0)
     return s
 
-def put_text_in_the_middle(image, text, width, height, font_size=40):
+def put_text_middle(image, text, width, height, font_size=40):
     """
     Function to create an image and place the given text in the middle.
 
@@ -60,6 +60,39 @@ def put_text_in_the_middle(image, text, width, height, font_size=40):
     draw.text(position, text, fill="white", font=font)
 
     return image
+
+def put_text_top_left(image, text, font_size=40):
+    """
+    Function to place the given text at the top-left corner of an image.
+
+    Parameters:
+    image (PIL.Image.Image): The image to draw on.
+    text (str): The text to display.
+    font_size (int): The size of the font for the text.
+
+    Returns:
+    PIL.Image.Image: The image with text placed at the top-left corner.
+    """
+    # Convert numpy array to PIL Image 
+    image_pil = Image.fromarray(image)
+
+    # Create a drawing object for the image
+    draw = ImageDraw.Draw(image_pil)
+
+    # Try to load a larger font, fall back to default if necessary
+    try:
+        font = ImageFont.truetype("DejaVuSans-Bold.ttf", font_size)
+    except IOError:
+        font = ImageFont.load_default()
+
+    # Define the position for the top-left corner (with a slight margin for readability)
+    position = (10, 10)  # Adjust as needed for margin
+
+    # Add the text to the image in white
+    draw.text(position, text, fill="white", font=font)
+    image_array = PIL2OpenCV(image_pil)
+
+    return image_array
 
 def combine_images_vertically(self, image1, image2):
     # Get the dimensions of the images

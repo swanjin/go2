@@ -265,37 +265,38 @@ class RobotDogUI(QMainWindow):
         print(f"Processing message: '{text}'")  # Debug print
         print(f"Current mode - Feedback mode: {self.feedback_mode}, Awaiting feedback: {self.awaiting_feedback}")  # Debug print
         
-        self.add_user_message(text)
-        self.message_input.clear()
+        # self.add_user_message(text)
 
-        status_questions = [
-            "what are you doing",
-            "what's happening",
-            "current status",
-            "status",
-            "what is happening",
-            "what's going on",
-            "how is it going",
-            "found anything",
-            "see anything",
-            "how are you doing"
-        ]
+        # status_questions = [
+        #     "what are you doing",
+        #     "what's happening",
+        #     "current status",
+        #     "status",
+        #     "what is happening",
+        #     "what's going on",
+        #     "how is it going",
+        #     "found anything",
+        #     "see anything",
+        #     "how are you doing"
+        # ]
 
-        if any(q in text.lower() for q in status_questions):
-            print("Processing status question")  # Debug print
-            if self.target_set:
-                status = f"I'm currently searching for {self.dog.target}. "
-                if self.feedback_mode:
-                    status += "I'm in feedback mode, waiting for your guidance."
-                else:
-                    status += "I'm in automatic search mode."
-            else:
-                status = "I'm waiting for you to tell me what to search for."
+        # if any(q in text.lower() for q in status_questions):
+        #     print("Processing status question")  # Debug print
+        #     if self.target_set:
+        #         status = f"I'm currently searching for {self.dog.target}. "
+        #         if self.feedback_mode:
+        #             status += "I'm in feedback mode, waiting for your guidance."
+        #         else:
+        #             status += "I'm in automatic search mode."
+        #     else:
+        #         status = "I'm waiting for you to tell me what to search for."
             
-            self.add_robot_message(status)
+        #     self.add_robot_message(status)
             
-        elif not self.target_set:
+        if not self.target_set:
             print("Processing target setting")  # Debug print
+            self.add_user_message(text)
+
             if "apple" in text.lower():
                 response = f"I'll start searching for apple now."
                 self.add_robot_message(response)
@@ -308,6 +309,7 @@ class RobotDogUI(QMainWindow):
                 
         elif text.lower() == "feedback":
             print("Activating feedback mode")  # Debug print
+            self.add_user_message(text)
             self.dog.feedback_complete_event.clear()
             self.dog.interrupt_round_flag.set()
             self.feedback_mode = True
@@ -318,47 +320,68 @@ class RobotDogUI(QMainWindow):
             
             if self.dog.env["tts"]:
                 QTimer.singleShot(300, lambda: self.play_tts(feedback_msg))
-            
+           
         elif self.feedback_mode and self.awaiting_feedback:
             print("\n=== Processing feedback in UI ===")  # Debug print
             print(f"Feedback text: '{text}'")  # Debug print
+            self.add_user_message(text)
+
             frame = self.dog.read_frame()
             print(f"Frame received: {frame is not None}")  # Debug print
+            image_array_bboxes, image_description = self.dog.ai_client.feedback_mode_on(frame)
 
             if text.lower() == "exit":
                 print("Exit command received")  # Debug print
                 self.awaiting_feedback = False
                 self.resume_auto_mode()
+            
+            elif text.endswith("!"):
+                print("❗ Processing feedback with exclamation mark")              
+                confirmation_msg, assistant = self.dog.ai_client.feedback_to_action(text, image_array_bboxes, image_description)
+                print(f"🤖 AI interpreted action: {assistant.action if hasattr(assistant, 'action') else 'None'}")
+                self.pending_feedback_action = assistant
+                self.add_robot_message(confirmation_msg)
+                if self.dog.env["tts"]:
+                    QTimer.singleShot(300, lambda: self.play_tts(confirmation_msg))
+                self.confirm_widget.show()
+                self.input_widget.hide()
+                print("✅ Waiting for user confirmation...")
+                self.awaiting_feedback = False
+                self.feedback_mode = False
+            
             else:
-                print("Getting response from AI client...")  # Debug print
-                # Get assistant's response based on feedback
-                assistant = self.dog.ai_client.get_response_by_feedback(frame, text)
-                print(f"AI response received: {assistant}")  # Debug print
-                
-                if assistant:
-                    self.pending_feedback_action = assistant
+                print("Getting answer to question from AI client...")  # Debug print
+                answer = self.dog.ai_client.get_response_by_feedback(text)
+                print(f"AI answer received: {answer}")  # Debug print
+                self.add_robot_message(answer)
+                if self.dog.env["tts"]:
+                    QTimer.singleShot(300, lambda: self.play_tts(answer))
+
+                # if assistant:
+                #     self.pending_feedback_action = assistant
                     
-                    confirmation_msg = (
-                        f"I understand you want me to:\n"
-                        f"Action: {assistant.action}\n"
-                        f"Steps: Move {assistant.move}, Shift {assistant.shift}, Turn {assistant.turn}\n"
-                        f"Is this correct?"
-                    )
-                    print(f"Showing confirmation: {confirmation_msg}")  # Debug print
-                    self.add_robot_message(confirmation_msg)
+                #     confirmation_msg = (
+                #         f"I understand you want me to:\n"
+                #         f"Action: {assistant.action}\n"
+                #         f"Steps: Move {assistant.move}, Shift {assistant.shift}, Turn {assistant.turn}\n"
+                #         f"Is this correct?"
+                #     )
+                #     print(f"Showing confirmation: {confirmation_msg}")  # Debug print
+                #     self.add_robot_message(confirmation_msg)
                     
-                    self.confirm_widget.show()
-                    self.input_widget.hide()
-                    self.awaiting_feedback = False
+                #     self.confirm_widget.show()
+                #     self.input_widget.hide()
+                #     self.awaiting_feedback = False
                     
-                    if self.dog.env["tts"]:
-                        QTimer.singleShot(300, lambda: self.play_tts(confirmation_msg))
-                else:
-                    print("No assistant response received")  # Debug print
-                    error_msg = "I couldn't process your feedback. Please try again or type 'exit' to return to search mode."
-                    self.add_robot_message(error_msg)
+                #     if self.dog.env["tts"]:
+                #         QTimer.singleShot(300, lambda: self.play_tts(confirmation_msg))
+
+                # else:
+                #     print("No assistant response received")  # Debug print
+                #     error_msg = "I couldn't process your feedback. Please try again or type 'exit' to return to search mode."
+                #     self.add_robot_message(error_msg)
         else:
-            print("Setting feedback")  # Debug print
+            print("Type 'feedback' to give feedback")  # Debug print
             self.dog.feedback = text
 
     def confirm_feedback(self):
@@ -465,12 +488,13 @@ class RobotDogUI(QMainWindow):
     def add_user_message(self, text):
         message = ChatMessage(text, is_user=True)
         self.chat_layout.addWidget(message)
-        self._scroll_to_bottom()
+        QTimer.singleShot(0, self._scroll_to_bottom)
+        self.message_input.clear()
 
     def add_robot_message(self, text, image=None):
         message = ChatMessage(text, is_user=False, image=image)
         self.chat_layout.addWidget(message)
-        self._scroll_to_bottom()
+        QTimer.singleShot(0, self._scroll_to_bottom)
 
     def _scroll_to_bottom(self):
         QTimer.singleShot(100, lambda: self.scroll.verticalScrollBar().setValue(
