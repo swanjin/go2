@@ -164,6 +164,11 @@ class Dog:
             return True  # Indicates that the current task should be skipped
         return False  # No interruption, proceed with the current task   
 
+    def format_actions(self, actions):
+        if isinstance(actions, list):
+            return 'and then '.join(map(str, actions))
+        return str(actions)
+
     def queryGPT_by_LLM(self):
         if self.env["use_test_dataset"]:
             for i, image_file in enumerate(self.image_files):
@@ -204,11 +209,11 @@ class Dog:
                     if self.check_feedback_and_interruption():
                         self.round_number += 1
                         continue
-
-                    print(assistant.action)
-                    # print(assistant.reason)
+                    
+                    formatted_action = self.format_actions(assistant.action)
+                    combined_message = f"I'm going to {formatted_action}. {assistant.reason}."
                     if self.env["tts"]:
-                        self.ai_client.tts(assistant.action)
+                        self.ai_client.tts(combined_message)
                     
                     self.activate_sportclient(assistant.action, int(assistant.move), int(assistant.shift), int(assistant.turn))
                 self.feedback = None
@@ -265,8 +270,8 @@ class Dog:
                         print(assistant.action)
                         print(assistant.reason)
                         self.activate_sportclient(assistant.action, int(assistant.move), int(assistant.shift), int(assistant.turn))
-                        if self.env["tts"]:
-                            self.ai_client.tts(assistant.action)
+                        # if self.env["tts"]:
+                        #     self.ai_client.tts(assistant.action)
                             
                     self.feedback_complete_event.set()  # Allow round_sequence to continue after feedback
                     print("Feedback complete. Moving to next round...")
