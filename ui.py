@@ -249,7 +249,7 @@ class RobotDogUI(QMainWindow):
         self.message_input.setFocus()
         
         if self.dog.env["tts"]:
-            QTimer.singleShot(100, lambda: self.dog.ai_client.tts(welcome_message))
+            QTimer.singleShot(100, lambda: self.play_tts(welcome_message))
 
     def send_message(self):
         print("\n=== send_message called ===")  # Debug print
@@ -397,7 +397,11 @@ class RobotDogUI(QMainWindow):
 
     def play_tts(self, message):
         if self.dog.env["tts"]:
-            self.dog.ai_client.tts(message)
+            try:
+                print(f"Playing TTS for message: {message}")  # Debug print
+                self.dog.ai_client.tts(message)
+            except Exception as e:
+                print(f"TTS Error: {e}")
 
     def process_target(self, text, response):
         self.dog.target = text
@@ -426,7 +430,7 @@ class RobotDogUI(QMainWindow):
             # TTS 실행 (action이 있는 경우에만)
             if self.dog.env["tts"] and assistant.action:
                 action_text = assistant.action[0] if isinstance(assistant.action, list) else assistant.action
-                self.dog.ai_client.tts(action_text)
+                self.play_tts(action_text)
             
             # 로봇 동작 실행
             self.dog.activate_sportclient(
@@ -527,6 +531,11 @@ class SearchThread(QThread):
         super().__init__()
         self.dog = dog_instance
 
+    def format_actions(self, actions):
+        if isinstance(actions, list):
+            return 'and then '.join(map(str, actions))
+        return str(actions)
+
     def run(self):
         original_get_response = self.dog.ai_client.get_response_by_LLM
 
@@ -540,10 +549,13 @@ class SearchThread(QThread):
                 q_image = QImage(frame_array.data, width, height, bytes_per_line, 
                                QImage.Format.Format_RGB888)
                 
-                self.status_update.emit(
-                    f"Action: {response.action}\nReason: {response.reason}", 
-                    q_image
-                )
+                formatted_action = self.format_actions(response.action)
+                combined_message = f"I'm going to {formatted_action}. {response.reason}."
+
+                self.status_update.emit(combined_message, q_image)
+
+                ### TTS for combined_message is activate in robot_dog.py
+
             return response
 
         self.dog.ai_client.get_response_by_LLM = get_response_wrapper
