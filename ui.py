@@ -484,6 +484,7 @@ class RobotDogUI(QMainWindow):
 
         self.search_thread = SearchThread(self.dog)
         self.search_thread.status_update.connect(self.handle_status_update)
+        # self.search_thread.tts_request.connect(self.play_tts) 
         self.search_thread.start()
         self.search_started = True
 
@@ -526,6 +527,7 @@ class CameraThread(QThread):
 
 class SearchThread(QThread):
     status_update = pyqtSignal(str, QImage)
+    # tts_request = pyqtSignal(str)
 
     def __init__(self, dog_instance):
         super().__init__()
@@ -554,7 +556,9 @@ class SearchThread(QThread):
 
                 self.status_update.emit(combined_message, q_image)
 
-                ### TTS for combined_message is activate in robot_dog.py
+                ### TTS for combined_message is currently activated in robot_dog.py
+                # if self.dog.env["tts"]:
+                #     self.tts_request.emit(combined_message)
 
             return response
 
