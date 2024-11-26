@@ -23,7 +23,16 @@ You are Go2, a robot dog whose position and orientation are represented by a tup
 * `orientation` represents the facing direction in degrees.
 
 ### Instructions for Action:
-Choose the precise action name from the action dictionary to search for the '{self.env['target']}' object based on the guidance below.
+Action dictionary:
+- 'move forward'
+- 'move backward'
+- 'shift right' 
+- 'shift left'
+- 'turn right'
+- 'turn left'
+- 'stop'
+
+Choose the precise action name from the action dictionary to search for the '{self.env['target']}' object based on the guidance below. 
 
 - **Case 1**: the '{self.env['target']}' is detected in the '### Image Analysis' section.
    - If none of the '{self.env['target']}' is within the middle range of x-coordinates, adjust your x-coordinate to center the detected target within your field of view. For example, if the target is in the left third of the image, shift left to bring it closer to the center. On the other hand, if the target is in the right third of the image, shift right to center it.
@@ -107,6 +116,51 @@ Confirm each x or y coordinate change reflects the intended movement or shift by
        - If the conversation includes '{self.env['object2']}', use the information in the '# History' section. For example, if the user wants you to "Go to where the '{self.env['object2']}' is located you saw before," check the position of the previous rounds in which the '{self.env['object2']}' was detected and adjust the number of turn to get there again by comparing with your current position at this round.
 """ 
 
+        self.system_prompt_feedback = f"""
+    You are Go2, a robot dog whose position and orientation are represented by a tuple `(x, y, orientation)`, where:
+
+    * `x` and `y` represent grid coordinates.
+    * `orientation` represents the facing direction in degrees.
+
+    ### Instructions for Action:
+    Action dictionary:
+    - 'move forward'
+    - 'move backward'
+    - 'shift right' 
+    - 'shift left'
+    - 'turn right'
+    - 'turn left'
+
+    Choose the precise action name from the action dictionary to search for the '{self.env['target']}' object based on conversation between you and the user. 
+
+    Orientation determines all directional movements. Use the following orientation mappings:
+    - 0° or 360° (North): Facing the positive Y-axis.
+    - 90° or -270° (East): Facing the positive X-axis.
+    - 180° or -180° (South): Facing the negative Y-axis.
+    - 270° or -90° (West): Facing the negative X-axis.
+
+    Movement & Shift Table by Orientation:
+    The effect of each action on x and y coordinates depends on the orientation as shown:
+
+    | Orientation | move forward | move backward | shift right | shift left |
+    |-------------|--------------|---------------|-------------|------------|
+    | 0° (North)  | (x, y + 1*Move)   | (x, y - 1*Move)    | (x + 1*Shift, y)  | (x - 1*Shift, y) |
+    | 90° (East)  | (x + 1*Move, y)   | (x - 1*Move, y)    | (x, y - 1*Shift)  | (x, y + 1*Shift) |
+    | 180° (South)| (x, y - 1*Move)   | (x, y + 1*Move)    | (x - 1*Shift, y)  | (x + 1*Shift, y) |
+    | 270° (West) | (x - 1*Move, y)   | (x + 1*Move, y)    | (x, y + 1*Shift)  | (x, y - 1*Shift) |
+
+    turn right / turn left (Orientation Changes Only):
+    - turn right: Increases orientation by 90°*Turn.
+    - turn left: Decreases orientation by 90°*Turn.
+    After each turn, normalize the orientation to a range of 0° to 360° (e.g., -90° becomes 270°).
+
+    Verification Step:
+    Confirm each x or y coordinate change reflects the intended movement or shift by double-checking against the table above to ensure consistency with the specified orientation.
+
+    ### Instructions for Move/Shift/Turn:
+    Compute the number of steps for 'move', 'shift', and 'turn' based on the conversation between you and the user.
+    """ 
+
     def get_user_prompt(self):
 #### Use w/ gpt_vsion_test() ####        
         # return f"""Go2, find {self.target}. Respond with the specified format:
@@ -115,8 +169,8 @@ Confirm each x or y coordinate change reflects the intended movement or shift by
 # Confidence: If visible, provide how much you are sure that the detected object is the target based on the scale 0-100. Please output only the number.
 # Location: If visible, explain its location in the image in one concise short sentence.
 # """
-        return f"""
-Ensure each response follows the following format precisely. Do not deviate. Before responding, verify that your output exactly matches the structured format.
+        prompt = f"""
+Your target object is '{self.target}'. You start at position (0, 0, 0). Ensure each response follows the following format precisely. Do not deviate. Before responding, verify that your output exactly matches the structured format.
 
 Current Position: compute '(x, y, orientation)' before you take any action at this round.
 Target Status: If the target is detected in the 'Image Analysis' section, mark 'Visible'; otherwise, 'Invisible.'
@@ -128,17 +182,27 @@ Turn: Follow the guideline in the '### Instructions for Turn' section.
 New Position: Follow the guideline in the '### Instructions for New Position' section.
 Reason: Explain your choice of actions and mentioning which instructions affected your decision without mentioning the case number in one concise sentence.
 """
-    def get_user_prompt_for_questions(self):
-#### Use w/ gpt_vsion_test() ####        
-        # return f"""Go2, find {self.target}. Respond with the specified format:
-# Go2)
-# Target: Please assess whether the target is visible in the captured image. If the target object is detected, mark it as 'Visible'. If the target is not detected, mark it as 'Invisible'.
-# Confidence: If visible, provide how much you are sure that the detected object is the target based on the scale 0-100. Please output only the number.
-# Location: If visible, explain its location in the image in one concise short sentence.
-# """
-        return f"""
-You should respond in one concise sentence, ensuring it is short and to the point.
+        return prompt
+    
+    def get_user_prompt_feedback(self):
+        prompt = f"""
+Your target object is '{self.target}'. You start at position (0, 0, 0). Ensure each response follows the following format precisely. Do not deviate. Before responding, verify that your output exactly matches the structured format.
+
+Action: Follow the guideline in the '### Instructions for Action' section.
+Move: Follow the guideline in the '### Instructions for Move' section.
+Shift: Follow the guideline in the '### Instructions for Shift' section.
+Turn: Follow the guideline in the '### Instructions for Turn' section.
+Reason: Explain your choice of actions in one concise sentence.
 """
+        return prompt
+
+    def get_user_prompt_for_questions(self, user_input):
+        if any(keyword in user_input.lower() for keyword in ("kitchen", "sink", "refrigerator", "banana", "bottle")):            
+            prompt =  f"""Kindly inform them that you cannot find that object the user mentioned and request his/her help by providing an example prompt, such as 'turn right 2 times and then move forward 3 times,' while explaining that such guidance helps you locate objects more effectively. """
+        else:
+            prompt = """Respond in one concise sentence, ensuring it is short and to the point."""
+        
+        return prompt
 
     def set_target(self, target):
         self.target = target
@@ -160,11 +224,6 @@ You should respond in one concise sentence, ensuring it is short and to the poin
         else:
             image = utils.OpenCV2PIL(image_array)
  
-        ## add 'assistant' as a parameter into the function
-        # if (self.env["text_insertion"]):
-        #     text = "\n".join([f"Current Position: {assistant.curr_position}", f"Target: {assistant.target}", f"Likelihood: {assistant.likelihood}", f"Action: {assistant.action}", f"New Position: {assistant.new_position}", f"Reason: {assistant.reason}"])
-        #     image = utils.image_text_append(image, self.env["captured_width"], self.env["captured_height"], text)
-        
         # Format the filename based on the number of images stored
         self.image_counter += 1
         filename = f"image{self.image_counter:02d}.jpg"  # Pad with zeros to two digits
