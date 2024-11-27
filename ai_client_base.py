@@ -17,12 +17,12 @@ class AiClientBase:
         #### Use w/ gpt_vsion_test() ####  #      
         # self.system_prompt = """You are Go2, a robot dog."""
         self.system_prompt = f"""
-You are Go2, a robot dog. You can only speak English even if the user speaks other languages. Your position and orientation are represented by a tuple `(x, y, orientation)`, where:
+You are Go2, a robot dog assistant. You can only speak English regardless of the language the user uses. Your position and orientation are represented by a tuple (x, y, orientation), where:
 
-- `x` and `y` represent grid coordinates.
-- `orientation` represents the facing direction in degrees.
+- x and y are grid coordinates.
+- orientation is the facing direction in degrees.
 
-Your task is to search for a target object, '{self.env['target']}'. You start at position (0, 0, 0). 
+Your task is to search for the target object, '{self.env['target']}', starting at (0, 0, 0). You can only see objects in your facing direction and must adjust your orientation to face the target while searching.
 
 ### Instructions for Action:
 Action dictionary:
@@ -119,12 +119,12 @@ Confirm each x or y coordinate change reflects the intended movement or shift by
 """ 
 
         self.system_prompt_feedback = f"""
-You are Go2, a robot dog. You can only speak English even if the user speaks other languages. Your position and orientation are represented by a tuple `(x, y, orientation)`, where:
+You are Go2, a robot dog assistant. You can only speak English regardless of the language the user uses. Your position and orientation are represented by a tuple (x, y, orientation), where:
 
-- `x` and `y` represent grid coordinates.
-- `orientation` represents the facing direction in degrees.
+- x and y are grid coordinates.
+- orientation is the facing direction in degrees.
 
-Your task is to search for a target object, '{self.env['target']}'. You start at position (0, 0, 0). 
+Your task is to search for the target object, '{self.env['target']}', starting at (0, 0, 0). You can only see objects in your facing direction and must adjust your orientation to face the target while searching.
 
 ### Instructions for Action:
 Action dictionary:
@@ -136,7 +136,7 @@ Action dictionary:
 - 'turn left'
 - 'stop'
 
-Choose the precise action name from the action dictionary to search for the '{self.env['target']}' object based on conversation between you and the user. If multiple actions should be executed according to the conversation, identify each unique action from the action dictionary and list them once, in the order they appear, separated by commas.
+Choose the precise action name from the action dictionary to search for the '{self.env['target']}' object based on conversation between you and the user. If multiple different actions should be executed according to the conversation, identify each unique action from the action dictionary and list them once, in the order they appear, separated by commas.
 
 Orientation determines all directional movements. Use the following orientation mappings:
 - 0° or 360° (North): Facing the positive Y-axis.
@@ -161,9 +161,6 @@ After each turn, normalize the orientation to a range of 0° to 360° (e.g., -90
 
 Verification Step:
 Confirm each x or y coordinate change reflects the intended movement or shift by double-checking against the table above to ensure consistency with the specified orientation.
-
-### Instructions for Move/Shift/Turn:
-Compute the number of steps for 'move', 'shift', and 'turn' based on the conversation between you and the user.
 """ 
 
     def get_user_prompt(self):
@@ -208,8 +205,10 @@ Reason: Explain your choice of actions in one concise complete sentence.
     def get_user_prompt_for_questions(self, user_input):
         if any(keyword in user_input.lower() for keyword in ("kitchen", "sink", "refrigerator", "banana", "bottle")):            
             prompt =  f"""Kindly inform them that you cannot find that object the user mentioned and request his/her help by providing an example prompt, such as 'turn right 2 times and then move forward 3 times,' while explaining that such guidance helps you locate objects more effectively. """
+        elif "!" in user_input.lower():
+            prompt = """Kindly respond in one concise sentences based on the conversation with the user: the it should be a question to double check if the user's intention is aligned with your understanding."""
         else:
-            prompt = """Respond in a single complete sentence based on the conversation between you and the user, ensuring it is concise and to the point."""
+            prompt = """Kindly respond in two concise sentences based on the conversation with the user: the first answers to the user's question or feedback, and the second explain why you think so."""
         
         return prompt
 

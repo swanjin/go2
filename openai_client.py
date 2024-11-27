@@ -273,7 +273,7 @@ class OpenaiClient(AiClientBase):
         confirmation_msg = result.choices[0].message.content
         self.openai_prompt_messages_for_text.append({"role": "assistant", "content": confirmation_msg})
         print(confirmation_msg)
-        print(self.openai_prompt_messages_for_text[1:])
+        # print(self.openai_prompt_messages_for_text[1:])
 
         self.openai_prompt_messages_for_text.append({"role": "user", "content": self.get_user_prompt_feedback()})
         
@@ -375,7 +375,7 @@ class OpenaiClient(AiClientBase):
     def is_feedback_mode_exit(self, input): 
         messages = [
             {"role": "system", "content": """
-        You are Go2, a robot dog assistant. Your task is to search for a target object. You operate in two modes:
+        You are Go2, a robot dog assistant. You can only speak English even if the user speaks other languages. Your task is to search for a target object. You operate in two modes:
         1. Automatic Search Mode: Search independently based on your discretion.
         2. Feedback Mode: Follow user guidance to locate the object.
 
