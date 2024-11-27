@@ -347,7 +347,6 @@ class RobotDogUI(QMainWindow):
                 self.input_widget.hide()
                 print("✅ Waiting for user confirmation...")
                 self.awaiting_feedback = False
-                self.feedback_mode = False
             
             else:
                 print("Getting answer to question from AI client...")  # Debug print
@@ -384,13 +383,20 @@ class RobotDogUI(QMainWindow):
             print("Type 'feedback' to give feedback")  # Debug print
             self.dog.feedback = text
 
+    def format_feedback_action(self, action):
+        action_text = " and ".join(action)    
+        
+        return action_text
+
     def confirm_feedback(self):
         """사용자가 해석된 피드백을 승인할 때"""
         if self.pending_feedback_action:
             print("Pending feedback action:", self.pending_feedback_action)  # 디버그 출력
-            response_text = f"Executing: {self.pending_feedback_action.action}"
+            response_text = f"I am executing {self.format_feedback_action(self.pending_feedback_action.action)}"
             self.add_robot_message(response_text)
-            
+            if self.dog.env["tts"]:
+                QTimer.singleShot(300, lambda: self.play_tts(response_text))
+
             # 피드백 액션을 직접 변수에 저장
             action_to_execute = self.pending_feedback_action
             
@@ -449,11 +455,6 @@ class RobotDogUI(QMainWindow):
             if not hasattr(assistant, 'action'):
                 print("Error: Assistant has no action attribute")
                 return
-            
-            # TTS 실행 (action이 있는 경우에만)
-            if self.dog.env["tts"] and assistant.action:
-                action_text = assistant.action[0] if isinstance(assistant.action, list) else assistant.action
-                self.play_tts(action_text)
             
             # 로봇 동작 실행
             self.dog.activate_sportclient(
