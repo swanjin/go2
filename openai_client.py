@@ -171,7 +171,7 @@ class OpenaiClient(AiClientBase):
             f"### History:\n {self.history}\n\n"
             f"### Conversation:\n {feedback}."
         )
-        print(self.openai_prompt_messages_for_text[1:])
+        # print(self.openai_prompt_messages_for_text[1:])
 
         # Check for feedback interruption early in the function
         if dog_instance.check_feedback_and_interruption():
@@ -233,7 +233,7 @@ class OpenaiClient(AiClientBase):
 
     def feedback_mode_on(self, image_pil):
         # Reset to the initial state
-        self.reset_messages()
+        self.reset_messages_feedback()
 
         # Start new feedback mode
         image_analysis = self.vision_model.describe_image(image_pil)
@@ -275,8 +275,8 @@ class OpenaiClient(AiClientBase):
         self.openai_prompt_messages_for_text.append({"role": "assistant", "content": confirmation_msg})
         print(confirmation_msg)
 
-        self.openai_prompt_messages_for_text.append({"role": "user", "content": self.get_user_prompt()})
-        print(self.openai_prompt_messages_for_text[1:])
+        self.openai_prompt_messages_for_text.append({"role": "user", "content": self.get_user_prompt_feedback()})
+        # print(self.openai_prompt_messages_for_text[1:])
         
         result = self.client.chat.completions.create(**self.openai_params_for_text)
         rawAssistant = result.choices[0].message.content
@@ -296,6 +296,18 @@ class OpenaiClient(AiClientBase):
         self.openai_prompt_messages_for_text.clear()
         self.openai_prompt_messages_for_text.append(
             {"role": "system", "content": self.system_prompt}
+        )
+        self.openai_goal_for_text = {
+            "role": "user",
+            "content": ""
+        }
+        self.openai_prompt_messages_for_text.append(self.openai_goal_for_text)
+
+    def reset_messages_feedback(self):
+        # Reset to the initial state
+        self.openai_prompt_messages_for_text.clear()
+        self.openai_prompt_messages_for_text.append(
+            {"role": "system", "content": self.system_prompt_feedback}
         )
         self.openai_goal_for_text = {
             "role": "user",
