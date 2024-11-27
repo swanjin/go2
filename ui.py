@@ -237,6 +237,34 @@ class RobotDogUI(QMainWindow):
         self.input_widget.hide()
         layout.addWidget(self.input_widget)
 
+        # Feedback button
+        self.feedback_button = QPushButton("💭 Feedback")
+        self.feedback_button.setStyleSheet("""
+            QPushButton {
+                background-color: #E3F2FD;
+                color: #1A73E8;
+                border: 2px solid #1A73E8;
+                border-radius: 20px;
+                padding: 10px 20px;
+                font-size: 14px;
+                font-weight: bold;
+                min-width: 150px;
+                margin: 0 10px;
+            }
+            QPushButton:hover {
+                background-color: #BBDEFB;
+                color: #0D47A1;
+                border: 2px solid #0D47A1;
+            }
+            QPushButton:pressed {
+                background-color: #90CAF9;
+                padding: 11px 19px 9px 21px;
+            }
+        """)
+        self.feedback_button.clicked.connect(self.trigger_feedback_mode)
+        self.feedback_button.hide()
+        layout.addWidget(self.feedback_button, alignment=Qt.AlignmentFlag.AlignCenter)
+
     def start_conversation(self):
         self.start_button.hide()
         self.start_button.deleteLater()
@@ -301,6 +329,8 @@ class RobotDogUI(QMainWindow):
                 response = f"I'll start searching for apple now."
                 self.add_robot_message(response)
                 QTimer.singleShot(100, lambda: self.process_target("apple", response))
+                self.feedback_button.show()
+
             else:
                 clarify_msg = "Please tell me specifically about the target you want me to find."
                 self.add_robot_message(clarify_msg)
@@ -317,6 +347,9 @@ class RobotDogUI(QMainWindow):
             
             feedback_msg = "Gotcha! Feedback mode activated. Please provide your feedback."
             self.add_robot_message(feedback_msg)
+            
+            # Hide feedback button when feedback mode is activated
+            self.feedback_button.hide()
                        
             if self.dog.env["tts"]:
                 QTimer.singleShot(300, lambda: self.play_tts(feedback_msg))
@@ -406,7 +439,7 @@ class RobotDogUI(QMainWindow):
         """사용자가 해석된 피드백을 승인할 때"""
         if self.pending_feedback_action:
             print("Pending feedback action:", self.pending_feedback_action)  # 디버그 출력
-            response_text = f"I'm executing {self.format_feedback_action(self.pending_feedback_action.action)}"
+            response_text = "Thank you for your confirmation! I just processed your feedback."
             self.add_robot_message(response_text)
             if self.dog.env["tts"]:
                 QTimer.singleShot(300, lambda: self.play_tts(response_text))
@@ -505,6 +538,9 @@ class RobotDogUI(QMainWindow):
         self.dog.ai_client.reset_messages_feedback()
         self.dog.feedback_complete_event.set()
 
+        self.feedback_button.show()
+        QTimer.singleShot(0, self._scroll_to_bottom)
+
     def add_user_message(self, text):
         message = ChatMessage(text, is_user=True)
         self.chat_layout.addWidget(message)
@@ -545,6 +581,11 @@ class RobotDogUI(QMainWindow):
         if hasattr(self, 'dog'):
             self.dog.shutdown()
         event.accept()
+
+    def trigger_feedback_mode(self):
+        """Simulate typing 'feedback' and trigger send_message."""
+        self.message_input.setText("feedback")
+        self.send_message()
 
 class CameraThread(QThread):
     frame_update = pyqtSignal(QImage)
