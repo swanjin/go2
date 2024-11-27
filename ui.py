@@ -413,7 +413,7 @@ class RobotDogUI(QMainWindow):
 
     def reject_feedback(self):
         """사용자가 해석된 피드백을 거부할 때"""
-        reject_msg = """It seems my actions don’t align with your needs. Could you clarify your expectations or suggest adjustments?"""
+        reject_msg = """It seems my suggested actions don’t align with your needs. Could you clarify your expectations or suggest adjustments?"""
         self.add_robot_message(reject_msg)
         
         if self.dog.env["tts"]:
