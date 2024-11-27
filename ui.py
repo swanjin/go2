@@ -315,23 +315,34 @@ class RobotDogUI(QMainWindow):
             self.feedback_mode = True
             self.awaiting_feedback = True
             
-            feedback_msg = "Feedback mode activated. Please provide your feedback."
+            feedback_msg = "Gotcha! Feedback mode activated. Please provide your feedback."
             self.add_robot_message(feedback_msg)
-            
+                       
             if self.dog.env["tts"]:
                 QTimer.singleShot(300, lambda: self.play_tts(feedback_msg))
-           
+            
+            self.dog.ai_client.history_log_file.write(f"\n=== Conversation ===\n")
+            self.dog.ai_client.history_log_file.flush()
+
         elif self.feedback_mode and self.awaiting_feedback:
             print("\n=== Processing feedback in UI ===")  # Debug print
             print(f"Feedback text: '{text}'")  # Debug print
             self.add_user_message(text)
+            self.dog.ai_client.history_log_file.write(f"User: {text} \n")
+            self.dog.ai_client.history_log_file.flush()
 
             frame = self.dog.read_frame()
             print(f"Frame received: {frame is not None}")  # Debug print
             image_array_bboxes, image_description = self.dog.ai_client.feedback_mode_on(frame)
 
-            if text.lower() == "exit":
+            if self.dog.ai_client.is_feedback_mode_exit(text):
                 print("Exit command received")  # Debug print
+                exit_msg = "Alright, I'll wrap up feedback mode and switch back to automatic search."
+                self.add_robot_message(exit_msg)
+                
+                if self.dog.env["tts"]:
+                    QTimer.singleShot(300, lambda: self.play_tts(exit_msg))
+                
                 self.awaiting_feedback = False
                 self.resume_auto_mode()
             
@@ -343,6 +354,7 @@ class RobotDogUI(QMainWindow):
                 self.add_robot_message(confirmation_msg)
                 if self.dog.env["tts"]:
                     QTimer.singleShot(300, lambda: self.play_tts(confirmation_msg))
+
                 self.confirm_widget.show()
                 self.input_widget.hide()
                 print("✅ Waiting for user confirmation...")
@@ -355,6 +367,8 @@ class RobotDogUI(QMainWindow):
                 self.add_robot_message(answer)
                 if self.dog.env["tts"]:
                     QTimer.singleShot(300, lambda: self.play_tts(answer))
+                self.dog.ai_client.history_log_file.write(f"Go2: {answer} \n")
+                self.dog.ai_client.history_log_file.flush()
 
                 # if assistant:
                 #     self.pending_feedback_action = assistant
@@ -392,7 +406,7 @@ class RobotDogUI(QMainWindow):
         """사용자가 해석된 피드백을 승인할 때"""
         if self.pending_feedback_action:
             print("Pending feedback action:", self.pending_feedback_action)  # 디버그 출력
-            response_text = f"I am executing {self.format_feedback_action(self.pending_feedback_action.action)}"
+            response_text = f"I'm executing {self.format_feedback_action(self.pending_feedback_action.action)}"
             self.add_robot_message(response_text)
             if self.dog.env["tts"]:
                 QTimer.singleShot(300, lambda: self.play_tts(response_text))
@@ -413,9 +427,13 @@ class RobotDogUI(QMainWindow):
 
     def reject_feedback(self):
         """사용자가 해석된 피드백을 거부할 때"""
-        reject_msg = """It seems my suggested actions don’t align with your needs. Could you clarify your expectations or suggest adjustments?"""
+        reject_msg = """It seems my suggested actions don't align with your needs. Could you clarify your expectations or suggest adjustments?"""
         self.add_robot_message(reject_msg)
-        
+        self.dog.ai_client.openai_prompt_messages_for_text = self.dog.ai_client.openai_prompt_messages_for_text[:-1]
+        self.dog.ai_client.openai_prompt_messages_for_text.append({"role": "assistant", "content": reject_msg})
+        self.dog.ai_client.history_log_file.write(f"Go2: {reject_msg} \n")
+        self.dog.ai_client.history_log_file.flush()
+
         if self.dog.env["tts"]:
             QTimer.singleShot(300, lambda: self.play_tts(reject_msg))
         
