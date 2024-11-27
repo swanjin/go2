@@ -116,9 +116,9 @@ class OpenaiClient(AiClientBase):
         
         self.history = self.history if round_number > 1 else ""
         
-        #### Test feedback prompt
-        if round_number == 1:
-            image_description_text = "You detected banana at coordinates (640, 360) with a distance of 5 meters."
+        # #### Test feedback prompt
+        # if round_number == 1:
+        #     image_description_text = "You detected banana at coordinates (640, 360) with a distance of 5 meters."
     
         self.history += (
             f"- Round {round_number}: "
@@ -131,6 +131,9 @@ class OpenaiClient(AiClientBase):
         # self.history += "None."
 
     def get_response_by_LLM(self, image_pil, dog_instance, feedback = None):
+        # Reset to the initial state
+        self.reset_messages()
+        
         # Check for feedback interruption early in the function
         if dog_instance.check_feedback_and_interruption():
             dog_instance.round_number += 1
@@ -168,6 +171,7 @@ class OpenaiClient(AiClientBase):
             f"### History:\n {self.history}\n\n"
             f"### Conversation:\n {feedback}."
         )
+        print(self.openai_prompt_messages_for_text[1:])
 
         # Check for feedback interruption early in the function
         if dog_instance.check_feedback_and_interruption():
@@ -229,15 +233,7 @@ class OpenaiClient(AiClientBase):
 
     def feedback_mode_on(self, image_pil):
         # Reset to the initial state
-        self.openai_prompt_messages_for_text.clear()
-        self.openai_prompt_messages_for_text.append(
-            {"role": "system", "content": self.system_prompt}
-        )
-        self.openai_goal_for_text = {
-            "role": "user",
-            "content": ""
-        }
-        self.openai_prompt_messages_for_text.append(self.openai_goal_for_text)
+        self.reset_messages()
 
         # Start new feedback mode
         image_analysis = self.vision_model.describe_image(image_pil)
@@ -280,6 +276,7 @@ class OpenaiClient(AiClientBase):
         print(confirmation_msg)
 
         self.openai_prompt_messages_for_text.append({"role": "user", "content": self.get_user_prompt()})
+        print(self.openai_prompt_messages_for_text[1:])
         
         result = self.client.chat.completions.create(**self.openai_params_for_text)
         rawAssistant = result.choices[0].message.content
@@ -294,8 +291,17 @@ class OpenaiClient(AiClientBase):
 
         return confirmation_msg, assistant
     
-    def clear_gpt_message(self):
+    def reset_messages(self):
+        # Reset to the initial state
         self.openai_prompt_messages_for_text.clear()
+        self.openai_prompt_messages_for_text.append(
+            {"role": "system", "content": self.system_prompt}
+        )
+        self.openai_goal_for_text = {
+            "role": "user",
+            "content": ""
+        }
+        self.openai_prompt_messages_for_text.append(self.openai_goal_for_text)
 
     def stt(self, voice_buffer):
         container = voice_buffer

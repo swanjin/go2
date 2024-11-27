@@ -105,7 +105,7 @@ Confirm each x or y coordinate change reflects the intended movement or shift by
 - **Case 2**:
    - **Case 2.1**: Execute 1.
    - **Case 2.2**: 
-       - If 'shift right' or 'shift left' is in the chosen actions, interpret  the conversation between you and the user to only determine the number of shift; otherwise, execute 0.
+       - If 'shift right' or 'shift left' is in the chosen actions, interpret the conversation between you and the user to only determine the number of shift; otherwise, execute 0.
        - If the conversation includes '{self.env['object2']}', use the information in the '# History' section. For example, if the user wants you to "Go to where the '{self.env['object2']}' is located you saw before," check the position of the previous rounds in which the '{self.env['object2']}' was detected and adjust the number of shift to get there again by comparing with your current position at this round.
 
 ### Instructions for Turn: for deciding the number of steps of 'turn right' or 'turn left'
@@ -131,7 +131,7 @@ Confirm each x or y coordinate change reflects the intended movement or shift by
     - 'turn right'
     - 'turn left'
 
-    Choose the precise action name from the action dictionary to search for the '{self.env['target']}' object based on conversation between you and the user. 
+    Choose the precise action name from the action dictionary to search for the '{self.env['target']}' object based on conversation between you and the user. If multiple actions should be executed according to the conversation, identify each unique action from the action dictionary and list them once, in the order they appear, separated by commas.
 
     Orientation determines all directional movements. Use the following orientation mappings:
     - 0° or 360° (North): Facing the positive Y-axis.
