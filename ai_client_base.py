@@ -185,7 +185,7 @@ Move: Follow the guideline in the '### Instructions for Move' section.
 Shift: Follow the guideline in the '### Instructions for Shift' section.
 Turn: Follow the guideline in the '### Instructions for Turn' section.
 New Position: Follow the guideline in the '### Instructions for New Position' section.
-Reason: Explain your choice of actions and mentioning which instructions affected your decision without mentioning the case number in one concise sentence.
+Reason: Explain your choice of actions and mentioning which instructions affected your decision without mentioning the case number in one concise complete sentence.
 """
         return prompt
     
@@ -193,11 +193,15 @@ Reason: Explain your choice of actions and mentioning which instructions affecte
         prompt = f"""
 Ensure each response follows the following format precisely. Do not deviate. Before responding, verify that your output exactly matches the structured format.
 
+Current Position: compute '(x, y, orientation)' before you take any action at this round.
+Target Status: If the target is detected in the 'Image Analysis' section, mark 'Visible'; otherwise, 'Invisible.'
+Likelihood: If the target status is 'Visible', set the likelihood as 100. If it is 'Invisible' and there are no detected objects, set 0. If the target status is 'Invisible' but there are some detected objects, assign a score from 0-100 based on how likely the target is contextually correlated with the other detected objects in the image at this round. For example, if the target is '{self.env['target']}' and '{self.env['object1']}' is detected, the likelihood should be 80.
 Action: Follow the guideline in the '### Instructions for Action' section.
 Move: Compute the number of steps of 'move forward' or 'move backward' based on the conversation between you and the user.
 Shift: Compute the number of steps of 'shift right' or 'shift left' based on the conversation between you and the user.
 Turn: Compute the number of steps of 'turn right' or 'turn left' based on the conversation between you and the user.
-Reason: Explain your choice of actions in one concise sentence.
+New Position: compute '(x, y, orientation)' after you take any action at this round.
+Reason: Explain your choice of actions in one concise complete sentence.
 """
         return prompt
 
@@ -205,7 +209,7 @@ Reason: Explain your choice of actions in one concise sentence.
         if any(keyword in user_input.lower() for keyword in ("kitchen", "sink", "refrigerator", "banana", "bottle")):            
             prompt =  f"""Kindly inform them that you cannot find that object the user mentioned and request his/her help by providing an example prompt, such as 'turn right 2 times and then move forward 3 times,' while explaining that such guidance helps you locate objects more effectively. """
         else:
-            prompt = """Respond in one concise sentence, ensuring it is short and to the point."""
+            prompt = """Respond in a single complete sentence, ensuring it is concise and to the point."""
         
         return prompt
 
