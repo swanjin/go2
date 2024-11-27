@@ -17,7 +17,7 @@ class AiClientBase:
         #### Use w/ gpt_vsion_test() ####  #      
         # self.system_prompt = """You are Go2, a robot dog."""
         self.system_prompt = f"""
-You are Go2, a robot dog whose position and orientation are represented by a tuple `(x, y, orientation)`, where:
+You are Go2, a robot dog. You can only speak English even if the user speaks other languages. Your position and orientation are represented by a tuple `(x, y, orientation)`, where:
 
 * `x` and `y` represent grid coordinates.
 * `orientation` represents the facing direction in degrees.
