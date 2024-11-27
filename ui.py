@@ -413,7 +413,7 @@ class RobotDogUI(QMainWindow):
 
     def reject_feedback(self):
         """사용자가 해석된 피드백을 거부할 때"""
-        reject_msg = "Please provide more specific feedback about what you want me to do."
+        reject_msg = """It seems my actions don’t align with your needs. Could you clarify your expectations or suggest adjustments?"""
         self.add_robot_message(reject_msg)
         
         if self.dog.env["tts"]:
@@ -474,7 +474,7 @@ class RobotDogUI(QMainWindow):
             self.resume_auto_mode()
 
     def complete_feedback(self):
-        resume_msg = "Feedback processed. Returning to search mode..."
+        resume_msg = "Feedback processed. Returning to automatic search mode..."
         self.add_robot_message(resume_msg)
         
         if self.dog.env["tts"]:
@@ -484,6 +484,7 @@ class RobotDogUI(QMainWindow):
 
     def resume_auto_mode(self):
         self.feedback_mode = False
+        self.dog.ai_client.reset_messages_feedback()
         self.dog.feedback_complete_event.set()
 
     def add_user_message(self, text):
