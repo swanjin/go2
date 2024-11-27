@@ -22,7 +22,7 @@ You are Go2, a robot dog. You can only speak English even if the user speaks oth
 - `x` and `y` represent grid coordinates.
 - `orientation` represents the facing direction in degrees.
 
-Your search target object is '{self.env['target']}'. You start at position (0, 0, 0). 
+Your task is to search for a target object, '{self.env['target']}'. You start at position (0, 0, 0). 
 
 ### Instructions for Action:
 Action dictionary:
@@ -124,7 +124,7 @@ You are Go2, a robot dog. You can only speak English even if the user speaks oth
 - `x` and `y` represent grid coordinates.
 - `orientation` represents the facing direction in degrees.
 
-Your search target object is '{self.env['target']}'. You start at position (0, 0, 0). 
+Your task is to search for a target object, '{self.env['target']}'. You start at position (0, 0, 0). 
 
 ### Instructions for Action:
 Action dictionary:

@@ -70,7 +70,7 @@ class OpenaiClient(AiClientBase):
 
     def save_round(self, assistant, feedback, image_description_text):
         # Update history.log
-        self.history_log_file.write(f"======= image{len(self.round_list)+1} =======\n")
+        self.history_log_file.write(f"\n=== image{len(self.round_list)+1} ===\n")
         
         if image_description_text == "No objects detected in the image.":
             self.history_log_file.write(f"Image Analysis: \n None. \n")
@@ -89,11 +89,11 @@ class OpenaiClient(AiClientBase):
                 f"Action) {assistant.action} \n"
                 f"Move) {assistant.move} \n"
                 f"Shift) {assistant.shift} \n"
-                f"Turn) {assistant.turn} \n\n"
+                f"Turn) {assistant.turn} \n"
                 f"Reason) {assistant.reason} \n"
             )
 
-            self.history_log_file.flush()
+        self.history_log_file.flush()
 
     def vision_model_test(self, image_pil):
         image_analysis = self.vision_model.describe_image(image_pil)
@@ -279,12 +279,12 @@ class OpenaiClient(AiClientBase):
         
         result = self.client.chat.completions.create(**self.openai_params_for_text)
         rawAssistant = result.choices[0].message.content
-        self.openai_prompt_messages_for_text.append({"role": "assistant", "content": rawAssistant})
-        
         assistant = ResponseMessage.parse(rawAssistant)
 
-        image_pil_feedback_mode = utils.put_text_top_left(image_array_bboxes, text="feedback mode")
-        self.store_image(image_pil_feedback_mode)
+        image_pil_fmode = utils.put_text_top_left(image_array_bboxes, text="feedback mode")
+        self.store_image(image_pil_fmode)
+        self.history_log_file.write(f"Go2: {confirmation_msg} \n")
+        self.history_log_file.flush()
         self.save_round(assistant, feedback, image_description_text)
         self.update_history_prompt(assistant, feedback, image_description_text)
 
@@ -303,6 +303,10 @@ class OpenaiClient(AiClientBase):
         self.openai_prompt_messages_for_text.append(self.openai_goal_for_text)
 
     def reset_messages_feedback(self):
+        # data = self.openai_prompt_messages_for_text[2:-1]
+        # conv_history = [item['content'] for item in data]
+        # self.history_log_file.write(f"Conversation: \n {conv_history} \n")
+
         # Reset to the initial state
         self.openai_prompt_messages_for_text.clear()
         self.openai_prompt_messages_for_text.append(
@@ -313,8 +317,7 @@ class OpenaiClient(AiClientBase):
             "content": ""
         }
         self.openai_prompt_messages_for_text.append(self.openai_goal_for_text)
-    
-    
+  
     def stt(self, voice_buffer):
         container = voice_buffer
         transcription = self.client.audio.transcriptions.create(
@@ -368,3 +371,34 @@ class OpenaiClient(AiClientBase):
 
     def close(self):
         self.history_log_file.close()
+
+    def is_feedback_mode_exit(self, input): 
+        messages = [
+            {"role": "system", "content": """
+        You are Go2, a robot dog assistant. Your task is to search for a target object. You operate in two modes:
+        1. Automatic Search Mode: Search independently based on your discretion.
+        2. Feedback Mode: Follow user guidance to locate the object.
+
+        You are currently in Feedback Mode. Your job is to evaluate the user's input and decide whether to switch back to Automatic Search Mode or stay in Feedback Mode.
+
+        If the user's input indicates a desire to switch back to Automatic Search Mode, respond with 'true'. For all other inputs, respond with 'false'.
+        """},
+        {'role': 'user', 'content': input}
+    ]
+
+        params_for_interpreter = {
+            "model": "gpt-4o",
+            "messages": messages,
+            "max_tokens": 200,
+            "temperature": 0
+        }
+
+        try:
+            result = self.client.chat.completions.create(**params_for_interpreter)
+            assistant_response = result.choices[0].message.content.strip()  # Strip unnecessary whitespace
+            exit_fmode = assistant_response.lower() == "true"
+        except (KeyError, IndexError, AttributeError) as e:
+            print(f"Error in is_feedback_mode_exit: {e}")
+            return False
+        return exit_fmode
+    
