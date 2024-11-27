@@ -209,7 +209,7 @@ Reason: Explain your choice of actions in one concise complete sentence.
         if any(keyword in user_input.lower() for keyword in ("kitchen", "sink", "refrigerator", "banana", "bottle")):            
             prompt =  f"""Kindly inform them that you cannot find that object the user mentioned and request his/her help by providing an example prompt, such as 'turn right 2 times and then move forward 3 times,' while explaining that such guidance helps you locate objects more effectively. """
         else:
-            prompt = """Respond in a single complete sentence, ensuring it is concise and to the point."""
+            prompt = """Respond in a single complete sentence based on the conversation between you and the user, ensuring it is concise and to the point."""
         
         return prompt
 

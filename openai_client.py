@@ -232,9 +232,9 @@ class OpenaiClient(AiClientBase):
         return assistant
 
     def feedback_mode_on(self, image_pil):
-        # Reset to the initial state
-        self.reset_messages_feedback()
-
+        # Modify system prompt
+        self.openai_prompt_messages_for_text[0]["content"] = self.system_prompt_feedback
+        
         # Start new feedback mode
         image_analysis = self.vision_model.describe_image(image_pil)
         image_array = image_analysis.frame
@@ -244,12 +244,11 @@ class OpenaiClient(AiClientBase):
         else:
             image_description_text = image_analysis.description
         
-        self.openai_goal_for_text["content"] = (
+        self.openai_prompt_messages_for_text[1]["content"] = (
             f"### Image analysis:\n (The image size is {self.env['captured_width']}x{self.env['captured_height']}, with the coordinate (0, 0) located at the top-left corner.):\n {image_description_text} \n\n"
             f"### History:\n {self.history}\n\n"
             f"### Conversation:\n Refer to the below conversation between you and the user."
         )
-        self.openai_prompt_messages_for_text.append(self.openai_goal_for_text)
         
         if self.env["print_history"]:
             print(self.history)
@@ -274,9 +273,9 @@ class OpenaiClient(AiClientBase):
         confirmation_msg = result.choices[0].message.content
         self.openai_prompt_messages_for_text.append({"role": "assistant", "content": confirmation_msg})
         print(confirmation_msg)
+        print(self.openai_prompt_messages_for_text[1:])
 
         self.openai_prompt_messages_for_text.append({"role": "user", "content": self.get_user_prompt_feedback()})
-        # print(self.openai_prompt_messages_for_text[1:])
         
         result = self.client.chat.completions.create(**self.openai_params_for_text)
         rawAssistant = result.choices[0].message.content
@@ -314,7 +313,8 @@ class OpenaiClient(AiClientBase):
             "content": ""
         }
         self.openai_prompt_messages_for_text.append(self.openai_goal_for_text)
-
+    
+    
     def stt(self, voice_buffer):
         container = voice_buffer
         transcription = self.client.audio.transcriptions.create(
