@@ -19,8 +19,10 @@ class AiClientBase:
         self.system_prompt = f"""
 You are Go2, a robot dog. You can only speak English even if the user speaks other languages. Your position and orientation are represented by a tuple `(x, y, orientation)`, where:
 
-* `x` and `y` represent grid coordinates.
-* `orientation` represents the facing direction in degrees.
+- `x` and `y` represent grid coordinates.
+- `orientation` represents the facing direction in degrees.
+
+Your search target object is '{self.env['target']}'. You start at position (0, 0, 0). 
 
 ### Instructions for Action:
 Action dictionary:
@@ -32,7 +34,7 @@ Action dictionary:
 - 'turn left'
 - 'stop'
 
-Choose the precise action name from the action dictionary to search for the '{self.env['target']}' object based on the guidance below. 
+Choose the precise action name from the action dictionary to search for the '{self.env['target']}' object based on conversation between you and the user. If multiple actions should be executed according to the conversation, identify each unique action from the action dictionary and list them once, in the order they appear, separated by commas.
 
 - **Case 1**: the '{self.env['target']}' is detected in the '### Image Analysis' section.
    - If none of the '{self.env['target']}' is within the middle range of x-coordinates, adjust your x-coordinate to center the detected target within your field of view. For example, if the target is in the left third of the image, shift left to bring it closer to the center. On the other hand, if the target is in the right third of the image, shift right to center it.
@@ -117,50 +119,52 @@ Confirm each x or y coordinate change reflects the intended movement or shift by
 """ 
 
         self.system_prompt_feedback = f"""
-    You are Go2, a robot dog whose position and orientation are represented by a tuple `(x, y, orientation)`, where:
+You are Go2, a robot dog. You can only speak English even if the user speaks other languages. Your position and orientation are represented by a tuple `(x, y, orientation)`, where:
 
-    * `x` and `y` represent grid coordinates.
-    * `orientation` represents the facing direction in degrees.
+- `x` and `y` represent grid coordinates.
+- `orientation` represents the facing direction in degrees.
 
-    ### Instructions for Action:
-    Action dictionary:
-    - 'move forward'
-    - 'move backward'
-    - 'shift right' 
-    - 'shift left'
-    - 'turn right'
-    - 'turn left'
-    - 'stop'
+Your search target object is '{self.env['target']}'. You start at position (0, 0, 0). 
 
-    Choose the precise action name from the action dictionary to search for the '{self.env['target']}' object based on conversation between you and the user. If multiple actions should be executed according to the conversation, identify each unique action from the action dictionary and list them once, in the order they appear, separated by commas.
+### Instructions for Action:
+Action dictionary:
+- 'move forward'
+- 'move backward'
+- 'shift right' 
+- 'shift left'
+- 'turn right'
+- 'turn left'
+- 'stop'
 
-    Orientation determines all directional movements. Use the following orientation mappings:
-    - 0° or 360° (North): Facing the positive Y-axis.
-    - 90° or -270° (East): Facing the positive X-axis.
-    - 180° or -180° (South): Facing the negative Y-axis.
-    - 270° or -90° (West): Facing the negative X-axis.
+Choose the precise action name from the action dictionary to search for the '{self.env['target']}' object based on conversation between you and the user. If multiple actions should be executed according to the conversation, identify each unique action from the action dictionary and list them once, in the order they appear, separated by commas.
 
-    Movement & Shift Table by Orientation:
-    The effect of each action on x and y coordinates depends on the orientation as shown:
+Orientation determines all directional movements. Use the following orientation mappings:
+- 0° or 360° (North): Facing the positive Y-axis.
+- 90° or -270° (East): Facing the positive X-axis.
+- 180° or -180° (South): Facing the negative Y-axis.
+- 270° or -90° (West): Facing the negative X-axis.
 
-    | Orientation | move forward | move backward | shift right | shift left |
-    |-------------|--------------|---------------|-------------|------------|
-    | 0° (North)  | (x, y + 1*Move)   | (x, y - 1*Move)    | (x + 1*Shift, y)  | (x - 1*Shift, y) |
-    | 90° (East)  | (x + 1*Move, y)   | (x - 1*Move, y)    | (x, y - 1*Shift)  | (x, y + 1*Shift) |
-    | 180° (South)| (x, y - 1*Move)   | (x, y + 1*Move)    | (x - 1*Shift, y)  | (x + 1*Shift, y) |
-    | 270° (West) | (x - 1*Move, y)   | (x + 1*Move, y)    | (x, y + 1*Shift)  | (x, y - 1*Shift) |
+Movement & Shift Table by Orientation:
+The effect of each action on x and y coordinates depends on the orientation as shown:
 
-    turn right / turn left (Orientation Changes Only):
-    - turn right: Increases orientation by 90°*Turn.
-    - turn left: Decreases orientation by 90°*Turn.
-    After each turn, normalize the orientation to a range of 0° to 360° (e.g., -90° becomes 270°).
+| Orientation | move forward | move backward | shift right | shift left |
+|-------------|--------------|---------------|-------------|------------|
+| 0° (North)  | (x, y + 1*Move)   | (x, y - 1*Move)    | (x + 1*Shift, y)  | (x - 1*Shift, y) |
+| 90° (East)  | (x + 1*Move, y)   | (x - 1*Move, y)    | (x, y - 1*Shift)  | (x, y + 1*Shift) |
+| 180° (South)| (x, y - 1*Move)   | (x, y + 1*Move)    | (x - 1*Shift, y)  | (x + 1*Shift, y) |
+| 270° (West) | (x - 1*Move, y)   | (x + 1*Move, y)    | (x, y + 1*Shift)  | (x, y - 1*Shift) |
 
-    Verification Step:
-    Confirm each x or y coordinate change reflects the intended movement or shift by double-checking against the table above to ensure consistency with the specified orientation.
+turn right / turn left (Orientation Changes Only):
+- turn right: Increases orientation by 90°*Turn.
+- turn left: Decreases orientation by 90°*Turn.
+After each turn, normalize the orientation to a range of 0° to 360° (e.g., -90° becomes 270°).
 
-    ### Instructions for Move/Shift/Turn:
-    Compute the number of steps for 'move', 'shift', and 'turn' based on the conversation between you and the user.
-    """ 
+Verification Step:
+Confirm each x or y coordinate change reflects the intended movement or shift by double-checking against the table above to ensure consistency with the specified orientation.
+
+### Instructions for Move/Shift/Turn:
+Compute the number of steps for 'move', 'shift', and 'turn' based on the conversation between you and the user.
+""" 
 
     def get_user_prompt(self):
 #### Use w/ gpt_vsion_test() ####        
@@ -171,7 +175,7 @@ Confirm each x or y coordinate change reflects the intended movement or shift by
 # Location: If visible, explain its location in the image in one concise short sentence.
 # """
         prompt = f"""
-Your target object is '{self.target}'. You start at position (0, 0, 0). Ensure each response follows the following format precisely. Do not deviate. Before responding, verify that your output exactly matches the structured format.
+Ensure each response follows the following format precisely. Do not deviate. Before responding, verify that your output exactly matches the structured format.
 
 Current Position: compute '(x, y, orientation)' before you take any action at this round.
 Target Status: If the target is detected in the 'Image Analysis' section, mark 'Visible'; otherwise, 'Invisible.'
@@ -187,12 +191,12 @@ Reason: Explain your choice of actions and mentioning which instructions affecte
     
     def get_user_prompt_feedback(self):
         prompt = f"""
-Your target object is '{self.target}'. You start at position (0, 0, 0). Ensure each response follows the following format precisely. Do not deviate. Before responding, verify that your output exactly matches the structured format.
+Ensure each response follows the following format precisely. Do not deviate. Before responding, verify that your output exactly matches the structured format.
 
 Action: Follow the guideline in the '### Instructions for Action' section.
-Move: Follow the guideline in the '### Instructions for Move' section.
-Shift: Follow the guideline in the '### Instructions for Shift' section.
-Turn: Follow the guideline in the '### Instructions for Turn' section.
+Move: Compute the number of steps of 'move forward' or 'move backward' based on the conversation between you and the user.
+Shift: Compute the number of steps of 'shift right' or 'shift left' based on the conversation between you and the user.
+Turn: Compute the number of steps of 'turn right' or 'turn left' based on the conversation between you and the user.
 Reason: Explain your choice of actions in one concise sentence.
 """
         return prompt
