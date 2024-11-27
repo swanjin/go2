@@ -130,6 +130,7 @@ Confirm each x or y coordinate change reflects the intended movement or shift by
     - 'shift left'
     - 'turn right'
     - 'turn left'
+    - 'stop'
 
     Choose the precise action name from the action dictionary to search for the '{self.env['target']}' object based on conversation between you and the user. If multiple actions should be executed according to the conversation, identify each unique action from the action dictionary and list them once, in the order they appear, separated by commas.
 
