@@ -296,7 +296,9 @@ class ResponseMessage:
             total_step = move + shift + turn
             if total_step == 0:
                 action = "stop"
-                
+            
+            print(f"action: {action}, move: {move}, shift: {shift}, turn: {turn}")
+            
         except Exception as e:
             print(f"Parse failed. Message: {message}\nError: {e}")
             # Return default values when parsing fails

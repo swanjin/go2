@@ -115,9 +115,11 @@ class OpenaiClient(AiClientBase):
         if feedback is None:
             feedback = "None"
 
-        # ### test
-        # if dog_instance.round_number == 2:
-        #     image_description_text = "You detected refrigerator at coordinates (665, 236) with a distance of 2.65 meters."
+        ### test 
+        if dog_instance.round_number == 1:
+            image_description_text = "You detected bottle at coordinates (665, 236) with a distance of 2.65 meters."
+        if dog_instance.round_number == 2:
+            image_description_text = "You detected plant at coordinates (665, 236) with a distance of 2.65 meters."
 
         # input prompt
         self.openai_params_for_LLM["messages"][1]["content"] = (
