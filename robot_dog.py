@@ -257,7 +257,7 @@ class Dog:
         # print("queryGPT_with_feedback start")
         while self.session_active_event.is_set():  # Only active while session is running
             feedback_input = input("Type 'feedback' to give feedback: \n").strip().lower()
-            if feedback_input == 'feedback':
+            if feedback_input == "feedback":
                 print("Feedback command received; checking session_active_event...")  # Debug: Confirm input matched
                 if self.session_active_event.is_set():
                     self.feedback_complete_event.clear()  # Pause queryGPT_by_LLM while feedback is in progress

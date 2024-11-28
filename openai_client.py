@@ -15,7 +15,6 @@ from vision import VisionModel
 import utils
 from round import Round
 
-
 class OpenaiClient(AiClientBase):
     def __init__(self, env, key):
         # Call the parent class's constructor to initialize system_prompt and other attributes
@@ -26,34 +25,15 @@ class OpenaiClient(AiClientBase):
         self.image_counter = 0
         self.history = "None."
         self.vision_model = VisionModel(env)
-
-        self.openai_prompt_messages = [
-            {"role": "system", "content": self.system_prompt 
-        }]
-        self.openai_prompt_messages_for_text = [
-            {"role": "system", "content": self.system_prompt 
-        }]
-        self.openai_params = {
+        self.openai_params_for_LLM = {
             "model": "gpt-4o",
-            "messages": self.openai_prompt_messages,
+            "messages": [
+                {"role": "system", "content": self.system_prompt},
+                {"role": "user", "content": ""}
+            ],
             "max_tokens": 200,
             "temperature": 0
         }
-        self.openai_params_for_text = {
-            "model": "gpt-4o",
-            "messages": self.openai_prompt_messages_for_text,
-            "max_tokens": 200,
-            "temperature": 0
-        }
-        self.openai_goal = {
-            "role": "user",
-            "content": [None, None, ]}
-        self.openai_goal_for_text = {
-            "role": "user",
-            "content": ""
-        }
-        self.openai_prompt_messages.append(self.openai_goal)
-        self.openai_prompt_messages_for_text.append(self.openai_goal_for_text)
         self.round_list = []
 
         try:
@@ -66,7 +46,6 @@ class OpenaiClient(AiClientBase):
 
     def set_target(self, target):
         self.target = target
-        # self.openai_goal["content"][0] = self.get_user_prompt() + "\n# History: \n None."
 
     def save_round(self, assistant, feedback, image_description_text):
         # Update history.log
@@ -95,20 +74,7 @@ class OpenaiClient(AiClientBase):
 
         self.history_log_file.flush()
 
-    def vision_model_test(self, image_pil):
-        image_analysis = self.vision_model.describe_image(image_pil)
-        self.store_image(image_analysis.frame)
-        self.save_round(image_analysis=image_analysis)
 
-    def gpt_vision_test(self, image_pil):
-        _, buffer = cv2.imencode(".jpg", image_pil)
-        decoded = base64.b64encode(buffer).decode("utf-8")
-        self.openai_goal["content"][-1] = {"image": decoded}
-        result = self.client.chat.completions.create(**self.openai_params)
-        rawAssistant = result.choices[0].message.content
-        assistant = ResponseMessage.parse(rawAssistant)
-
-        return assistant
 
     def update_history_prompt(self, assistant, feedback, image_description_text):
         self.round_list.append(Round(len(self.round_list) + 1, assistant, feedback))
@@ -146,32 +112,20 @@ class OpenaiClient(AiClientBase):
         else:
             image_description_text = image_analysis.description
 
-        # ## Test likelihood for invisible cases
-        # if image_analysis.description == "" and not dog_instance.round_number == 2:
-        #     image_description_text = "No objects detected in the image."
-        # elif image_analysis.description == "" and dog_instance.round_number == 2:
-        #     image_description_text = "You detected refrigerator at coordinates (640, 360) with a distance of 5 meters."
-        # else:
-        #     image_description_text = image_analysis.description
-        
-        # if self.history is None or self.env["use_test_dataset"]:
-        #     self.history = "# History:\n None."
-
         if feedback is None:
             feedback = "None"
 
-        # #### test
+        # ### test
         # if dog_instance.round_number == 2:
         #     image_description_text = "You detected refrigerator at coordinates (665, 236) with a distance of 2.65 meters."
 
         # input prompt
-        self.openai_goal_for_text["content"] = (
-            f"{self.get_user_prompt()}\n\n"
+        self.openai_params_for_LLM["messages"][1]["content"] = (
+            f"{self.action_auto_format()}\n\n" # Answer format for robot's action in automatic mode
             f"### Image analysis:\n (The image size is {self.env['captured_width']}x{self.env['captured_height']}, with the coordinate (0, 0) located at the top-left corner.):\n {image_description_text} \n\n"
             f"### History:\n {self.history}\n\n"
             f"### Conversation:\n {feedback}."
         )
-        # print(self.openai_prompt_messages_for_text[1:])
 
         # Check for feedback interruption early in the function
         if dog_instance.check_feedback_and_interruption():
@@ -186,7 +140,7 @@ class OpenaiClient(AiClientBase):
             dog_instance.round_number += 1
             return None
 
-        result = self.client.chat.completions.create(**self.openai_params_for_text)
+        result = self.client.chat.completions.create(**self.openai_params_for_LLM)
         rawAssistant = result.choices[0].message.content
         assistant = ResponseMessage.parse(rawAssistant)
 
@@ -209,31 +163,12 @@ class OpenaiClient(AiClientBase):
 
         return assistant
 
-    def get_response_by_image(self, image_pil):
-        image_analysis = self.vision_model.describe_image(image_pil, False)
-        if image_analysis.frame.shape[1] != self.env["captured_width"] or image_analysis.frame.shape[0] != self.env["captured_height"]:
-            resized_frame = cv2.resize(image_analysis.frame, (self.env["captured_width"], self.env["captured_height"]))
-        else:
-            resized_frame = image_analysis.frame
-
-        _, buffer = cv2.imencode(".jpg", resized_frame)
-        decoded = base64.b64encode(buffer).decode("utf-8")
-        self.openai_goal["content"][0] = self.get_user_prompt() + self.history # for VLM
-        self.openai_goal["content"][-1] = {"image": decoded}
-
-        result = self.client.chat.completions.create(**self.openai_params)
-        rawAssistant = result.choices[0].message.content
-        assistant = ResponseMessage.parse(rawAssistant)
-
-        resized_image_pil = utils.OpenCV2PIL(resized_frame)
-        self.store_image(resized_image_pil)
-        self.save_round(assistant)
-
-        return assistant
+    def append_prompt(self, message_role: str, message_content: str):
+        self.openai_params_for_LLM["messages"].append({"role": message_role, "content": message_content})
 
     def feedback_mode_on(self, image_pil):
         # Modify system prompt
-        self.openai_prompt_messages_for_text[0]["content"] = self.system_prompt_feedback
+        self.openai_params_for_LLM["messages"][0]["content"] = self.system_prompt_feedback
         
         # Start new feedback mode
         image_analysis = self.vision_model.describe_image(image_pil)
@@ -244,7 +179,7 @@ class OpenaiClient(AiClientBase):
         else:
             image_description_text = image_analysis.description
         
-        self.openai_prompt_messages_for_text[1]["content"] = (
+        self.openai_params_for_LLM["messages"][1]["content"] = (
             f"### Image analysis:\n (The image size is {self.env['captured_width']}x{self.env['captured_height']}, with the coordinate (0, 0) located at the top-left corner.):\n {image_description_text} \n\n"
             f"### History:\n {self.history}\n\n"
             f"### Conversation:\n Refer to the below conversation between you and the user."
@@ -255,29 +190,39 @@ class OpenaiClient(AiClientBase):
 
         return image_array, image_description_text
 
-    def get_response_by_feedback(self, text):
-        self.openai_prompt_messages_for_text.append({"role": "user", "content": text})
-        self.openai_prompt_messages_for_text.append({"role": "user", "content": self.get_user_prompt_for_questions(text)})
+    def get_response_by_feedback(self, questions):
+        self.append_prompt("user", questions)
+        
+        # Answer format for user's questions
+        self.append_prompt("user", self.questions_feedback_format(questions))
+        # print(self.openai_params_for_LLM["messages"][2:]) # for debug
 
-        result = self.client.chat.completions.create(**self.openai_params_for_text)
+        result = self.client.chat.completions.create(**self.openai_params_for_LLM)
         response = result.choices[0].message.content
-        self.openai_prompt_messages_for_text.append({"role": "assistant", "content": response})
+
+        # Replace answer format with AI's response
+        self.openai_params_for_LLM["messages"] = self.openai_params_for_LLM["messages"][:-1] 
+        self.append_prompt("assistant", response)
+        # print(self.openai_params_for_LLM["messages"][2:]) # for debug
 
         return response
         
     def feedback_to_action(self, feedback, image_array_bboxes, image_description_text):
-        self.openai_prompt_messages_for_text.append({"role": "user", "content": feedback})
-        self.openai_prompt_messages_for_text.append({"role": "user", "content": self.get_user_prompt_for_questions(feedback)})
+        self.append_prompt("user", feedback)
         
-        result = self.client.chat.completions.create(**self.openai_params_for_text)
-        confirmation_msg = result.choices[0].message.content
-        self.openai_prompt_messages_for_text.append({"role": "assistant", "content": confirmation_msg})
-        print(confirmation_msg)
-        # print(self.openai_prompt_messages_for_text[1:])
+        # Answer format for user's questions
+        self.append_prompt("user", self.questions_feedback_format(feedback)) 
 
-        self.openai_prompt_messages_for_text.append({"role": "user", "content": self.get_user_prompt_feedback()})
-        
-        result = self.client.chat.completions.create(**self.openai_params_for_text)
+        result = self.client.chat.completions.create(**self.openai_params_for_LLM)
+        confirmation_msg = result.choices[0].message.content
+
+        # Replace answer format with AI's response
+        self.openai_params_for_LLM["messages"] = self.openai_params_for_LLM["messages"][:-1] 
+        self.append_prompt("assistant", confirmation_msg)
+
+        # Answer format for robot's action
+        self.append_prompt("user", self.action_feedback_format()) 
+        result = self.client.chat.completions.create(**self.openai_params_for_LLM)
         rawAssistant = result.choices[0].message.content
         assistant = ResponseMessage.parse(rawAssistant)
 
@@ -291,32 +236,28 @@ class OpenaiClient(AiClientBase):
         return confirmation_msg, assistant
     
     def reset_messages(self):
-        # Reset to the initial state
-        self.openai_prompt_messages_for_text.clear()
-        self.openai_prompt_messages_for_text.append(
-            {"role": "system", "content": self.system_prompt}
-        )
-        self.openai_goal_for_text = {
-            "role": "user",
-            "content": ""
+        self.openai_params_for_LLM["messages"].clear()
+        self.openai_params_for_LLM = {
+            "model": "gpt-4o",
+            "messages": [
+                {"role": "system", "content": self.system_prompt},
+                {"role": "user", "content": ""}
+            ],
+            "max_tokens": 200,
+            "temperature": 0
         }
-        self.openai_prompt_messages_for_text.append(self.openai_goal_for_text)
 
     def reset_messages_feedback(self):
-        # data = self.openai_prompt_messages_for_text[2:-1]
-        # conv_history = [item['content'] for item in data]
-        # self.history_log_file.write(f"Conversation: \n {conv_history} \n")
-
-        # Reset to the initial state
-        self.openai_prompt_messages_for_text.clear()
-        self.openai_prompt_messages_for_text.append(
-            {"role": "system", "content": self.system_prompt_feedback}
-        )
-        self.openai_goal_for_text = {
-            "role": "user",
-            "content": ""
+        self.openai_params_for_LLM["messages"].clear()
+        self.openai_params_for_LLM = {
+            "model": "gpt-4o",
+            "messages": [
+                {"role": "system", "content": self.system_prompt_feedback},
+                {"role": "user", "content": ""}
+            ],
+            "max_tokens": 200,
+            "temperature": 0
         }
-        self.openai_prompt_messages_for_text.append(self.openai_goal_for_text)
   
     def stt(self, voice_buffer):
         container = voice_buffer
@@ -383,8 +324,8 @@ class OpenaiClient(AiClientBase):
 
         If the user's input indicates a desire to switch back to Automatic Search Mode, respond with 'true'. For all other inputs, respond with 'false'.
         """},
-        {'role': 'user', 'content': input}
-    ]
+            {'role': 'user', 'content': input}
+        ]
 
         params_for_interpreter = {
             "model": "gpt-4o",
@@ -401,4 +342,3 @@ class OpenaiClient(AiClientBase):
             print(f"Error in is_feedback_mode_exit: {e}")
             return False
         return exit_fmode
-    
