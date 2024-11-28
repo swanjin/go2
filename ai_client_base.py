@@ -174,11 +174,12 @@ Move: Follow the guideline in the '### Instructions for Move' section.
 Shift: Follow the guideline in the '### Instructions for Shift' section.
 Turn: Follow the guideline in the '### Instructions for Turn' section.
 New Position: Follow the guideline in the '### Instructions for New Position' section.
-Reason: Explain why you did what you just did without referring to the instructions in the system prompt.
+Reason: Briefly identify the objects you observe in the image at this round and assess whether they are relevant to the target search. Additionally, explain your actions clearly and concisely, focusing on the reasoning behind them without referencing any prior instructions.
 """
-# Explain your choice of actions and mentioning which instructions affected your decision without mentioning the case number in one concise complete sentence.
-
         return prompt
+    
+# Explain your choice of actions and mentioning which instructions affected your decision without mentioning the case number in one concise complete sentence.
+# Tell the objects you see in the round and how you do think whether they are related to the target search. Also, explain why you did what you just did without referring to the instructions in the system prompt. Please answer concisely.
     
     def action_feedback_format(self):
         prompt = f"""
