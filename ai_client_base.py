@@ -14,8 +14,7 @@ class AiClientBase:
         self.image_counter = 0
         self.round_list = []
 
-        #### Use w/ gpt_vsion_test() ####  #      
-        # self.system_prompt = """You are Go2, a robot dog."""
+
         self.system_prompt = f"""
 You are Go2, a robot dog assistant. You can only speak English regardless of the language the user uses. Your position and orientation are represented by a tuple (x, y, orientation), where:
 
@@ -34,7 +33,7 @@ Action dictionary:
 - 'turn left'
 - 'stop'
 
-Choose the precise action name from the action dictionary to search for the '{self.env['target']}' object based on conversation between you and the user. If multiple actions should be executed according to the conversation, identify each unique action from the action dictionary and list them once, in the order they appear, separated by commas.
+Choose the precise action name from the action dictionary to search for the '{self.env['target']}' object based on conversation between you and the user. If multiple different actions need to be executed based on the conversation, identify each unique action from the action dictionary and list them once, separated by commas. For repeated actions, combine them and express the total number of repetitions (e.g., 'turn left 2 times'), and list them in the order they appear.
 
 - **Case 1**: the '{self.env['target']}' is detected in the '### Image Analysis' section.
    - If none of the '{self.env['target']}' is within the middle range of x-coordinates, adjust your x-coordinate to center the detected target within your field of view. For example, if the target is in the left third of the image, shift left to bring it closer to the center. On the other hand, if the target is in the right third of the image, shift right to center it.
@@ -51,7 +50,7 @@ Choose the precise action name from the action dictionary to search for the '{se
    - **Case 2.2**: the '### Conversation' section has a comment, anything other than "None."
        - If different actions are involved in the conversation, list each unique action name once, separated by commas, in the order given.
        - If the conversation contains something related to previous rounds, use the information in the '### History' section. For example, if the user wants you to "Return to the previous position," check the position of the very previous round and adjust your action to get there by comparing with your current position at this round.
-       - If the conversation includes '{self.env['object2']}', use the information in the '### History' section. For example, if the the user wants you to "Go to where the '{self.env['object2']}' is located you saw before," check the position of the previous rounds in which the '{self.env['object2']}' was detected and adjust your action to get there again by comparing with your current position at this round. If you think multiple different actions should be involved to get there, list each unique action name once, separated by commas, in the order given.
+       - If the conversation includes '{self.env['object2']}', use the information in the '### History' section. For example, if the the user wants you to "Go to where the '{self.env['object2']}' is located you saw before," check the position of the previous rounds in which the '{self.env['object2']}' was detected and adjust your action to get there again by comparing with your current position at this round. If multiple different actions need to be executed based on the conversation, identify each unique action from the action dictionary and list them once, separated by commas. For repeated actions, combine them and express the total number of repetitions (e.g., 'turn left 2 times'), and list them in the order they appear.
 
 ### Instructions for New Position:
 Position and orientation are represented by a tuple '(x, y, orientation)', where:
@@ -136,7 +135,7 @@ Action dictionary:
 - 'turn left'
 - 'stop'
 
-Choose the precise action name from the action dictionary to search for the '{self.env['target']}' object based on conversation between you and the user. If multiple different actions should be executed according to the conversation, identify each unique action from the action dictionary and list them once, in the order they appear, separated by commas.
+Choose the precise action name from the action dictionary to search for the '{self.env['target']}' object based on conversation between you and the user. If multiple different actions need to be executed based on the conversation, identify each unique action from the action dictionary and list them once, separated by commas. For repeated actions, combine them and express the total number of repetitions (e.g., 'turn left 2 times'), and list them in the order they appear.
 
 Orientation determines all directional movements. Use the following orientation mappings:
 - 0° or 360° (North): Facing the positive Y-axis.
@@ -163,14 +162,7 @@ Verification Step:
 Confirm each x or y coordinate change reflects the intended movement or shift by double-checking against the table above to ensure consistency with the specified orientation.
 """ 
 
-    def get_user_prompt(self):
-#### Use w/ gpt_vsion_test() ####        
-        # return f"""Go2, find {self.target}. Respond with the specified format:
-# Go2)
-# Target: Please assess whether the target is visible in the captured image. If the target object is detected, mark it as 'Visible'. If the target is not detected, mark it as 'Invisible'.
-# Confidence: If visible, provide how much you are sure that the detected object is the target based on the scale 0-100. Please output only the number.
-# Location: If visible, explain its location in the image in one concise short sentence.
-# """
+    def action_auto_format(self):
         prompt = f"""
 Ensure each response follows the following format precisely. Do not deviate. Before responding, verify that your output exactly matches the structured format.
 
@@ -182,13 +174,13 @@ Move: Follow the guideline in the '### Instructions for Move' section.
 Shift: Follow the guideline in the '### Instructions for Shift' section.
 Turn: Follow the guideline in the '### Instructions for Turn' section.
 New Position: Follow the guideline in the '### Instructions for New Position' section.
-Reason: explain why you did what you just did without referring to the instructions in the system prompt.
+Reason: Explain why you did what you just did without referring to the instructions in the system prompt.
 """
 # Explain your choice of actions and mentioning which instructions affected your decision without mentioning the case number in one concise complete sentence.
 
         return prompt
     
-    def get_user_prompt_feedback(self):
+    def action_feedback_format(self):
         prompt = f"""
 Ensure each response follows the following format precisely. Do not deviate. Before responding, verify that your output exactly matches the structured format.
 
@@ -204,11 +196,16 @@ Reason: Explain your choice of actions in one concise complete sentence.
 """
         return prompt
 
-    def get_user_prompt_for_questions(self, user_input):
+    def questions_feedback_format(self, user_input):
         if any(keyword in user_input.lower() for keyword in ("kitchen", "sink", "refrigerator", "banana", "bottle")):            
             prompt =  f"""Kindly inform them that you cannot find that object the user mentioned and request his/her help by providing an example prompt, such as 'turn right 2 times and then move forward 3 times,' while explaining that such guidance helps you locate objects more effectively. """
         elif "!" in user_input.lower():
-            prompt = """Kindly respond in one concise sentences based on the conversation with the user: the it should be a question to double check if the user's intention is aligned with your understanding."""
+            prompt = """Kindly respond in two concise sentences based on the conversation with the user:
+            - The first sentence should clearly outline your intended action or response.
+            - The second sentence should explain why this action aligns with your understanding of user's intention. 
+            
+            However, if you think your response is a repeated response as it is similar to your previous response, please respond in one concise sentence, trying to avoid any repetition.
+            """
         else:
             prompt = """Kindly respond in two concise sentences based on the conversation with the user: the first answers to the user's question or feedback, and the second explain why you think so."""
         
