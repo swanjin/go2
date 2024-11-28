@@ -182,8 +182,10 @@ Move: Follow the guideline in the '### Instructions for Move' section.
 Shift: Follow the guideline in the '### Instructions for Shift' section.
 Turn: Follow the guideline in the '### Instructions for Turn' section.
 New Position: Follow the guideline in the '### Instructions for New Position' section.
-Reason: Explain your choice of actions and mentioning which instructions affected your decision without mentioning the case number in one concise complete sentence.
+Reason: explain why you did what you just did without referring to the instructions in the system prompt.
 """
+# Explain your choice of actions and mentioning which instructions affected your decision without mentioning the case number in one concise complete sentence.
+
         return prompt
     
     def get_user_prompt_feedback(self):
