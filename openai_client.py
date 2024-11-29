@@ -125,7 +125,8 @@ class OpenaiClient(AiClientBase):
             f"### Image analysis:\n (The image size is {self.env['captured_width']}x{self.env['captured_height']}, with the pixel index (0, 0) located at the top-left corner.):\n {image_description_text} \n\n"
             f"### History:\n {self.history}\n\n"
         )
-        print(self.openai_params_for_LLM["messages"][1:])
+        # print(self.openai_params_for_LLM["messages"][1:])
+        
         # Check for feedback interruption early in the function
         if dog_instance.check_feedback_and_interruption():
             dog_instance.round_number += 1

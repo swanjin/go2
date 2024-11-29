@@ -34,7 +34,7 @@ Action dictionary:
 - 'stop'
 
 Choose the precise action name from the action dictionary to search for the '{self.env['target']}' object based on conversation between you and the user. 
-- For the case that only one action involved, list is only once.
+- For the case that only one type of action needs to be executed, list is only one time.
 - If multiple different actions need to be executed based on the conversation, list the action that changes the orientation first, then the action that changes the position. Identify each unique action from the action dictionary and list them once, separated by commas.
 
 #### Case 1: The '{self.env['target']}' is detected in the `### Image Analysis` section.
@@ -61,22 +61,22 @@ Choose the precise action name from the action dictionary to search for the '{se
      - **Action**: Explore different orientations. Do not change your position (x, y).
        - **Note**: Avoid revisiting orientations that have already been explored at the same position without detecting the '{self.env['target']}' according to the `### History` section.
 
-   - **Subcase 2.2**: The '{self.env['object1']}' **is detected** in the `### Image Analysis` section, and its distance is **less than** the stopping threshold ('{self.env['hurdle_meter_for_non_target']}').
+   - **Subcase 2.2**: The '{self.env['object1']}' **is detected** in the `### Image Analysis` section, and its distance is **more than** the stopping threshold ('{self.env['hurdle_meter_for_non_target']}').
+     - **Action**: Adjust your position (x, y) vertically towards the detected '{self.env['object1']}'. Do not explore different orientations.
+
+   - **Subcase 2.3**: The '{self.env['object1']}' **is detected** in the `### Image Analysis` section, and its distance is **less than** the stopping threshold ('{self.env['hurdle_meter_for_non_target']}').
      - **Action**: Explore different orientations. Do not change your position (x, y).
        - **Note**: Avoid revisiting orientations that have already been explored at the same position without detecting the '{self.env['target']}' according to the `### History` section.
-
-   - **Subcase 2.3**: The '{self.env['object1']}' **is detected** in the `### Image Analysis` section, and its distance is **more than** the stopping threshold ('{self.env['hurdle_meter_for_non_target']}').
-     - **Action**: Adjust your position vertically towards the detected '{self.env['object1']}'. Do not explore different orientations.
 
    - **Decision Tree for Subcases 2.2 and 2.3**:
        1. Check if '{self.env['object1']}' is detected in the `### Image Analysis` section:
           - If it is not detected, this is **Subcase 2.1**.
        2. If '{self.env['object1']}' is detected:
           - Measure the distance to '{self.env['object1']}'.
-          - If the distance is **less than** '{self.env['hurdle_meter_for_non_target']}', this is **Subcase 2.2**:
-            - **Action**: Explore different orientations.
-          - If the distance is **more than** '{self.env['hurdle_meter_for_non_target']}', this is **Subcase 2.3**:
-            - **Action**: Adjust your position vertically towards '{self.env['object1']}'.
+          - If the distance is **more than** '{self.env['hurdle_meter_for_non_target']}', this is **Subcase 2.2**:
+            - **Action**: Move your position vertically to get closer to the target by 'move forward' or 'move backward'.
+          - If the distance is **less than** '{self.env['hurdle_meter_for_non_target']}', this is **Subcase 2.3**:
+            - **Action**: Explore different orientations by turning right or left.
 
    - **Verification Step for Case 2**:
      - Ensure the following before proceeding:
@@ -201,7 +201,12 @@ Move: Follow the guideline in the '### Instructions for Move' section.
 Shift: Follow the guideline in the '### Instructions for Shift' section.
 Turn: Follow the guideline in the '### Instructions for Turn' section.
 New Tuple: Follow the guideline in the '### Instructions for New Tuple (sx, y, orientation)' section.
-Reason: Explain your choice of actions in one concise complete sentence. If you give a high contextual likelihood, pinpoint one location where it is likely to be found among kitchen, living room, and office. You don't need to mention the case number. **If '{self.env['object1']}' is not detected in the '### Image Analysis' section, you must not mention any about '{self.env['object1']}'. Even if the reasoing behind your action considers whether '{self.env['object1']}' is detected or not, you must not mention any about '{self.env['object1']}'. Only if '{self.env['object1']}' is detected, you can mention about '{self.env['object1']}' in your reasoning.** If you need to mention about whether the '{self.env['target']}' is in the left/middle/right third of the image, just say 'left', 'middle', or 'right' without mentioning the third. If you need to say something like 'No other objects detected', just say 'No other objects that are contextually related to the target detected'.
+Reason: 
+- Explain your choice of actions in one concise complete sentence. 
+- If you give a high contextual likelihood, pinpoint one location where it is likely to be found among kitchen, living room, and office. You don't need to mention the case number. If the stopping hurdle meter for the '{self.env['object1']}' or '{self.env['target']}' is considered in your reasoning, you must mention it. 
+- If you need to mention about whether the '{self.env['target']}' is in the left/middle/right third of the image, just say 'left', 'middle', or 'right' without mentioning the 'third'. 
+- If you need to say something like 'No other objects detected', just say something by rephrasing the statement 'No other objects that are contextually related to the target detected'.
+- If '{self.env['object1']}' is not detected in the '### Image Analysis' section, you must not mention anything about '{self.env['object1']}'. Even if the reasoing behind your action considers whether '{self.env['object1']}' is detected or not, you must not mention any about '{self.env['object1']}'. Even if '{self.env['object1']}' is detected at previous rounds in the '### History' section, you must not mention anything about '{self.env['object1']}' in your reasoning. You can mention about '{self.env['object1']}' in your reasoning only if '{self.env['object1']}' is detected in the '### Image Analysis' section, **not in the '### History' section.** 
 """
         return prompt
     
@@ -226,7 +231,7 @@ Reason: Explain your choice of actions in one concise complete sentence.
 
     def questions_feedback_format(self, user_input):
         if any(keyword in user_input.lower() for keyword in ("kitchen", "sink", "refrigerator", "banana", "bottle")):            
-            prompt =  f"""Kindly inform them that you cannot find that object the user (please call the user 'you') mentioned and request his/her help by providing an example prompt, such as 'turn right 2 times and then move forward 3 times,' while explaining that such guidance helps you locate objects more effectively. """
+            prompt =  f"""Kindly inform them that you cannot recognize and locate the object the user (please call the user 'you') mentioned and request his/her help by providing an example prompt, such as 'turn right 2 times and then move forward 3 times,' while explaining that such guidance helps you locate objects more effectively. """
         elif "!" in user_input.lower():
             prompt = """Kindly respond in one concise sentence based on the conversation with the user (please call the user 'you'): it should be about appreciating the user's feedback first and then clearly say you are executing the action the user asked for.
             """
