@@ -51,7 +51,7 @@ class OpenaiClient(AiClientBase):
         # Update history.log
         self.history_log_file.write(f"\n=== image{len(self.round_list)+1} ===\n")
         
-        if image_description_text == "No objects detected in the image.":
+        if image_description_text == "No objects related to the target is detected.":
             self.history_log_file.write(f"Image Analysis: \n None. \n")
         else: 
             self.history_log_file.write(f"Image Analysis: \n{image_description_text} \n")
@@ -74,8 +74,6 @@ class OpenaiClient(AiClientBase):
 
         self.history_log_file.flush()
 
-
-
     def update_history_prompt(self, assistant, feedback, image_description_text):
         self.round_list.append(Round(len(self.round_list) + 1, assistant, feedback))
         round_number = len(self.round_list)
@@ -84,14 +82,14 @@ class OpenaiClient(AiClientBase):
         
         # #### Test feedback prompt
         # if round_number == 1:
-        #     image_description_text = "You detected banana at coordinates (640, 360) with a distance of 5 meters."
+        #     image_description_text = "You detected banana at pixel index (640, 360) with a distance of 5 meters."
     
         self.history += (
             f"- Round {round_number}: "
             f"The user provided feedback: {feedback}. "
-            f"From the position {assistant.curr_position}, {image_description_text} "
-            f"The likelihood of target presence at this position was {assistant.likelihood}. "
-            f"You executed the '{assistant.action}' action which led to the updated position of {assistant.new_position}. \n"
+            f"From the tuple {assistant.curr_tuple}, {image_description_text} "
+            f"The likelihood of target presence at this tuple was {assistant.likelihood}. "
+            f"You executed the '{assistant.action}' action which led to the updated tuple of {assistant.new_tuple}. \n"
             # f"The rationale behind this action you told me was: '{assistant.reason}' \n"
         )
         # self.history += "None."
@@ -108,25 +106,24 @@ class OpenaiClient(AiClientBase):
         image_analysis = self.vision_model.describe_image(image_pil)
 
         if image_analysis.description == "":
-            image_description_text = "No objects detected in the image."
+            image_description_text = "No objects related to the target is detected."
         else:
             image_description_text = image_analysis.description
 
         if feedback is None:
             feedback = "None"
 
-        ### test 
-        if dog_instance.round_number == 1:
-            image_description_text = "You detected bottle at coordinates (665, 236) with a distance of 2.65 meters."
-        if dog_instance.round_number == 2:
-            image_description_text = "You detected plant at coordinates (665, 236) with a distance of 2.65 meters."
+        # ### test 
+        # if dog_instance.round_number == 1:
+        #     image_description_text = "You detected bottle at pixel index (665, 236) with a distance of 2.65 meters."
+        # if dog_instance.round_number == 2:
+        #     image_description_text = "You detected plant at pixel index (665, 236) with a distance of 2.65 meters."
 
         # input prompt
         self.openai_params_for_LLM["messages"][1]["content"] = (
             f"{self.action_auto_format()}\n\n" # Answer format for robot's action in automatic mode
-            f"### Image analysis:\n (The image size is {self.env['captured_width']}x{self.env['captured_height']}, with the coordinate (0, 0) located at the top-left corner.):\n {image_description_text} \n\n"
+            f"### Image analysis:\n (The image size is {self.env['captured_width']}x{self.env['captured_height']}, with the pixel index (0, 0) located at the top-left corner.):\n {image_description_text} \n\n"
             f"### History:\n {self.history}\n\n"
-            f"### Conversation:\n {feedback}."
         )
 
         # Check for feedback interruption early in the function
@@ -148,7 +145,7 @@ class OpenaiClient(AiClientBase):
 
         # Check for feedback interruption early in the function
         if dog_instance.check_feedback_and_interruption():
-            dog_instance.round_number += 1 
+            dog_instance.round_number += 1
             return None  
 
         image_array_bboxes = image_analysis.frame
@@ -158,7 +155,7 @@ class OpenaiClient(AiClientBase):
         # Check for feedback interruption early in the function
         if dog_instance.check_feedback_and_interruption():
             dog_instance.round_number += 1 
-            return None  
+            return None
 
         self.save_round(assistant, feedback, image_description_text)
         self.update_history_prompt(assistant, feedback, image_description_text)
@@ -177,12 +174,12 @@ class OpenaiClient(AiClientBase):
         image_array = image_analysis.frame
 
         if image_analysis.description == "":
-            image_description_text = "No objects detected in the image."
+            image_description_text = "No objects related to the target is detected."
         else:
             image_description_text = image_analysis.description
         
         self.openai_params_for_LLM["messages"][1]["content"] = (
-            f"### Image analysis:\n (The image size is {self.env['captured_width']}x{self.env['captured_height']}, with the coordinate (0, 0) located at the top-left corner.):\n {image_description_text} \n\n"
+            f"### Image analysis:\n (The image size is {self.env['captured_width']}x{self.env['captured_height']}, with the pixel index (0, 0) located at the top-left corner.):\n {image_description_text} \n\n"
             f"### History:\n {self.history}\n\n"
             f"### Conversation:\n Refer to the below conversation between you and the user."
         )

@@ -70,7 +70,7 @@ class VisionModel:
             score = prediction["score"]
             label = prediction["label"]
 
-            # Add the box coordinates, score, and label
+            # Add the box pixel index, score, and label
             boxes.append([box["xmin"], box["ymin"], box["xmax"], box["ymax"]])
             scores.append(score)
             labels.append(label)
@@ -102,11 +102,11 @@ class VisionModel:
                 filtered_labels.append(labels[i])
                 filtered_scores.append(scores[i])  # No need to call .cpu().item() since scores[i] is already a float
 
-                # Extract and clamp bounding box coordinates to stay within image bounds
+                # Extract and clamp bounding box pixel index to stay within image bounds
                 x1, y1, x2, y2 = boxes_tensor[i].tolist()
                 x1, y1, x2, y2 = int(x1), int(y1), int(x2), int(y2)
 
-                # Ensure the box coordinates are within valid image dimensions
+                # Ensure the box pixel index are within valid image dimensions
                 x1 = max(0, min(x1, width - 1))
                 y1 = max(0, min(y1, height - 1))
                 x2 = max(0, min(x2, width - 1))
@@ -203,7 +203,7 @@ class VisionModel:
             center_y = (y1 + y2) / 2
 
             # Generate description for each detected object (on CPU)
-            description.append(f"You detected {label} at coordinates ({center_x:.0f}, {center_y:.0f}) with a distance of {avg_depth:.2f} meters.")
+            description.append(f"You detected {label} at pixel index ({center_x:.0f}, {center_y:.0f}) with a distance of {avg_depth:.2f} meters.")
 
         # Draw bounding boxes and labels on the frame if draw_on_frame is True (done on CPU using OpenCV)
         if draw_on_frame:
