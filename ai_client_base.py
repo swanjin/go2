@@ -35,7 +35,7 @@ Action dictionary:
 
 Choose the precise action name from the action dictionary to search for the '{self.env['target']}' object based on conversation between you and the user. 
 - If multiple different actions need to be executed based on the conversation, list the action that changes the orientation first, then the action that changes the position. Identify each unique action from the action dictionary and list them once, separated by commas.
-- For repeated actions, combine them and express the total number of repetitions (e.g., 'turn left 2 times'), and list them in the order they appear.
+- For multiple same actions, list them only once. 
 
 - **Case 1**: the '{self.env['target']}' is detected in the '### Image Analysis' section.
    - If none of the '{self.env['target']}' falls within the middle third of the image's width, consider shifting your position horizontally to center the detected target within your field of view. For example, if the target is in the left third of the image, 'shift left' to bring it closer to the center. On the other hand, if the target is in the right third of the image, 'shift right' to center it.
@@ -45,7 +45,7 @@ Choose the precise action name from the action dictionary to search for the '{se
     - If all of the '{self.env['target']}' is within the middle third of the image's width, i.e., between '{self.env['captured_width']*(1/3)}' and '{self.env['captured_width']*(2/3)}'), and the distance to all of the '{self.env['target']}' is less than the defined stop distance (i.e., '{self.env['stop_hurdle_meter_for_target']}'), you must choose action 'stop'.
 
 - **Case 2**: the '{self.env['target']}' is not detected in the '### Image Analysis' section.
-    a. You should explore different orientations if '{self.env['object1']}' is not present in the '### Image Analysis' section. Refer to the '### History' section to avoid revisiting orientations that have already been explored at the same position without detecting the '{self.env['target']}'.
+    a. You should explore different orientations if '{self.env['object1']}' is not present in the '### Image Analysis' section. (even though you detected '{self.env['object1']}' at the previous round in the '### History' section, you should not consider it as '{self.env['object1']}' is not detected in the current round.) Refer to the '### History' section to avoid revisiting orientations that have already been explored at the same position without detecting the '{self.env['target']}'.
     b. If '{self.env['object1']}' is detected in the '### Image Analysis' section **with at least one distance less than '{self.env['hurdle_meter_for_non_target']}' meters, then **do not change your position vertically. Instead, explore different orientations**. Refer to the '### History' section to avoid revisiting orientations that have already been explored at the same position without detecting the '{self.env['target']}'.
     c. If '{self.env['object1']}' is detected in the '### Image Analysis' section and **all of their distances are more than '{self.env['hurdle_meter_for_non_target']}' meters, then **adjust your position vertically in the direction of the detected objects, as it is now prioritized over orientation**.
     d. For b. and c., ensure that the action taken aligns exactly with the criteria specified above:
@@ -129,7 +129,7 @@ Action dictionary:
 
 Choose the precise action name from the action dictionary to search for the '{self.env['target']}' object based on conversation between you and the user. 
 - If multiple different actions need to be executed based on the conversation, identify each unique action from the action dictionary and list them once, separated by commas. 
-- For repeated actions, combine them and express the total number of repetitions (e.g., 'turn left 2 times'), and list them in the order they appear.
+- For multiple same actions, list them only once. 
 
 Orientation determines all directional movements. Use the following orientation mappings:
 - 0° or 360° (North): Facing the positive Y-axis.
