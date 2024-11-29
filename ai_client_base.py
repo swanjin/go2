@@ -34,23 +34,57 @@ Action dictionary:
 - 'stop'
 
 Choose the precise action name from the action dictionary to search for the '{self.env['target']}' object based on conversation between you and the user. 
+- For the case that only one action involved, list is only once.
 - If multiple different actions need to be executed based on the conversation, list the action that changes the orientation first, then the action that changes the position. Identify each unique action from the action dictionary and list them once, separated by commas.
-- For multiple same actions, list them only once. 
 
-- **Case 1**: the '{self.env['target']}' is detected in the '### Image Analysis' section.
-   - If none of the '{self.env['target']}' falls within the middle third of the image's width, consider shifting your position horizontally to center the detected target within your field of view. For example, if the target is in the left third of the image, 'shift left' to bring it closer to the center. On the other hand, if the target is in the right third of the image, 'shift right' to center it.
-   
-   - If at least one '{self.env['target']}' is within the middle third of the image's width, i.e., between '{self.env['captured_width']*(1/3)}' and '{self.env['captured_width']*(2/3)}'), and the distance to all of the '{self.env['target']}' is more than the defined stop distance (i.e., '{self.env['stop_hurdle_meter_for_target']}'), consider moving your position vertically to get closer to the target.
+#### Case 1: The '{self.env['target']}' is detected in the `### Image Analysis` section.
+   - **Subcase 1.1**: The '{self.env['target']}' is within the middle third of the image's width (i.e., the width pixel index between '{self.env['captured_width']*(1/3)}' and '{self.env['captured_width']*(2/3)}'), and the distance to **all** '{self.env['target']}' is more than the defined stop distance ('{self.env['stop_hurdle_meter_for_target']}').
+     - **Action**: Move your position vertically to get closer to the target.
 
-    - If all of the '{self.env['target']}' is within the middle third of the image's width, i.e., between '{self.env['captured_width']*(1/3)}' and '{self.env['captured_width']*(2/3)}'), and the distance to all of the '{self.env['target']}' is less than the defined stop distance (i.e., '{self.env['stop_hurdle_meter_for_target']}'), you must choose action 'stop'.
+   - **Subcase 1.2**: No '{self.env['target']}' falls within the middle third of the image's width.
+     - **Action**: Consider shifting your position horizontally to center the detected target within your field of view. 
+       - Example: 
+         - If the target is in the left third of the image's width (the width pixel index less than '{self.env['captured_width']*(1/3)}'), **shift left** to bring it closer to the center. 
+         - If the target is in the right third of the image's width (the width pixel index greater than '{self.env['captured_width']*(2/3)}'), **shift right** to bring it closer to the center.
 
-- **Case 2**: the '{self.env['target']}' is not detected in the '### Image Analysis' section.
-    a. You should explore different orientations if '{self.env['object1']}' is not present in the '### Image Analysis' section. (even though you detected '{self.env['object1']}' at the previous round in the '### History' section, you should not consider it as '{self.env['object1']}' is not detected in the current round.) Refer to the '### History' section to avoid revisiting orientations that have already been explored at the same position without detecting the '{self.env['target']}'.
-    b. If '{self.env['object1']}' is detected in the '### Image Analysis' section **with at least one distance less than '{self.env['hurdle_meter_for_non_target']}' meters, then **do not change your position vertically. Instead, explore different orientations**. Refer to the '### History' section to avoid revisiting orientations that have already been explored at the same position without detecting the '{self.env['target']}'.
-    c. If '{self.env['object1']}' is detected in the '### Image Analysis' section and **all of their distances are more than '{self.env['hurdle_meter_for_non_target']}' meters, then **adjust your position vertically in the direction of the detected objects, as it is now prioritized over orientation**.
-    d. For b. and c., ensure that the action taken aligns exactly with the criteria specified above:
-        - **If at least one proximity is less than '{self.env['hurdle_meter_for_non_target']}' meters, then explore orientations (Case 2.b)**.
-        - **If all distances are greater than '{self.env['hurdle_meter_for_non_target']}' meters, then adjust your position vertically (Case 2.c)**.
+   - **Subcase 1.3**: **All** '{self.env['target']}' are within the middle third of the image's width (i.e., between '{self.env['captured_width']*(1/3)}' and '{self.env['captured_width']*(2/3)}'), and the distance to **all** '{self.env['target']}' is less than the defined stop distance ('{self.env['stop_hurdle_meter_for_target']}').
+     - **Action**: Choose action `stop`.
+
+   - **Verification Step for Case 1**:
+     - Ensure the following before proceeding:
+       1. Have you checked whether the '{self.env['target']}' is detected in the middle third of the image? 
+       2. Have you accurately compared the distances of **all** '{self.env['target']}' against the defined stop distance ('{self.env['stop_hurdle_meter_for_target']}')?
+       3. Based on these checks, confirm which subcase (1.1, 1.2, or 1.3) applies and proceed with the specified action.
+
+#### Case 2: The '{self.env['target']}' is not detected in the `### Image Analysis` section.
+   - **Subcase 2.1**: The '{self.env['object1']}' is **not detected** in the `### Image Analysis` section.
+     - **Action**: Explore different orientations. Do not change your position (x, y).
+       - **Note**: Avoid revisiting orientations that have already been explored at the same position without detecting the '{self.env['target']}' according to the `### History` section.
+
+   - **Subcase 2.2**: The '{self.env['object1']}' **is detected** in the `### Image Analysis` section, and its distance is **less than** the stopping threshold ('{self.env['hurdle_meter_for_non_target']}').
+     - **Action**: Explore different orientations. Do not change your position (x, y).
+       - **Note**: Avoid revisiting orientations that have already been explored at the same position without detecting the '{self.env['target']}' according to the `### History` section.
+
+   - **Subcase 2.3**: The '{self.env['object1']}' **is detected** in the `### Image Analysis` section, and its distance is **more than** the stopping threshold ('{self.env['hurdle_meter_for_non_target']}').
+     - **Action**: Adjust your position vertically towards the detected '{self.env['object1']}'. Do not explore different orientations.
+
+   - **Decision Tree for Subcases 2.2 and 2.3**:
+       1. Check if '{self.env['object1']}' is detected in the `### Image Analysis` section:
+          - If it is not detected, this is **Subcase 2.1**.
+       2. If '{self.env['object1']}' is detected:
+          - Measure the distance to '{self.env['object1']}'.
+          - If the distance is **less than** '{self.env['hurdle_meter_for_non_target']}', this is **Subcase 2.2**:
+            - **Action**: Explore different orientations.
+          - If the distance is **more than** '{self.env['hurdle_meter_for_non_target']}', this is **Subcase 2.3**:
+            - **Action**: Adjust your position vertically towards '{self.env['object1']}'.
+
+   - **Verification Step for Case 2**:
+     - Ensure the following before proceeding:
+       1. Have you checked whether the '{self.env['target']}' is **not detected** in the `### Image Analysis` section?
+       2. Have you confirmed the presence or absence of '{self.env['object1']}' in the `### Image Analysis` section?
+       3. If '{self.env['object1']}' is detected:
+          - Have you measured the distance accurately against the stopping threshold ('{self.env['hurdle_meter_for_non_target']}')?
+       4. Based on these checks, confirm which subcase (2.1, 2.2, or 2.3) applies and proceed with the specified action.
 
 ### Instructions for New tuple (x, y, orientation):
 Position and orientation are represented by a tuple '(x, y, orientation)', where:
@@ -85,28 +119,27 @@ Verification Step:
 Confirm each x or y coordinate change reflects the intended movement or shift by double-checking against the table above to ensure consistency with the specified orientation.
 
 ### Instructions for Move: for deciding the number of steps of 'move forward' or 'move backward'
-- **Case 1**:
-   - If the chosen action is 'stop' and the distance to at least one of the detected '{self.env['target']}' in the middle third of the image is less than the defined stop distance (i.e., '{self.env['stop_hurdle_meter_for_target']}'), execute 0.
+#### Case 1:
+   - If the chosen action is 'stop' and the distance to the detected '{self.env['target']}' in the middle third of the image is less than the defined stop distance (i.e., '{self.env['stop_hurdle_meter_for_target']}'), execute 0.
    - If the chosen action is 'move forward' and the distance is between '{self.env['stop_hurdle_meter_for_target']}' and 1.70 meters, execute 1. 
    - If the chosen action is 'move forward' and the distance is between 1.70 meters and 2.3 meters, execute 2. 
    - Otherwise, execute 3.
-
-- **Case 2**:
-    - If 'move forward' or 'move backward' is in the chosen actions:
-        - If the chosen action is 'move forward' and the distance to '{self.env['object1']}' is between '{self.env['hurdle_meter_for_non_target']}' and 2.0 meters, execute 1.
-        - If the chosen action is 'move forward' and the distance is between 2.0 meters and 2.5 meters, execute 2.
-        - Otherwise, execute 3.
-    - If 'move forward' or 'move backward' is not in the chosen actions, execute 0.
+#### Case 2:
+   - If 'move forward' or 'move backward' is in the chosen actions:
+     - If the chosen action is 'move forward' and the distance to '{self.env['object1']}' is between '{self.env['hurdle_meter_for_non_target']}' and 2.0 meters, execute 1.
+     - If the chosen action is 'move forward' and the distance is between 2.0 meters and 2.5 meters, execute 2.
+     - Otherwise, execute 3.
+   - If 'move forward' or 'move backward' is not in the chosen actions, execute 0.
 
 ### Instructions for Shift: for deciding the number of steps of 'shift right' or 'shift left'
-- **Case 1**:
-   - If at least one detected '{self.env['target']}' is within the middle third of the image's width, execute 0.
-   - If none of the detected '{self.env['target']}' is within this middle range, execute 1.
-- **Case 2**: execute 0.
+#### Case 1:
+   - If the detected '{self.env['target']}' is within the middle third of the image's width, execute 0.
+   - If the detected '{self.env['target']}' is not within the middle third of the image's width, execute 1.
+#### Case 2: execute 0.
 
 ### Instructions for Turn: for deciding the number of steps of 'turn right' or 'turn left'
-- **Case 1**: execute 0.
-- **Case 2**: If 'turn right' or 'turn left' is in the chosen actions, execute 1; otherwise, execute 0.
+#### Case 1: execute 0.
+#### Case 2: If 'turn right' or 'turn left' is in the chosen actions, execute 1; otherwise, execute 0.
 """ 
 
         self.system_prompt_feedback = f"""
