@@ -309,7 +309,7 @@ class RobotDogUI(QMainWindow):
                 self.add_robot_message(response)
                 QTimer.singleShot(100, lambda: self.process_target("apple", response))
                 QTimer.singleShot(1000, self.start_processing_animation)
-                # self.feedback_button.show()
+                self.feedback_button.show()
 
             else:
                 clarify_msg = "Apologies, I didn't catch that. Could you please clarify the target you'd like me to identify?"
@@ -517,7 +517,7 @@ class RobotDogUI(QMainWindow):
         self.dog.feedback_complete_event.set()
 
         QTimer.singleShot(1000, self.start_processing_animation)
-        # self.feedback_button.show()
+        self.feedback_button.show()
         QTimer.singleShot(0, self._scroll_to_bottom)
 
     def add_user_message(self, text):
