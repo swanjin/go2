@@ -11,9 +11,13 @@ from transformers import pipeline
 from torchvision.ops import nms
 from PIL import Image, ImageDraw
 import numpy as np
-from lang_sam import LangSAM
 
 import utils
+
+# Conditional import of LangSAM based on env configuration
+def import_langsam():
+    from lang_sam import LangSAM
+    return LangSAM
 
 @dataclass
 class VisionResponse:
@@ -30,6 +34,12 @@ class VisionModel:
         """
         self.env = env
         self.image_counter = 0
+
+        # Initialize LangSAM if enabled in env
+        if self.env.get("langsam", False):
+            self.LangSAM = import_langsam()
+        else:
+            self.LangSAM = None
 
         # Define custom candidate labels for object detection
         #self.candidate_labels = ["apple"] # "tv", "potted plant", "coffee machine", "block", "table", "person", "chair", "plant", "bottle", "person"
@@ -118,7 +128,10 @@ class VisionModel:
 
     def detect_objects(self, image_pil):
         if self.env["detection_model"] == "langsam":
-            labels, boxes, scores = self.predict_langsam(image_pil)
+            if not self.env.get("langsam", False):
+                print("LangSAM is not enabled in env.yml.")
+                return [], [], []
+            else: labels, boxes, scores = self.predict_langsam(image_pil)
         elif self.env["detection_model"] == "owlv2":
             labels, boxes, scores = self.predict_owlv2(image_pil)
         else:

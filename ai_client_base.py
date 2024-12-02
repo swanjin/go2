@@ -246,9 +246,6 @@ Reason: Explain your choice of actions in one concise complete sentence.
     def stt(self, voice_buffer):
         return None
 
-    def get_response_by_image(self, image_pil):
-        pass
-
     def get_response_by_feedback(self, feedback):
         pass
 
