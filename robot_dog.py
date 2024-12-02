@@ -269,17 +269,17 @@ class Dog:
             print("Assumed action executed.")
             return 0
         elif self.env["woz"]:
-            self.VelocityMove((0, 0, -1.5))
-            self.VelocityMove((0.5, 0, 0))
-            self.VelocityMove((0.5, 0, 0))
-            self.VelocityMove((0.5, 0, 0))
-            self.VelocityMove((0.5, 0, 0))
-            self.VelocityMove((0, 0, 1.5))
-            self.VelocityMove((0, -0.5, 0))
-            self.VelocityMove((0.5, 0, 0))
-            self.VelocityMove((0.5, 0, 0))
-            self.VelocityMove((0.5, 0, 0))
-            self.VelocityMove((0, 0, 0))
+            self.VelocityMove(0, 0, -1.5)
+            self.VelocityMove(0.5, 0, 0)
+            self.VelocityMove(0.5, 0, 0)
+            self.VelocityMove(0.5, 0, 0)
+            self.VelocityMove(0.5, 0, 0)
+            self.VelocityMove(0, 0, 1.5)
+            self.VelocityMove(0, -0.5, 0)
+            self.VelocityMove(0.5, 0, 0)
+            self.VelocityMove(0.5, 0, 0)
+            self.VelocityMove(0.5, 0, 0)
+            self.VelocityMove(0, 0, 0)
             stop_message = "Stop."
             if self.env["tts"]:
                 self.ai_client.tts(stop_message)   
