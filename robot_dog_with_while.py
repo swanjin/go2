@@ -215,7 +215,7 @@ class Dog:
             # Query GPT
             if not self.feedback_start.empty(): # non-blocking; an example of blocking: input()
                 continue
-            if not self.env["connect_gpt"]:
+            if not self.env["connect_ai"]:
                 self.ai_client.vision_model_test(frame)
                 print("Assumed GPT answered")
             else:
@@ -264,7 +264,7 @@ class Dog:
             if self.stop_thread2:
                 break
 
-            if not self.env["connect_gpt"]:
+            if not self.env["connect_ai"]:
                 print("Assumed GPT answered")
             else:
                 assistant = self.ai_client.get_response_by_feedback(feedback)

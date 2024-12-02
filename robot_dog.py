@@ -141,19 +141,6 @@ class Dog:
         print("All resources released.")
         print("Program exited.")
 
-    def queryGPT_for_vision_test(self):
-        for i in range(self.env["max_round"]):
-            if not self.env["use_test_dataset"] and i >= self.env["max_round"]: # If camera capture is used, it stops after a maximum number of rounds. This limit doesn't apply to test images.
-                break
-            frame = self.read_frame()
-
-            print(f"Round #{i+1}")
-            assistant = self.ai_client.gpt_vision_test(frame)
-            print(assistant.action)
-            print(assistant.reason)
-
-        self.stop_thread1 = True
-
     def check_feedback_and_interruption(self):
         """Waits if feedback is in progress and checks for interruption.
         Returns True if an interruption is flagged, False otherwise."""
@@ -193,19 +180,11 @@ class Dog:
                     self.round_number += 1  # Increment round number before continuing
                     continue  # Skip the rest of the current iteration and proceed to the next one.
 
-                if not self.env["connect_gpt"]:
-                    self.ai_client.vision_model_test(frame)
+                if not self.env["connect_ai"]:
                     print("Assumed GPT answered")
                 else:
-                    if self.env["useVLM"]:
-                        assistant = self.ai_client.get_response_by_image(frame)
-                    else:
-                        assistant = self.ai_client.get_response_by_LLM(frame, dog_instance=self)
+                    assistant = self.ai_client.get_response_by_LLM(frame, dog_instance=self)
 
-                        # If get_response_by_LLM returned None, skip the rest of the loop
-                        if assistant is None:
-                            continue  # Skip to the next round if interrupted
-            
                     if self.check_feedback_and_interruption():
                         self.round_number += 1
                         continue
@@ -224,14 +203,10 @@ class Dog:
             self.session_active_event.clear()  # Indicate that the session is now inactive
 
     def process_frame(self, frame, feedback):
-        if not self.env["connect_gpt"]:
-            self.ai_client.vision_model_test(frame)
+        if not self.env["connect_ai"]:
             print("Assumed GPT answered")
         else:
-            if self.env["useVLM"]:
-                assistant = self.ai_client.get_response_by_image(frame)
-            else:
-                assistant = self.ai_client.get_response_by_LLM(frame, feedback)
+            assistant = self.ai_client.get_response_by_LLM(frame, feedback)
  
             self.feedback_complete_event.wait()  # Blocks until feedback_complete_event is set
 
@@ -289,17 +264,17 @@ class Dog:
             print("Assumed action executed.")
             return 0
         elif self.env["woz"]:
-            self.VelocityMove((0, 0, -1.5))
-            self.VelocityMove((0.5, 0, 0))
-            self.VelocityMove((0.5, 0, 0))
-            self.VelocityMove((0.5, 0, 0))
-            self.VelocityMove((0.5, 0, 0))
-            self.VelocityMove((0, 0, 1.5))
-            self.VelocityMove((0, -0.5, 0))
-            self.VelocityMove((0.5, 0, 0))
-            self.VelocityMove((0.5, 0, 0))
-            self.VelocityMove((0.5, 0, 0))
-            self.VelocityMove((0, 0, 0))
+            self.VelocityMove(0, 0, -1.5)
+            self.VelocityMove(0.5, 0, 0)
+            self.VelocityMove(0.5, 0, 0)
+            self.VelocityMove(0.5, 0, 0)
+            self.VelocityMove(0.5, 0, 0)
+            self.VelocityMove(0, 0, 1.5)
+            self.VelocityMove(0, -0.5, 0)
+            self.VelocityMove(0.5, 0, 0)
+            self.VelocityMove(0.5, 0, 0)
+            self.VelocityMove(0.5, 0, 0)
+            self.VelocityMove(0, 0, 0)
             stop_message = "Stop."
             if self.env["tts"]:
                 self.ai_client.tts(stop_message)   
@@ -325,13 +300,8 @@ class Dog:
                         print("Action not recognized: " + ans)
         return 0
 
-    def run_gpt(self):
-        # self.queryGPT_by_LLM()
-        
-        if self.env["gpt_vision_test"]:
-            self.robot_auto_thread = threading.Thread(target=self.queryGPT_for_vision_test)
-        else:
-            self.robot_auto_thread = threading.Thread(target=self.queryGPT_by_LLM)
+    def run_gpt(self):      
+        self.robot_auto_thread = threading.Thread(target=self.queryGPT_by_LLM)
         self.feedback_thread = threading.Thread(target=self.queryGPT_with_feedback)
 
         self.robot_auto_thread.start()

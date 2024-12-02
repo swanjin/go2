@@ -11,9 +11,13 @@ from transformers import pipeline
 from torchvision.ops import nms
 from PIL import Image, ImageDraw
 import numpy as np
-from lang_sam import LangSAM
 
 import utils
+
+# Conditional import of LangSAM based on env configuration
+def import_langsam():
+    from lang_sam import LangSAM
+    return LangSAM
 
 @dataclass
 class VisionResponse:
@@ -30,6 +34,12 @@ class VisionModel:
         """
         self.env = env
         self.image_counter = 0
+        
+        # Initialize LangSAM if enabled in env
+        if self.env.get("langsam", False):
+            self.LangSAM = import_langsam()
+        else:
+            self.LangSAM = None
 
         # Define custom candidate labels for object detection
         #self.candidate_labels = ["apple"] # "tv", "potted plant", "coffee machine", "block", "table", "person", "chair", "plant", "bottle", "person"
@@ -40,14 +50,14 @@ class VisionModel:
 
     def predict_langsam(self, image_pil):
         warnings.filterwarnings("ignore")
+        
+        if self.LangSAM is None:
+            raise RuntimeError("LangSAM is not enabled in environment configuration")
 
-        # image_pil = Image.fromarray(np.uint8(frame)).convert("RGB")
-
-        model = LangSAM()
-        # caption = " ".join(self.candidate_labels)  # Join list into a single string
+        model = self.LangSAM()
         boxes_tensor, logits_tensor, phrases = model.predict_dino(image_pil, self.candidate_labels, box_threshold=0.5, text_threshold=0.5)
         boxes = boxes_tensor.tolist()
-        logits =logits_tensor.tolist()
+        logits = logits_tensor.tolist()
         return phrases, boxes, logits
 
     def predict_owlv2(self, image_pil):
@@ -87,7 +97,7 @@ class VisionModel:
             boxes_tensor = boxes_tensor.unsqueeze(0)
 
         # Apply NMS - this will also be performed on the GPU
-        keep_indices = nms(boxes_tensor, scores_tensor, self.env["iou_threshold_owlv2"])
+        keep_indices = nms(boxes_tensor, scores_tensor, self.env["iou_threshold"])
 
         # Prepare lists to store the final output after NMS
         filtered_boxes = []
@@ -118,14 +128,14 @@ class VisionModel:
 
     def detect_objects(self, image_pil):
         if self.env["detection_model"] == "langsam":
+            if not self.env.get("langsam", False):
+                print("LangSAM is not enabled in env.yml.")
+                return [], [], []
             labels, boxes, scores = self.predict_langsam(image_pil)
         elif self.env["detection_model"] == "owlv2":
             labels, boxes, scores = self.predict_owlv2(image_pil)
-        else:
-            print("Detection model is not set in env.yml")
-            return [], [], []  # Return empty values if the detection model is not set
 
-        return labels, boxes, scores  # Ensure the method returns these values
+        return labels, boxes, scores
 
     def depth_estimation(self, image_pil, boxes):
         image_array = utils.PIL2OpenCV(image_pil)
@@ -217,23 +227,3 @@ class VisionModel:
 
         # Return VisionResponse with the frame and the combined description
         return VisionResponse(image_array, "\n".join(description))
-    
-    # def store_image(self, cv2_image = None):
-    #     if cv2_image is None:
-    #         image = Image.new('RGB', (self.env["captured_width"], self.env["captured_height"]), 'black')
-    #     else:
-    #         image = utils.OpenCV2PIL(cv2_image)
-
-    #     ## add 'assistant' as a parameter into the function
-    #     # if (self.env["text_insertion"]):
-    #     #     text = "\n".join([f"Current Position: {assistant.curr_position}", f"Target: {assistant.target}", f"Likelihood: {assistant.likelihood}", f"Action: {assistant.action}", f"New Position: {assistant.new_position}", f"Reason: {assistant.reason}"])
-    #     #     image = utils.image_text_append(image, self.env["captured_width"], self.env["captured_height"], text)
-        
-    #     # Format the filename based on the number of images stored
-    #     self.image_counter += 1
-    #     filename = f"image{self.image_counter:02d}.jpg"  # Pad with zeros to two digits
-    #     image_path = os.path.join(self.save_dir, filename)
-
-    #     # Save the image
-    #     image.save(image_path)
-    #     # print(f"Image saved to {image_path}")
