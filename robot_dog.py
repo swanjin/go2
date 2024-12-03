@@ -164,6 +164,8 @@ class Dog:
                 frame = Image.fromarray(image_cv)
                 self.process_frame(frame)
         else:
+            if self.env["woz"]:
+                self.env["max_round"] = 1
             while self.round_number <= self.env["max_round"]:
                 self.feedback_complete_event.wait()
 
@@ -196,8 +198,9 @@ class Dog:
                     
                     formatted_action = self.format_actions(assistant.action)
                     combined_message = f"I'm going to {formatted_action}. {assistant.reason}."
-                    if self.env["tts"]:
-                        self.ai_client.tts(combined_message)
+                    if self.env["interactive"] or self.env["vo"]:
+                        if self.env["tts"]:
+                            self.ai_client.tts(combined_message)
                     
                     self.activate_sportclient(assistant.action, int(assistant.move), int(assistant.shift), int(assistant.turn))
                 self.feedback = None
@@ -257,30 +260,38 @@ class Dog:
                     print("Feedback complete. Moving to next round...")
 
     def VelocityMove(self, vx, vy, vyaw, elapsed_time = 1, dt = 0.01):
-        for i in range(int(elapsed_time / dt)):
-            self.sport_client.Move(vx, vy, vyaw)
-            time.sleep(dt)
-        for i in range(int(elapsed_time / dt)):
-            self.sport_client.StopMove()
-            time.sleep(dt)
-
-    def activate_sportclient(self, action, move, shift, turn):
         if not self.env["connect_robot"]:
             print("Assumed action executed.")
-            return 0
-        elif self.env["woz"]:
+        else:
+            for i in range(int(elapsed_time / dt)):
+                self.sport_client.Move(vx, vy, vyaw)
+                time.sleep(dt)
+            for i in range(int(elapsed_time / dt)):
+                self.sport_client.StopMove()
+                time.sleep(dt)
+
+    def activate_sportclient(self, action, move, shift, turn):
+        if self.env["woz"]:
+            print("Executing WOZ movement sequence:")
+            print("1. Turn right")
             self.VelocityMove(0, 0, -1.5)
+            print("2. Move forward sequence")
             self.VelocityMove(0.5, 0, 0)
             self.VelocityMove(0.5, 0, 0)
             self.VelocityMove(0.5, 0, 0)
             self.VelocityMove(0.5, 0, 0)
+            print("3. Turn left")
             self.VelocityMove(0, 0, 1.5)
+            print("4. Shift right")
             self.VelocityMove(0, -0.5, 0)
+            print("5. Move forward sequence")
             self.VelocityMove(0.5, 0, 0)
             self.VelocityMove(0.5, 0, 0)
             self.VelocityMove(0.5, 0, 0)
+            print("6. Final stop")
             self.VelocityMove(0, 0, 0)
-            stop_message = "Stop."
+            
+            stop_message = "Stop. I found an apple."
             if self.env["tts"]:
                 self.ai_client.tts(stop_message)   
         else: 

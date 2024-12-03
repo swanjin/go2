@@ -242,7 +242,7 @@ class RobotDogUI(QMainWindow):
         layout.addWidget(self.input_widget)
 
         # Feedback button
-        self.feedback_button = QPushButton("💭 Feedback")
+        self.feedback_button = QPushButton("💬 Enter Feedback Mode")
         self.feedback_button.setStyleSheet("""
             QPushButton {
                 background-color: #E3F2FD;
@@ -268,6 +268,34 @@ class RobotDogUI(QMainWindow):
         self.feedback_button.clicked.connect(self.trigger_feedback_mode)
         self.feedback_button.hide()
         layout.addWidget(self.feedback_button, alignment=Qt.AlignmentFlag.AlignCenter)
+
+        # Exit button
+        self.exit_button = QPushButton("🛑 Exit Feedback Mode")
+        self.exit_button.setStyleSheet("""
+            QPushButton {
+                background-color: #FFCDD2;
+                color: #f44336;
+                border: 2px solid #f44336;
+                border-radius: 20px;
+                padding: 10px 20px;
+                font-size: 14px;
+                font-weight: bold;
+                min-width: 150px;
+                margin: 0 10px;
+            }
+            QPushButton:hover {
+                background-color: #EF9A9A;
+                color: #B71C1C;
+                border: 2px solid #B71C1C;
+            }
+            QPushButton:pressed {
+                background-color: #E57373;
+                padding: 11px 19px 9px 21px;
+            }
+        """)
+        self.exit_button.clicked.connect(self.trigger_exit_mode)
+        self.exit_button.hide()  # Initially hidden
+        layout.addWidget(self.exit_button, alignment=Qt.AlignmentFlag.AlignCenter)
 
     def start_conversation(self):
         self.start_button.hide()
@@ -309,7 +337,8 @@ class RobotDogUI(QMainWindow):
                 self.add_robot_message(response)
                 QTimer.singleShot(100, lambda: self.process_target("apple", response))
                 QTimer.singleShot(1000, self.start_processing_animation)
-                self.feedback_button.show()
+                if self.dog.env["interactive"]:
+                    self.feedback_button.show()
 
             else:
                 clarify_msg = "Apologies, I didn't catch that. Could you please clarify the target you'd like me to identify?"
@@ -330,6 +359,7 @@ class RobotDogUI(QMainWindow):
             
             # Hide feedback button when feedback mode is activated
             self.feedback_button.hide()
+            self.exit_button.show()
                        
             if self.dog.env["tts"]:
                 QTimer.singleShot(300, lambda: self.play_tts(feedback_msg))
@@ -347,7 +377,8 @@ class RobotDogUI(QMainWindow):
             print(f"Frame received: {frame is not None}")  # Debug print
             image_array_bboxes, image_description = self.dog.ai_client.feedback_mode_on(frame)
 
-            if self.dog.ai_client.is_feedback_mode_exit(text):
+            # if self.dog.ai_client.is_feedback_mode_exit(text):
+            if text.lower() == "exit" :
                 print("Exit command received")  # Debug print
                 exit_msg = "Alright, I'll wrap up feedback mode and switch back to automatic search."
                 self.add_robot_message(exit_msg)
@@ -517,7 +548,9 @@ class RobotDogUI(QMainWindow):
         self.dog.feedback_complete_event.set()
 
         QTimer.singleShot(1000, self.start_processing_animation)
-        self.feedback_button.show()
+        if self.dog.env["interactive"]:
+            self.feedback_button.show()
+            self.exit_button.hide()  # Hide exit button when resuming auto mode
         QTimer.singleShot(0, self._scroll_to_bottom)
 
     def add_user_message(self, text):
@@ -550,8 +583,9 @@ class RobotDogUI(QMainWindow):
         self.search_started = True
 
     def handle_status_update(self, status, image=None):
-        self.add_robot_message(status, image)
-        self.stop_processing_animation()
+        if self.dog.env["interactive"] or self.dog.env["vo"]:
+            self.add_robot_message(status, image)
+            self.stop_processing_animation()
 
     def update_camera_feed(self, image):
         if self.search_started:
@@ -567,6 +601,11 @@ class RobotDogUI(QMainWindow):
     def trigger_feedback_mode(self):
         """Simulate typing 'feedback' and trigger send_message."""
         self.message_input.setText("feedback")
+        self.send_message()
+
+    def trigger_exit_mode(self):
+        """Simulate typing 'exit' and trigger send_message."""
+        self.message_input.setText("exit")
         self.send_message()
 
 class CameraThread(QThread):

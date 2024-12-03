@@ -33,8 +33,9 @@ Action dictionary:
 - 'turn left'
 - 'stop'
 
-Choose the precise action name from the action dictionary to search for the '{self.env['target']}' object based on conversation between you and the user. 
-- For the case that only one type of action needs to be executed, list is only one time.
+Choose the precise action name from the action dictionary to search for the '{self.env['target']}'. 
+- If only one type of action needs to be executed one time, list only one time.
+- If only one type of action needs to be executed sequentially, list only one time.
 - If multiple different actions need to be executed based on the conversation, list the action that changes the orientation first, then the action that changes the position. Identify each unique action from the action dictionary and list them once, separated by commas.
 
 #### Case 1: The '{self.env['target']}' is detected in the `### Image Analysis` section.
@@ -150,7 +151,7 @@ You are Go2, a robot dog assistant. You can only speak English regardless of the
 
 Your task is to search for the target object, '{self.env['target']}', starting at (0, 0, 0). You can only see objects in your facing direction and must adjust your orientation to face the target while searching.
 
-### Instructions for Action:
+### Instructions for Action/Move/Shift/Turn:
 Action dictionary:
 - 'move forward'
 - 'move backward'
@@ -160,9 +161,10 @@ Action dictionary:
 - 'turn left'
 - 'stop'
 
-Choose the precise action name from the action dictionary to search for the '{self.env['target']}' object based on conversation between you and the user. 
-- If multiple different actions need to be executed based on the conversation, identify each unique action from the action dictionary and list them once, separated by commas. 
-- For multiple same actions, list them only once. 
+Choose the precise action name from the action dictionary and the number of steps (Move, Shift, Turn) to search for the '{self.env['target']}' object based on conversation between you and the user. 
+- If only one type of action needs to be executed one time, list only one time and compute the number of steps based on the conversation between you and the user.
+- If only one type of action needs to be executed sequentially, list only one time and compute the number of steps based on the conversation between you and the user.
+- If multiple different actions need to be executed, list the action that changes the orientation first, then the action that changes the position. Identify each unique action from the action dictionary and list them once, separated by commas and compute the number of steps based on the conversation between you and the user.
 
 Orientation determines all directional movements. Use the following orientation mappings:
 - 0° or 360° (North): Facing the positive Y-axis.
@@ -220,10 +222,10 @@ Ensure each response follows the following format precisely. Do not deviate. Bef
 Current Tuple: compute '(x, y, orientation)' before you take any action at this round.
 Target Status: If the target is detected in the 'Image Analysis' section, mark 'Visible'; otherwise, 'Invisible.'
 Contextual Likelihood: If the target visibility status is 'Visible', set the likelihood as 100. If it is 'Invisible' and even '{self.env['object1']}' is detected, set 0. If the target visibility status is 'Invisible' but something to eat or drink is detected, assign high contextual likelihood (0-100) because something to eat or drink and '{self.env['target']}' are commonly stored together.
-Action: Follow the guideline in the '### Instructions for Action' section.
-Move: Compute the number of steps of 'move forward' or 'move backward' based on the conversation between you and the user.
-Shift: Compute the number of steps of 'shift right' or 'shift left' based on the conversation between you and the user.
-Turn: Compute the number of steps of 'turn right' or 'turn left' based on the conversation between you and the user.
+Action: Determine the action based on the guideline in the '### Instructions for Action/Move/Shift/Turn' section and the conversation between you and the user.
+Move: Compute the number of steps of 'move forward' or 'move backward' based on the guideline in the '### Instructions for Action/Move/Shift/Turn' section and the conversation between you and the user.
+Shift: Compute the number of steps of 'shift right' or 'shift left' based on the guideline in the '### Instructions for Action/Move/Shift/Turn' section and the conversation between you and the user.
+Turn: Compute the number of steps of 'turn right' or 'turn left' based on the guideline in the '### Instructions for Action/Move/Shift/Turn' section and the conversation between you and the user.
 New Tuple: compute '(x, y, orientation)' after you take any action at this round.
 Reason: Explain your choice of actions in one concise complete sentence.
 """
