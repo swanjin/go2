@@ -242,7 +242,7 @@ class RobotDogUI(QMainWindow):
         layout.addWidget(self.input_widget)
 
         # Feedback button
-        self.feedback_button = QPushButton("💬 Enter Feedback Mode")
+        self.feedback_button = QPushButton("💬 Start Feedback")
         self.feedback_button.setStyleSheet("""
             QPushButton {
                 background-color: #E3F2FD;
@@ -270,7 +270,7 @@ class RobotDogUI(QMainWindow):
         layout.addWidget(self.feedback_button, alignment=Qt.AlignmentFlag.AlignCenter)
 
         # Exit button
-        self.exit_button = QPushButton("🛑 Exit Feedback Mode")
+        self.exit_button = QPushButton("🛑 Exit Feedback")
         self.exit_button.setStyleSheet("""
             QPushButton {
                 background-color: #FFCDD2;
@@ -296,6 +296,45 @@ class RobotDogUI(QMainWindow):
         self.exit_button.clicked.connect(self.trigger_exit_mode)
         self.exit_button.hide()  # Initially hidden
         layout.addWidget(self.exit_button, alignment=Qt.AlignmentFlag.AlignCenter)
+
+        # Action button
+        self.action_button = QPushButton("🚀 Execute Action")
+        self.action_button.setStyleSheet("""
+            QPushButton {
+                background-color: #E3F2FD;
+                color: #1A73E8;
+                border: 2px solid #1A73E8;
+                border-radius: 20px;
+                padding: 10px 20px;
+                font-size: 14px;
+                font-weight: bold;
+                min-width: 150px;
+                margin: 0 10px;
+            }
+            QPushButton:hover {
+                background-color: #BBDEFB;
+                color: #0D47A1;
+                border: 2px solid #0D47A1;
+            }
+            QPushButton:pressed {
+                background-color: #90CAF9;
+                padding: 11px 19px 9px 21px;
+            }
+        """)
+        self.action_button.clicked.connect(self.trigger_action_mode)
+        self.action_button.hide()  # Initially hidden
+        layout.addWidget(self.action_button, alignment=Qt.AlignmentFlag.AlignCenter)
+
+        # Create a horizontal layout for the feedback and action buttons
+        button_layout = QHBoxLayout()
+        button_layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
+
+        # Add the exit and action buttons to the horizontal layout
+        button_layout.addWidget(self.exit_button)
+        button_layout.addWidget(self.action_button)
+
+        # Add the button layout to the main layout
+        layout.addLayout(button_layout)
 
     def start_conversation(self):
         self.start_button.hide()
@@ -360,6 +399,7 @@ class RobotDogUI(QMainWindow):
             # Hide feedback button when feedback mode is activated
             self.feedback_button.hide()
             self.exit_button.show()
+            self.action_button.show()
                        
             if self.dog.env["tts"]:
                 QTimer.singleShot(300, lambda: self.play_tts(feedback_msg))
@@ -389,7 +429,8 @@ class RobotDogUI(QMainWindow):
                 self.awaiting_feedback = False
                 self.resume_auto_mode()
             
-            elif text.endswith("!"):
+            # elif text.endswith("!"):
+            elif text.lower() == "action":
                 print("❗ Processing feedback with exclamation mark")              
                 confirmation_msg, assistant = self.dog.ai_client.feedback_to_action(text, image_array_bboxes, image_description)
                 print(f"🤖 AI interpreted action: {assistant.action if hasattr(assistant, 'action') else 'None'}")
@@ -403,6 +444,8 @@ class RobotDogUI(QMainWindow):
                 # self.input_widget.hide()
                 # print("✅ Waiting for user confirmation...")
                 self.awaiting_feedback = False
+                self.exit_button.hide()  # Hide exit button when action mode is activated
+                self.action_button.show()  # Show action button when action mode is activated
             
             else:
                 print("Getting answer to question from AI client...")  # Debug print
@@ -551,6 +594,7 @@ class RobotDogUI(QMainWindow):
         if self.dog.env["interactive"]:
             self.feedback_button.show()
             self.exit_button.hide()  # Hide exit button when resuming auto mode
+            self.action_button.hide()  # Hide action button when resuming auto mode
         QTimer.singleShot(0, self._scroll_to_bottom)
 
     def add_user_message(self, text):
@@ -606,6 +650,11 @@ class RobotDogUI(QMainWindow):
     def trigger_exit_mode(self):
         """Simulate typing 'exit' and trigger send_message."""
         self.message_input.setText("exit")
+        self.send_message()
+
+    def trigger_action_mode(self):
+        """Simulate typing 'action' and trigger send_message."""
+        self.message_input.setText("action")
         self.send_message()
 
 class CameraThread(QThread):
