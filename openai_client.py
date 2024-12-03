@@ -210,15 +210,15 @@ class OpenaiClient(AiClientBase):
     def feedback_to_action(self, feedback, image_array_bboxes, image_description_text):
         self.append_prompt("user", feedback)
         
-        # Answer format for user's questions
-        self.append_prompt("user", self.questions_feedback_format(feedback)) 
+        # # Answer format for user's questions
+        # self.append_prompt("user", self.questions_feedback_format(feedback)) 
 
-        result = self.client.chat.completions.create(**self.openai_params_for_LLM)
-        confirmation_msg = result.choices[0].message.content
+        # result = self.client.chat.completions.create(**self.openai_params_for_LLM)
+        # confirmation_msg = result.choices[0].message.content
 
-        # Replace answer format with AI's response
-        self.openai_params_for_LLM["messages"] = self.openai_params_for_LLM["messages"][:-1] 
-        self.append_prompt("assistant", confirmation_msg)
+        # # Replace answer format with AI's response
+        # self.openai_params_for_LLM["messages"] = self.openai_params_for_LLM["messages"][:-1] 
+        # self.append_prompt("assistant", confirmation_msg)
 
         # Answer format for robot's action
         self.append_prompt("user", self.action_feedback_format()) 
@@ -228,12 +228,13 @@ class OpenaiClient(AiClientBase):
 
         image_pil_fmode = utils.put_text_top_left(image_array_bboxes, text="feedback mode")
         self.store_image(image_pil_fmode)
-        self.history_log_file.write(f"Go2: {confirmation_msg} \n")
-        self.history_log_file.flush()
+        # self.history_log_file.write(f"Go2: {confirmation_msg} \n")
+        # self.history_log_file.flush()
         self.save_round(assistant, feedback, image_description_text)
         self.update_history_prompt(assistant, feedback, image_description_text)
 
-        return confirmation_msg, assistant
+        # return confirmation_msg, assistant
+        return assistant
     
     def reset_messages(self):
         self.openai_params_for_LLM["messages"].clear()

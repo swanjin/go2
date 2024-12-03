@@ -432,12 +432,13 @@ class RobotDogUI(QMainWindow):
             # elif text.endswith("!"):
             elif text.lower() == "action":
                 print("❗ Processing feedback with exclamation mark")              
-                confirmation_msg, assistant = self.dog.ai_client.feedback_to_action(text, image_array_bboxes, image_description)
+                # confirmation_msg, assistant = self.dog.ai_client.feedback_to_action(text, image_array_bboxes, image_description)
+                assistant = self.dog.ai_client.feedback_to_action(text, image_array_bboxes, image_description)
                 print(f"🤖 AI interpreted action: {assistant.action if hasattr(assistant, 'action') else 'None'}")
                 self.pending_feedback_action = assistant
-                self.add_robot_message(confirmation_msg)
-                if self.dog.env["tts"]:
-                    QTimer.singleShot(300, lambda: self.play_tts(confirmation_msg))
+                # self.add_robot_message(confirmation_msg)
+                # if self.dog.env["tts"]:
+                #     QTimer.singleShot(300, lambda: self.play_tts(confirmation_msg))
                 
                 self.confirm_feedback()
                 # self.confirm_widget.show()
@@ -445,7 +446,7 @@ class RobotDogUI(QMainWindow):
                 # print("✅ Waiting for user confirmation...")
                 self.awaiting_feedback = False
                 self.exit_button.hide()  # Hide exit button when action mode is activated
-                self.action_button.show()  # Show action button when action mode is activated
+                self.action_button.hide()  # Show action button when action mode is activated
             
             else:
                 print("Getting answer to question from AI client...")  # Debug print
@@ -577,7 +578,7 @@ class RobotDogUI(QMainWindow):
             self.resume_auto_mode()
 
     def complete_feedback(self):
-        resume_msg = "I'm back to automatic search mode now."
+        resume_msg = "I just executed your feedback. I'm back to automatic search mode now."
         self.add_robot_message(resume_msg)
         
         if self.dog.env["tts"]:
