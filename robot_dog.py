@@ -272,6 +272,8 @@ class Dog:
             for i in range(int(elapsed_time / dt)):
                 self.sport_client.Move(vx, vy, vyaw)
                 time.sleep(dt)
+            if self.env["woz"]:
+                elapsed_time = 3
             for i in range(int(elapsed_time / dt)):
                 self.sport_client.StopMove()
                 time.sleep(dt)

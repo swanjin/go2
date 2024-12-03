@@ -632,7 +632,7 @@ class RobotDogUI(QMainWindow):
             self.add_robot_message(status, image)
             self.stop_processing_animation()
 
-    def handle_end_search(self, message, delayed_time=24000):
+    def handle_end_search(self, message, delayed_time=46000):
         if self.dog.env["woz"]:
             QTimer.singleShot(delayed_time, lambda: self.add_robot_message(message))
             if self.dog.env["tts"]:
