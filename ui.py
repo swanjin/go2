@@ -620,6 +620,7 @@ class RobotDogUI(QMainWindow):
 
         self.search_thread = SearchThread(self.dog)
         self.search_thread.status_update.connect(self.handle_status_update)
+        self.search_thread.end_search.connect(self.handle_end_search)
         # self.search_thread.tts_request.connect(self.play_tts)
         # self.search_thread.start_processing.connect(self.start_processing_animation)
         # self.search_thread.stop_processing.connect(self.stop_processing_animation)
@@ -629,6 +630,16 @@ class RobotDogUI(QMainWindow):
     def handle_status_update(self, status, image=None):
         if self.dog.env["interactive"] or self.dog.env["vo"]:
             self.add_robot_message(status, image)
+            self.stop_processing_animation()
+
+    def handle_end_search(self, message, delayed_time=25000):
+        if self.dog.env["woz"]:
+            QTimer.singleShot(delayed_time, lambda: self.add_robot_message(message))
+            if self.dog.env["tts"]:
+                QTimer.singleShot(delayed_time, lambda: self.play_tts(message))
+            self.stop_processing_animation()
+        else:
+            self.add_robot_message(message)
             self.stop_processing_animation()
 
     def update_camera_feed(self, image):
@@ -682,6 +693,7 @@ class CameraThread(QThread):
 
 class SearchThread(QThread):
     status_update = pyqtSignal(str, QImage)
+    end_search = pyqtSignal(str)
     # start_processing = pyqtSignal()  # Signal to start processing animation
     # stop_processing = pyqtSignal()   # Signal to stop processing animation
 
@@ -713,6 +725,11 @@ class SearchThread(QThread):
                 combined_message = f"I'm going to {formatted_action}. {response.reason}"
 
                 self.status_update.emit(combined_message, q_image)
+
+                # Add message to chat UI if WOZ agent is on or action is 'stop'
+                if self.dog.env["woz"] or formatted_action == 'stop':
+                    end_message = "I found the apple, so I'm stopping here. You can now end the chat."
+                    self.end_search.emit(end_message)
 
             # self.stop_processing.emit()  # Emit signal to stop processing animation
             return response

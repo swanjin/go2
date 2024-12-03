@@ -203,6 +203,12 @@ class Dog:
                             self.ai_client.tts(combined_message)
                     
                     self.activate_sportclient(assistant.action, int(assistant.move), int(assistant.shift), int(assistant.turn))
+
+                    if formatted_action == 'stop':
+                        end_message = "I found the apple, so I'm stopping here. You can now end the chat."
+                        if self.env["tts"]:
+                            self.ai_client.tts(end_message)
+
                 self.feedback = None
                 print(f"Round {self.round_number} completed.\n")
                 self.round_number += 1
@@ -291,9 +297,9 @@ class Dog:
             print("6. Final stop")
             self.VelocityMove(0, 0, 0)
             
-            stop_message = "Stop. I found an apple."
-            if self.env["tts"]:
-                self.ai_client.tts(stop_message)   
+            # stop_message = "Stop. I found an apple."
+            # if self.env["tts"]:
+            #     self.ai_client.tts(stop_message)   
         else: 
             if move + shift + turn == 0:
                 self.sport_client.StopMove()
