@@ -371,7 +371,7 @@ class RobotDogUI(QMainWindow):
         if not self.target_set:
             print("Processing target setting")  # Debug print
 
-            if "apple" in text.lower():
+            if "apple" or "사과" in text.lower():
                 response = f"I'll start searching for apple now."
                 self.add_robot_message(response)
                 QTimer.singleShot(100, lambda: self.process_target("apple", response))
