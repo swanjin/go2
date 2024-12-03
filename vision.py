@@ -53,7 +53,7 @@ class VisionModel:
 
         # image_pil = Image.fromarray(np.uint8(frame)).convert("RGB")
 
-        model = LangSAM()
+        model = self.LangSAM()
         # caption = " ".join(self.candidate_labels)  # Join list into a single string
         boxes_tensor, logits_tensor, phrases = model.predict_dino(image_pil, self.candidate_labels, box_threshold=0.5, text_threshold=0.5)
         boxes = boxes_tensor.tolist()
