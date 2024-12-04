@@ -281,7 +281,8 @@ class Dog:
     def activate_sportclient(self, action, move, shift, turn):
         if self.env["woz"]:
             print("Executing WOZ movement sequence:")
-            print("1. Turn right")
+            print("1. Turn right sequence")
+            self.VelocityMove(0, 0, -1.05)
             self.VelocityMove(0, 0, -1.05)
             print("2. Move forward sequence")
             self.VelocityMove(0.5, 0, 0)

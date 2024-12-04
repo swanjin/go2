@@ -207,7 +207,7 @@ class OpenaiClient(AiClientBase):
 
         return response
         
-    def feedback_to_execute(self, feedback, image_array_bboxes, image_description_text):
+    def execute_feedback(self, feedback, image_array_bboxes, image_description_text):
         self.append_prompt("user", feedback)
         
         # # Answer format for user's questions
