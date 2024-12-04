@@ -299,8 +299,8 @@ class RobotDogUI(QMainWindow):
         layout.addWidget(self.exit_button, alignment=Qt.AlignmentFlag.AlignCenter)
 
         # Action button
-        self.action_button = QPushButton("🚀 Execute Action")
-        self.action_button.setStyleSheet("""
+        self.execute_button = QPushButton("🚀 Execute Action")
+        self.execute_button.setStyleSheet("""
             QPushButton {
                 background-color: #E3F2FD;
                 color: #1A73E8;
@@ -322,9 +322,9 @@ class RobotDogUI(QMainWindow):
                 padding: 11px 19px 9px 21px;
             }
         """)
-        self.action_button.clicked.connect(self.trigger_action_mode)
-        self.action_button.hide()  # Initially hidden
-        layout.addWidget(self.action_button, alignment=Qt.AlignmentFlag.AlignCenter)
+        self.execute_button.clicked.connect(self.trigger_execute_mode)
+        self.execute_button.hide()  # Initially hidden
+        layout.addWidget(self.execute_button, alignment=Qt.AlignmentFlag.AlignCenter)
 
         # Create a horizontal layout for the feedback and action buttons
         button_layout = QHBoxLayout()
@@ -332,7 +332,7 @@ class RobotDogUI(QMainWindow):
 
         # Add the exit and action buttons to the horizontal layout
         button_layout.addWidget(self.exit_button)
-        button_layout.addWidget(self.action_button)
+        button_layout.addWidget(self.execute_button)
 
         # Add the button layout to the main layout
         layout.addLayout(button_layout)
@@ -400,7 +400,7 @@ class RobotDogUI(QMainWindow):
             # Hide feedback button when feedback mode is activated
             self.feedback_button.hide()
             self.exit_button.show()
-            self.action_button.show()
+            self.execute_button.show()
             
             self.dog.ai_client.history_log_file.write(f"\n=== Conversation ===\n")
             self.dog.ai_client.history_log_file.flush()
@@ -428,10 +428,10 @@ class RobotDogUI(QMainWindow):
                 self.resume_auto_mode()
             
             # elif text.endswith("!"):
-            elif text.lower() == "action":
+            elif text.lower() == "execute":
                 print("❗ Processing feedback with exclamation mark")              
                 # confirmation_msg, assistant = self.dog.ai_client.feedback_to_action(text, image_array_bboxes, image_description)
-                assistant = self.dog.ai_client.feedback_to_action(text, image_array_bboxes, image_description)
+                assistant = self.dog.ai_client.feedback_to_execute(text, image_array_bboxes, image_description)
                 print(f"🤖 AI interpreted action: {assistant.action if hasattr(assistant, 'action') else 'None'}")
                 self.pending_feedback_action = assistant
                 # self.add_robot_message(confirmation_msg)
@@ -443,8 +443,8 @@ class RobotDogUI(QMainWindow):
                 # self.input_widget.hide()
                 # print("✅ Waiting for user confirmation...")
                 self.awaiting_feedback = False
-                self.exit_button.hide()  # Hide exit button when action mode is activated
-                self.action_button.hide()  # Show action button when action mode is activated
+                self.exit_button.hide()  # Hide exit button when execute mode is activated
+                self.execute_button.hide()  # Show execute button when execute mode is activated
             
             else:
                 print("Getting answer to question from AI client...")  # Debug print
@@ -593,7 +593,7 @@ class RobotDogUI(QMainWindow):
         if self.dog.env["interactive"]:
             self.feedback_button.show()
             self.exit_button.hide()  # Hide exit button when resuming auto mode
-            self.action_button.hide()  # Hide action button when resuming auto mode
+            self.execute_button.hide()  # Hide action button when resuming auto mode
         QTimer.singleShot(0, self._scroll_to_bottom)
 
         if self.feedback_label:
@@ -666,9 +666,9 @@ class RobotDogUI(QMainWindow):
         self.message_input.setText("exit")
         self.send_message()
 
-    def trigger_action_mode(self):
-        """Simulate typing 'action' and trigger send_message."""
-        self.message_input.setText("action")
+    def trigger_execute_mode(self):
+        """Simulate typing 'execute' and trigger send_message."""
+        self.message_input.setText("execute")
         self.send_message()
 
     def show_feedback_mode_message(self):
