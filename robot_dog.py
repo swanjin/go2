@@ -273,7 +273,7 @@ class Dog:
                 self.sport_client.Move(vx, vy, vyaw)
                 time.sleep(dt)
             if self.env["woz"]:
-                elapsed_time = 3
+                elapsed_time = 5
             for i in range(int(elapsed_time / dt)):
                 self.sport_client.StopMove()
                 time.sleep(dt)
@@ -294,7 +294,6 @@ class Dog:
             self.VelocityMove(0, -0.5, 0)
             self.VelocityMove(0, -0.5, 0)
             print("5. Move forward sequence")
-            self.VelocityMove(0.5, 0, 0)
             self.VelocityMove(0.5, 0, 0)
             self.VelocityMove(0.5, 0, 0)
             print("6. Final stop")
