@@ -240,7 +240,7 @@ Reason: Explain your choice of actions in one concise complete sentence.
         elif self.is_first_response:
             # Initial prompt structure
             prompt = f"""
-            Kindly respond in three concise sentences based on the conversation with the user (please call the user 'you'): 
+            Kindly respond in three concise sentences based on the conversation with the user (please call the user 'you'):
             - The first answers to the user's question or feedback,
             - The second explains why you think so,
             - The third asks the user to provide more information by requesting user's help by providing an example instruction, 'turn right 2 times and then move forward 3 times,' while explaining that such guidance helps you locate objects more effectively, if you need it.
