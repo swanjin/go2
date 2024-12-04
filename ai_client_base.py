@@ -13,7 +13,7 @@ class AiClientBase:
         self.env = env
         self.image_counter = 0
         self.round_list = []
-
+        self.is_first_response = True
 
         self.system_prompt = f"""
 You are Go2, a robot dog assistant. You can only speak English regardless of the language the user uses. Your position and orientation are represented by a tuple (x, y, orientation), where:
@@ -233,13 +233,24 @@ Reason: Explain your choice of actions in one concise complete sentence.
 
     def questions_feedback_format(self, user_input):
         if any(keyword in user_input.lower() for keyword in ("kitchen", "sink", "refrigerator", "banana", "bottle")):            
-            prompt =  f"""Kindly inform them that you cannot recognize and locate the object the user (please call the user 'you') mentioned and request his/her help by providing an example prompt, such as 'turn right 2 times and then move forward 3 times,' while explaining that such guidance helps you locate objects more effectively. """
-        elif "!" in user_input.lower():
-            prompt = """Kindly respond in one concise sentence based on the conversation with the user (please call the user 'you'): it should be about appreciating the user's feedback first and then clearly say you are executing the action the user asked for.
+            prompt =  f"""Kindly inform them that you cannot recognize and locate the object the user (please call the user 'you') mentioned and request user's help by providing an example prompt, such as 'turn right 2 times and then move forward 3 times,' while explaining that such guidance helps you locate objects more effectively. """
+        # elif "!" in user_input.lower():
+        #     prompt = """Kindly respond in one concise sentence based on the conversation with the user (please call the user 'you'): it should be about appreciating the user's feedback first and then clearly say you are executing the action the user asked for.
+        #     """
+        elif self.is_first_response:
+            # Initial prompt structure
+            prompt = f"""
+            Kindly respond in three concise sentences based on the conversation with the user (please call the user 'you'): 
+            - The first answers to the user's question or feedback,
+            - The second explains why you think so,
+            - The third asks the user to provide more information by requesting user's help by providing an example instruction, 'turn right 2 times and then move forward 3 times,' while explaining that such guidance helps you locate objects more effectively, if you need it.
             """
+            self.is_first_response = False
         else:
-            prompt = """Kindly respond in two concise sentences based on the conversation with the user (please call the user 'you'): the first answers to the user's question or feedback, and the second explain why you think so."""
-        
+            # Simplified response format for subsequent interactions
+            prompt = f"""
+            Respond concisely to the user's question or feedback in one sentence.
+            """
         return prompt
 
     def set_target(self, target):
