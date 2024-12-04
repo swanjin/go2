@@ -298,7 +298,7 @@ class RobotDogUI(QMainWindow):
         layout.addWidget(self.exit_button, alignment=Qt.AlignmentFlag.AlignCenter)
 
         # Action button
-        self.execute_button = QPushButton("🚀 Execute Action")
+        self.execute_button = QPushButton("🚀 Execute Feedback")
         self.execute_button.setStyleSheet("""
             QPushButton {
                 background-color: #E3F2FD;
