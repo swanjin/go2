@@ -81,7 +81,6 @@ class RobotDogUI(QMainWindow):
         self.conversation_started = False
         self.pending_feedback_action = None
         self.awaiting_feedback = False
-        self.feedback_label = None  # Initialize feedback label
 
         self.processing_timer = QTimer()
         self.processing_timer.timeout.connect(self.update_processing_animation)
@@ -376,7 +375,8 @@ class RobotDogUI(QMainWindow):
                 response = f"I'll start searching for apple now."
                 self.add_robot_message(response)
                 QTimer.singleShot(100, lambda: self.process_target("apple", response))
-                QTimer.singleShot(1000, self.start_processing_animation)
+                QTimer.singleShot(1000, self.show_auto_mode_message)
+                QTimer.singleShot(2000, self.start_processing_animation)
                 if self.dog.env["interactive"]:
                     self.feedback_button.show()
 
@@ -394,10 +394,11 @@ class RobotDogUI(QMainWindow):
             self.feedback_mode = True
             self.awaiting_feedback = True
             
-            # Show feedback mode message
+            # Hide auto mode message and show feedback mode message
+            self.hide_auto_mode_message()
             self.show_feedback_mode_message()
 
-            # Hide feedback button when feedback mode is activated
+            # Hide feedback button and show exit and execute buttons
             self.feedback_button.hide()
             self.exit_button.show()
             self.execute_button.show()
@@ -408,6 +409,7 @@ class RobotDogUI(QMainWindow):
         elif self.feedback_mode and self.awaiting_feedback:
             print("\n=== Processing feedback in UI ===")  # Debug print
             print(f"Feedback text: '{text}'")  # Debug print
+            
             self.dog.ai_client.history_log_file.write(f"User: {text} \n")
             self.dog.ai_client.history_log_file.flush()
 
@@ -450,6 +452,8 @@ class RobotDogUI(QMainWindow):
                 print("Getting answer to question from AI client...")  # Debug print
                 answer = self.dog.ai_client.get_response_by_feedback(text)
                 print(f"AI answer received: {answer}")  # Debug print
+                
+                self.hide_feedback_mode_message()
                 self.add_robot_message(answer)
                 if self.dog.env["tts"]:
                     QTimer.singleShot(300, lambda: self.play_tts(answer))
@@ -592,13 +596,11 @@ class RobotDogUI(QMainWindow):
         QTimer.singleShot(1000, self.start_processing_animation)
         if self.dog.env["interactive"]:
             self.feedback_button.show()
-            self.exit_button.hide()  # Hide exit button when resuming auto mode
-            self.execute_button.hide()  # Hide action button when resuming auto mode
+            self.exit_button.hide()
+            self.execute_button.hide()
         QTimer.singleShot(0, self._scroll_to_bottom)
 
-        if self.feedback_label:
-            self.feedback_label.deleteLater()
-            self.feedback_label = None
+        self.show_auto_mode_message()  # Show auto mode message when resuming auto mode
 
     def add_user_message(self, text):
         message = ChatMessage(text, is_user=True)
@@ -631,11 +633,13 @@ class RobotDogUI(QMainWindow):
         self.search_started = True
 
     def handle_status_update(self, status, image=None):
+        self.hide_auto_mode_message()
+        self.stop_processing_animation()
         if self.dog.env["interactive"] or self.dog.env["vo"]:
             self.add_robot_message(status, image)
-            self.stop_processing_animation()
+            QTimer.singleShot(1000, self.start_processing_animation)
 
-    def handle_end_search(self, message, delayed_time=46000):
+    def handle_end_search(self, message, delayed_time=64000):
         if self.dog.env["woz"]:
             QTimer.singleShot(delayed_time, lambda: self.add_robot_message(message))
             if self.dog.env["tts"]:
@@ -673,9 +677,9 @@ class RobotDogUI(QMainWindow):
 
     def show_feedback_mode_message(self):
         """Show feedback mode message in the chat layout."""
-        if not hasattr(self, 'feedback_label') or self.feedback_label is None:
-            self.feedback_label = QLabel("Feedback mode activated. Please provide your feedback.")
-            self.feedback_label.setStyleSheet("""
+        if self.feedback_mode:
+            feedback_mode_label = QLabel("Feedback mode activated. Please provide your feedback.")
+            feedback_mode_label.setStyleSheet("""
                 QLabel {
                     color: #1A73E8;
                     font-size: 14px;
@@ -683,8 +687,42 @@ class RobotDogUI(QMainWindow):
                     padding: 10px;
                 }
             """)
-            self.chat_layout.addWidget(self.feedback_label)
+            self.chat_layout.addWidget(feedback_mode_label)
             self._scroll_to_bottom()
+
+    def hide_feedback_mode_message(self):
+        """Hide feedback mode activated message."""
+        if self.feedback_mode:
+            # Logic to remove the feedback message from the layout
+            for i in reversed(range(self.chat_layout.count())):
+                widget = self.chat_layout.itemAt(i).widget()
+                if isinstance(widget, QLabel) and "Feedback mode activated" in widget.text():
+                    widget.deleteLater()
+
+    def show_auto_mode_message(self):
+        """Show auto mode activated message in the chat layout."""
+        if self.search_started:
+            auto_mode_label = QLabel("Auto search mode activated.")
+            auto_mode_label.setStyleSheet("""
+                QLabel {
+                    color: #1A73E8;
+                    font-size: 14px;
+                    font-weight: bold;
+                    padding: 10px;
+                }
+            """)
+            self.chat_layout.addWidget(auto_mode_label)
+            self._scroll_to_bottom()
+
+    def hide_auto_mode_message(self):
+        """Hide auto mode activated message."""
+        if self.search_started:
+            # Logic to remove the auto mode message from the layout
+            # Assuming you have a way to identify and remove the specific QLabel
+            for i in reversed(range(self.chat_layout.count())):
+                widget = self.chat_layout.itemAt(i).widget()
+                if isinstance(widget, QLabel) and "Auto search mode activated" in widget.text():
+                    widget.deleteLater()
 
 class CameraThread(QThread):
     frame_update = pyqtSignal(QImage)
