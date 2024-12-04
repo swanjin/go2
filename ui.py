@@ -261,8 +261,10 @@ class RobotDogUI(QMainWindow):
                 border: 2px solid #0D47A1;
             }
             QPushButton:pressed {
-                background-color: #90CAF9;
-                padding: 11px 19px 9px 21px;
+                background-color: #0D47A1;
+                color: white;
+                border: 2px solid #0D47A1;
+                padding: 12px 18px;
             }
         """)
         self.feedback_button.clicked.connect(self.trigger_feedback_mode)
@@ -289,8 +291,10 @@ class RobotDogUI(QMainWindow):
                 border: 2px solid #B71C1C;
             }
             QPushButton:pressed {
-                background-color: #E57373;
-                padding: 11px 19px 9px 21px;
+                background-color: #B71C1C;
+                color: white;
+                border: 2px solid #B71C1C;
+                padding: 12px 18px;
             }
         """)
         self.exit_button.clicked.connect(self.trigger_exit_mode)
@@ -317,8 +321,10 @@ class RobotDogUI(QMainWindow):
                 border: 2px solid #0D47A1;
             }
             QPushButton:pressed {
-                background-color: #90CAF9;
-                padding: 11px 19px 9px 21px;
+                background-color: #0D47A1;
+                color: white;
+                border: 2px solid #0D47A1;
+                padding: 12px 18px;
             }
         """)
         self.execute_button.clicked.connect(self.trigger_execute_mode)
@@ -386,7 +392,7 @@ class RobotDogUI(QMainWindow):
                 if self.dog.env["tts"]:
                     QTimer.singleShot(300, lambda: self.play_tts(clarify_msg))
                 
-        elif text.lower() == "feedback":
+        elif text.lower() == "start feedback mode":
             print("Activating feedback mode")  # Debug print
             self.stop_processing_animation()
             self.dog.feedback_complete_event.clear()
@@ -418,7 +424,7 @@ class RobotDogUI(QMainWindow):
             image_array_bboxes, image_description = self.dog.ai_client.feedback_mode_on(frame)
 
             # if self.dog.ai_client.is_feedback_mode_exit(text):
-            if text.lower() == "exit" :
+            if text.lower() == "exit feedback mode" :
                 print("Exit command received")  # Debug print
                 exit_msg = "Alright, I'll wrap up feedback mode and switch back to automatic search."
                 self.add_robot_message(exit_msg)
@@ -430,7 +436,7 @@ class RobotDogUI(QMainWindow):
                 self.resume_auto_mode()
             
             # elif text.endswith("!"):
-            elif text.lower() == "execute":
+            elif text.lower() == "execute feedback":
                 print("❗ Processing feedback with exclamation mark")              
                 # confirmation_msg, assistant = self.dog.ai_client.feedback_to_action(text, image_array_bboxes, image_description)
                 assistant = self.dog.ai_client.feedback_to_execute(text, image_array_bboxes, image_description)
@@ -661,18 +667,18 @@ class RobotDogUI(QMainWindow):
         event.accept()
 
     def trigger_feedback_mode(self):
-        """Simulate typing 'feedback' and trigger send_message."""
-        self.message_input.setText("feedback")
+        """Simulate typing 'start feedback mode' and trigger send_message."""
+        self.message_input.setText("start feedback mode")
         self.send_message()
 
     def trigger_exit_mode(self):
-        """Simulate typing 'exit' and trigger send_message."""
-        self.message_input.setText("exit")
+        """Simulate typing 'exit feedback mode' and trigger send_message."""
+        self.message_input.setText("exit feedback mode")
         self.send_message()
 
     def trigger_execute_mode(self):
-        """Simulate typing 'execute' and trigger send_message."""
-        self.message_input.setText("execute")
+        """Simulate typing 'execute feedback' and trigger send_message."""
+        self.message_input.setText("execute feedback")
         self.send_message()
 
     def show_feedback_mode_message(self):
