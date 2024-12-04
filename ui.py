@@ -438,8 +438,8 @@ class RobotDogUI(QMainWindow):
             # elif text.endswith("!"):
             elif text.lower() == "execute feedback":
                 print("❗ Processing feedback with exclamation mark")              
-                # confirmation_msg, assistant = self.dog.ai_client.feedback_to_action(text, image_array_bboxes, image_description)
-                assistant = self.dog.ai_client.feedback_to_execute(text, image_array_bboxes, image_description)
+                # confirmation_msg, assistant = self.dog.ai_client.execute_feedback(text, image_array_bboxes, image_description)
+                assistant = self.dog.ai_client.execute_feedback(text, image_array_bboxes, image_description)
                 print(f"🤖 AI interpreted action: {assistant.action if hasattr(assistant, 'action') else 'None'}")
                 self.pending_feedback_action = assistant
                 # self.add_robot_message(confirmation_msg)
