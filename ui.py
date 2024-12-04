@@ -81,6 +81,7 @@ class RobotDogUI(QMainWindow):
         self.conversation_started = False
         self.pending_feedback_action = None
         self.awaiting_feedback = False
+        self.feedback_label = None  # Initialize feedback label
 
         self.processing_timer = QTimer()
         self.processing_timer.timeout.connect(self.update_processing_animation)
@@ -393,16 +394,13 @@ class RobotDogUI(QMainWindow):
             self.feedback_mode = True
             self.awaiting_feedback = True
             
-            feedback_msg = "Gotcha! Feedback mode activated. Please provide your feedback."
-            self.add_robot_message(feedback_msg)
-            
+            # Show feedback mode message
+            self.show_feedback_mode_message()
+
             # Hide feedback button when feedback mode is activated
             self.feedback_button.hide()
             self.exit_button.show()
             self.action_button.show()
-                       
-            if self.dog.env["tts"]:
-                QTimer.singleShot(300, lambda: self.play_tts(feedback_msg))
             
             self.dog.ai_client.history_log_file.write(f"\n=== Conversation ===\n")
             self.dog.ai_client.history_log_file.flush()
@@ -598,6 +596,10 @@ class RobotDogUI(QMainWindow):
             self.action_button.hide()  # Hide action button when resuming auto mode
         QTimer.singleShot(0, self._scroll_to_bottom)
 
+        if self.feedback_label:
+            self.feedback_label.deleteLater()
+            self.feedback_label = None
+
     def add_user_message(self, text):
         message = ChatMessage(text, is_user=True)
         self.chat_layout.addWidget(message)
@@ -668,6 +670,21 @@ class RobotDogUI(QMainWindow):
         """Simulate typing 'action' and trigger send_message."""
         self.message_input.setText("action")
         self.send_message()
+
+    def show_feedback_mode_message(self):
+        """Show feedback mode message in the chat layout."""
+        if not hasattr(self, 'feedback_label') or self.feedback_label is None:
+            self.feedback_label = QLabel("Feedback mode activated. Please provide your feedback.")
+            self.feedback_label.setStyleSheet("""
+                QLabel {
+                    color: #1A73E8;
+                    font-size: 14px;
+                    font-weight: bold;
+                    padding: 10px;
+                }
+            """)
+            self.chat_layout.addWidget(self.feedback_label)
+            self._scroll_to_bottom()
 
 class CameraThread(QThread):
     frame_update = pyqtSignal(QImage)
