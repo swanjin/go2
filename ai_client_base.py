@@ -109,8 +109,8 @@ The effect of each action on x and y pixel index depends on the orientation as s
 | 270° (West) | (x - 1*Move, y)   | (x + 1*Move, y)    | (x, y + 1*Shift)  | (x, y - 1*Shift) |
 
 turn right / turn left (Orientation Changes Only):
-- turn right: Increases orientation by 90°*Turn.
-- turn left: Decreases orientation by 90°*Turn.
+- turn right: Increases orientation by 60°*Turn.
+- turn left: Decreases orientation by 60°*Turn.
 After each turn, normalize the orientation to a range of 0° to 360° (e.g., -90° becomes 270°).
 
 stop: 
@@ -183,8 +183,8 @@ The effect of each action on x and y coordinates depends on the orientation as s
 | 270° (West) | (x - 1*Move, y)   | (x + 1*Move, y)    | (x, y + 1*Shift)  | (x, y - 1*Shift) |
 
 turn right / turn left (Orientation Changes Only):
-- turn right: Increases orientation by 90°*Turn.
-- turn left: Decreases orientation by 90°*Turn.
+- turn right: Increases orientation by 60°*Turn.
+- turn left: Decreases orientation by 60°*Turn.
 After each turn, normalize the orientation to a range of 0° to 360° (e.g., -90° becomes 270°).
 
 Verification Step:

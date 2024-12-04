@@ -282,14 +282,14 @@ class Dog:
         if self.env["woz"]:
             print("Executing WOZ movement sequence:")
             print("1. Turn right")
-            self.VelocityMove(0, 0, -1.5)
+            self.VelocityMove(0, 0, -1.05)
             print("2. Move forward sequence")
             self.VelocityMove(0.5, 0, 0)
             self.VelocityMove(0.5, 0, 0)
             self.VelocityMove(0.5, 0, 0)
             self.VelocityMove(0.5, 0, 0)
             print("3. Turn left")
-            self.VelocityMove(0, 0, 1.5)
+            self.VelocityMove(0, 0, 1.05)
             print("4. Shift right sequence")
             self.VelocityMove(0, -0.5, 0)
             self.VelocityMove(0, -0.5, 0)
@@ -312,8 +312,8 @@ class Dog:
                     'move backward': (-0.5, 0, 0),
                     'shift right': (0, -0.5, 0),
                     'shift left': (0, 0.5, 0),
-                    'turn right': (0, 0, -1.5),
-                    'turn left': (0, 0, 1.5)
+                    'turn right': (0, 0, -1.05),
+                    'turn left': (0, 0, 1.05)
                 }
                 
                 for ans in action:
