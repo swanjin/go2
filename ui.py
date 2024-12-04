@@ -242,7 +242,7 @@ class RobotDogUI(QMainWindow):
         layout.addWidget(self.input_widget)
 
         # Feedback button
-        self.feedback_button = QPushButton("💬 Start Feedback")
+        self.feedback_button = QPushButton("💬 Start Feedback Mode")
         self.feedback_button.setStyleSheet("""
             QPushButton {
                 background-color: #E3F2FD;
@@ -270,8 +270,8 @@ class RobotDogUI(QMainWindow):
         layout.addWidget(self.feedback_button, alignment=Qt.AlignmentFlag.AlignCenter)
 
         # Exit button
-        self.exit_button = QPushButton("🛑 Exit Feedback")
-        self.exit_button.setStyleSheet("""
+        self.exit_button = QPushButton("🛑 Exit Feedback Mode")
+        self.exit_button.setStyleSheet("""  
             QPushButton {
                 background-color: #FFCDD2;
                 color: #f44336;
@@ -329,9 +329,9 @@ class RobotDogUI(QMainWindow):
         button_layout = QHBoxLayout()
         button_layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
-        # Add the exit and action buttons to the horizontal layout
-        button_layout.addWidget(self.exit_button)
+        # Add the execute and exit buttons to the horizontal layout
         button_layout.addWidget(self.execute_button)
+        button_layout.addWidget(self.exit_button)
 
         # Add the button layout to the main layout
         layout.addLayout(button_layout)
