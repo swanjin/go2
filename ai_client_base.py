@@ -45,8 +45,8 @@ Choose the precise action name from the action dictionary to search for the '{se
    - **Subcase 1.2**: No '{self.env['target']}' falls within the middle third of the image's width.
      - **Action**: Consider turning your orientation to center the detected target within your field of view. 
        - Example: 
-         - If the target is in the left third of the image's width (the width pixel index less than '{self.env['captured_width']*(1/3)}'), **turn left** to bring it closer to the center. 
-         - If the target is in the right third of the image's width (the width pixel index greater than '{self.env['captured_width']*(2/3)}'), **turn right** to bring it closer to the center.
+         - If the target is in the left third of the image's width (the width pixel index less than '{self.env['captured_width']*(1/4)}'), **turn left** to bring it closer to the center. 
+         - If the target is in the right third of the image's width (the width pixel index greater than '{self.env['captured_width']*(3/4)}'), **turn right** to bring it closer to the center.
 
    - **Subcase 1.3**: **All** '{self.env['target']}' are within the middle third of the image's width (i.e., between '{self.env['captured_width']*(1/3)}' and '{self.env['captured_width']*(2/3)}'), and the distance to **all** '{self.env['target']}' is less than the defined stop distance ('{self.env['stop_hurdle_meter_for_target']}').
      - **Action**: Choose action `stop`.
