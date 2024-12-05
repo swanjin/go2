@@ -234,7 +234,7 @@ Reason: Explain your choice of actions in one concise complete sentence.
 
     def questions_feedback_format(self, user_input):
         if any(keyword in user_input.lower() for keyword in ("kitchen", "sink", "refrigerator", "banana", "bottle")):            
-            prompt =  f"""Kindly inform them that you cannot recognize and locate the object the user (please call the user 'you') mentioned and request user's help by providing an example prompt, such as 'turn right 2 times and then move forward 3 times,' while explaining that such guidance helps you locate objects more effectively. """
+            prompt =  f"""Kindly inform them that you cannot exactly locate the object's position the user (please call the user 'you') mentioned and request user's help by providing an example prompt, such as 'turn right 2 times or move forward 3 times', while explaining that such guidance helps you locate objects more effectively. """
         # elif "!" in user_input.lower():
         #     prompt = """Kindly respond in one concise sentence based on the conversation with the user (please call the user 'you'): it should be about appreciating the user's feedback first and then clearly say you are executing the action the user asked for.
         #     """
@@ -243,14 +243,14 @@ Reason: Explain your choice of actions in one concise complete sentence.
             prompt = f"""
             Kindly respond in three concise sentences based on the conversation with the user (please call the user 'you'):
             - The first answers to the user's question or feedback,
-            - The second explains why you think so,
-            - The third asks the user to provide more specific feedback by requesting user's help by providing an example instruction, 'turn right 2 times and then move forward 3 times,' while explaining that such guidance helps you locate objects more effectively, if you need it.
+            - The second explains your specific action plan and why you think so, 
+            - The third kindly let the user know that if the user provides more specific feedback, such as 'turn right 2 times or move forward 3 times', it helps you locate objects more effectively.
             """
             self.is_first_response = False
         else:
             # Simplified response format for subsequent interactions
             prompt = f"""
-            Respond concisely to the user's question or feedback in one sentence.
+            Respond concisely to the user's question or feedback in one sentence and mention that if the user (please call the user 'you') think your response is incorrect, kindly ask the user to provide corrections. 
             """
         return prompt
 
