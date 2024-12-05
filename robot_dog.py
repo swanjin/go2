@@ -320,7 +320,6 @@ class Dog:
             self.VelocityMove(0.5, 0, 0)
             self.VelocityMove(0.5, 0, 0)
             self.VelocityMove(0.5, 0, 0)
-            self.VelocityMove(0.5, 0, 0)
             print("5. Shift left")
             self.VelocityMove(0, 0.5, 0)
             print("6. Final stop")
