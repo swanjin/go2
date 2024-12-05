@@ -143,47 +143,81 @@ class VisionModel:
     def depth_estimation(self, image_pil, boxes):
         image_array = utils.PIL2OpenCV(image_pil)
 
-        # Get depth estimation predictions (this returns a tensor on the GPU if available)
+        # Get depth estimation predictions
         predictions = self.depth_pipe(image_pil)
-
-        # Extract depth map as a GPU tensor
         depth_values_gpu = predictions["predicted_depth"]
 
         # Get dimensions of depth map and frame
-        depth_height, depth_width = depth_values_gpu.shape[-2:]  # Assuming depth tensor is in [batch, height, width] format
+        depth_height, depth_width = depth_values_gpu.shape[-2:]
         frame_height, frame_width = image_array.shape[:2]
 
-        # Calculate scaling factors on the CPU
+        # Calculate scaling factors
         scale_x = depth_width / frame_width
         scale_y = depth_height / frame_height
 
-        average_depths = []
+        center_depths = []
 
-        # Calculate the average depth for each bounding box
+        # Calculate the depth for the center pixel of each bounding box
         for box in boxes:
-            # Scale bounding box to match depth map size (done on CPU for simplicity)
-            x1_depth = int(box[0] * scale_x)
-            y1_depth = int(box[1] * scale_y)
-            x2_depth = int(box[2] * scale_x)
-            y2_depth = int(box[3] * scale_y)
+            # Calculate center coordinates of the bounding box
+            center_x = int(((box[0] + box[2]) / 2) * scale_x)
+            center_y = int(((box[1] + box[3]) / 2) * scale_y)
 
-            # Ensure the indices are within valid range (done on CPU)
-            x1_depth = max(0, min(x1_depth, depth_width - 1))
-            y1_depth = max(0, min(y1_depth, depth_height - 1))
-            x2_depth = max(0, min(x2_depth, depth_width - 1))
-            y2_depth = max(0, min(y2_depth, depth_height - 1))
+            # Ensure the indices are within valid range
+            center_x = max(0, min(center_x, depth_width - 1))
+            center_y = max(0, min(center_y, depth_height - 1))
 
-            # Extract depth values within the bounding box (on GPU)
-            box_depth_values = depth_values_gpu[0, y1_depth:y2_depth, x1_depth:x2_depth]
+            # Get depth value at the center pixel
+            center_depth = depth_values_gpu[0, center_y, center_x].item()
+            center_depths.append(center_depth)
 
-            # Calculate average depth on the GPU
-            if box_depth_values.numel() > 0:
-                average_depth = box_depth_values.mean().item()  # Compute mean on the GPU and retrieve the scalar value
-            else:
-                average_depth = 0
-            average_depths.append(average_depth)
+        return center_depths
+        
+        
+        
+        # image_array = utils.PIL2OpenCV(image_pil)
 
-        return average_depths
+        # # Get depth estimation predictions (this returns a tensor on the GPU if available)
+        # predictions = self.depth_pipe(image_pil)
+
+        # # Extract depth map as a GPU tensor
+        # depth_values_gpu = predictions["predicted_depth"]
+
+        # # Get dimensions of depth map and frame
+        # depth_height, depth_width = depth_values_gpu.shape[-2:]  # Assuming depth tensor is in [batch, height, width] format
+        # frame_height, frame_width = image_array.shape[:2]
+
+        # # Calculate scaling factors on the CPU
+        # scale_x = depth_width / frame_width
+        # scale_y = depth_height / frame_height
+
+        # average_depths = []
+
+        # # Calculate the average depth for each bounding box
+        # for box in boxes:
+        #     # Scale bounding box to match depth map size (done on CPU for simplicity)
+        #     x1_depth = int(box[0] * scale_x)
+        #     y1_depth = int(box[1] * scale_y)
+        #     x2_depth = int(box[2] * scale_x)
+        #     y2_depth = int(box[3] * scale_y)
+
+        #     # Ensure the indices are within valid range (done on CPU)
+        #     x1_depth = max(0, min(x1_depth, depth_width - 1))
+        #     y1_depth = max(0, min(y1_depth, depth_height - 1))
+        #     x2_depth = max(0, min(x2_depth, depth_width - 1))
+        #     y2_depth = max(0, min(y2_depth, depth_height - 1))
+
+        #     # Extract depth values within the bounding box (on GPU)
+        #     box_depth_values = depth_values_gpu[0, y1_depth:y2_depth, x1_depth:x2_depth]
+
+        #     # Calculate average depth on the GPU
+        #     if box_depth_values.numel() > 0:
+        #         average_depth = box_depth_values.mean().item()  # Compute mean on the GPU and retrieve the scalar value
+        #     else:
+        #         average_depth = 0
+        #     average_depths.append(average_depth)
+
+        # return average_depths
 
     def get_label(self, image_pil):
         labels, boxes, scores = self.detect_objects(image_pil)
@@ -196,7 +230,7 @@ class VisionModel:
         labels, boxes, scores = self.detect_objects(image_pil)
         
         # Get depth for each bounding box (already using GPU in depth_estimation)
-        average_depths = self.depth_estimation(image_pil, boxes)
+        center_depths = self.depth_estimation(image_pil, boxes)
 
         description = []
         depth_threshold = self.env["depth_threshold"]
@@ -206,8 +240,8 @@ class VisionModel:
             x1, y1, x2, y2 = boxes[i]
 
             # Adjust depth using environment thresholds (on CPU)
-            avg_depth = average_depths[i] * (
-                eval(self.env["depth_scale_for_under"]) if average_depths[i] <= depth_threshold
+            avg_depth = center_depths[i] * (
+                eval(self.env["depth_scale_for_under"]) if center_depths[i] <= depth_threshold
                 else eval(self.env["depth_scale_for_over"])
             )
 

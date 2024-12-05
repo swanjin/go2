@@ -43,10 +43,10 @@ Choose the precise action name from the action dictionary to search for the '{se
      - **Action**: Move your position vertically to get closer to the target.
 
    - **Subcase 1.2**: No '{self.env['target']}' falls within the middle third of the image's width.
-     - **Action**: Consider turning your orientation to center the detected target within your field of view. 
+     - **Action**: Consider shifting your position (x, y) to center the detected target within your field of view. 
        - Example: 
-         - If the target is in the left third of the image's width (the width pixel index less than '{self.env['captured_width']*(1/5)}'), **turn left** to bring it closer to the center. 
-         - If the target is in the right third of the image's width (the width pixel index greater than '{self.env['captured_width']*(4/5)}'), **turn right** to bring it closer to the center.
+         - If the target is in the left third of the image's width (the width pixel index less than '{self.env['captured_width']*(1/5)}'), **shift left** to bring it closer to the center. 
+         - If the target is in the right third of the image's width (the width pixel index greater than '{self.env['captured_width']*(4/5)}'), **shift right** to bring it closer to the center.
 
    - **Subcase 1.3**: **All** '{self.env['target']}' are within the middle third of the image's width (i.e., between '{self.env['captured_width']*(1/3)}' and '{self.env['captured_width']*(2/3)}'), and the distance to **all** '{self.env['target']}' is less than the defined stop distance ('{self.env['stop_hurdle_meter_for_target']}').
      - **Action**: Choose action `stop`.
@@ -109,8 +109,8 @@ The effect of each action on x and y pixel index depends on the orientation as s
 | 270° (West) | (x - 1*Move, y)   | (x + 1*Move, y)    | (x, y + 1*Shift)  | (x, y - 1*Shift) |
 
 turn right / turn left (Orientation Changes Only):
-- turn right: Increases orientation by 45°*Turn.
-- turn left: Decreases orientation by 45°*Turn.
+- turn right: Increases orientation by 90°*Turn.
+- turn left: Decreases orientation by 90°*Turn.
 After each turn, normalize the orientation to a range of 0° to 360° (e.g., -90° becomes 270°).
 
 stop: 
@@ -127,8 +127,9 @@ Confirm each x or y coordinate change reflects the intended movement or shift by
    - Otherwise, execute 3.
 #### Case 2:
    - If 'move forward' or 'move backward' is in the chosen actions:
-     - If the chosen action is 'move forward' and the distance to '{self.env['object1']}' is between '{self.env['hurdle_meter_for_non_target']}' and 2.0 meters, execute 1.
-     - If the chosen action is 'move forward' and the distance is between 2.0 meters and 2.5 meters, execute 2.
+     - If the chosen action is 'move forward' and the distance to '{self.env['object1']}' is less than '{self.env['hurdle_meter_for_non_target']}', execute 0.
+     - If the chosen action is 'move forward' and the distance to '{self.env['object1']}' is between '{self.env['hurdle_meter_for_non_target']}' and 2.5 meters, execute 1.
+     - If the chosen action is 'move forward' and the distance to '{self.env['object1']}'is between 2.5.0 meters and 3.5 meters, execute 2.
      - Otherwise, execute 3.
    - If 'move forward' or 'move backward' is not in the chosen actions, execute 0.
 
@@ -183,8 +184,8 @@ The effect of each action on x and y coordinates depends on the orientation as s
 | 270° (West) | (x - 1*Move, y)   | (x + 1*Move, y)    | (x, y + 1*Shift)  | (x, y - 1*Shift) |
 
 turn right / turn left (Orientation Changes Only):
-- turn right: Increases orientation by 45°*Turn.
-- turn left: Decreases orientation by 45°*Turn.
+- turn right: Increases orientation by 90°*Turn.
+- turn left: Decreases orientation by 90°*Turn.
 After each turn, normalize the orientation to a range of 0° to 360° (e.g., -90° becomes 270°).
 
 Verification Step:
@@ -205,7 +206,7 @@ Turn: Follow the guideline in the '### Instructions for Turn' section.
 New Tuple: Follow the guideline in the '### Instructions for New Tuple (sx, y, orientation)' section.
 Reason: 
 - Explain your choice of actions in one concise complete sentence. 
-- If you give a high contextual likelihood, pinpoint one location where it is likely to be found among kitchen, living room, and office. You don't need to mention the case number. If the stopping hurdle meter for the '{self.env['object1']}' or '{self.env['target']}' is considered in your reasoning, you must mention it. 
+- If you give a high contextual likelihood, tell the reason why the target is likely to be related to the object detected. You don't need to mention the case number. If the stopping hurdle meter for the '{self.env['object1']}' or '{self.env['target']}' is considered in your reasoning, you must mention it. 
 - If you need to mention about whether the '{self.env['target']}' is in the left/middle/right third of the image, just say 'left', 'middle', or 'right' without mentioning the 'third'. 
 - If you need to say something like 'No other objects detected', just say something by rephrasing the statement 'No other objects that are contextually related to the target detected'.
 - If '{self.env['object1']}' is not detected in the '### Image Analysis' section, you must not mention anything about '{self.env['object1']}'. Even if the reasoing behind your action considers whether '{self.env['object1']}' is detected or not, you must not mention any about '{self.env['object1']}'. Even if '{self.env['object1']}' is detected at previous rounds in the '### History' section, you must not mention anything about '{self.env['object1']}' in your reasoning. You can mention about '{self.env['object1']}' in your reasoning only if '{self.env['object1']}' is detected in the '### Image Analysis' section, **not in the '### History' section.** 

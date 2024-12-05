@@ -94,38 +94,65 @@ class Dog:
     def connect_camera(self):
         print("- Connecting to camera")
 
-        # Ensure any previously opened capture is released to free the resource
+        # Ensure any previously opened capture is released
         if hasattr(self, 'capture') and self.capture is not None:
-            self.capture.release()  # Release the camera resource if it was previously used
+            self.capture.release()
 
         if self.env["connect_robot"]:
-            gstreamer_str = self.env["robot_gstreamer"]  # Robot camera resolution: 1280x720
-            self.capture = cv2.VideoCapture(gstreamer_str, cv2.CAP_GSTREAMER)        
+            try:
+                # Modified GStreamer pipeline with error checking
+                gstreamer_str = self.env["robot_gstreamer"]
+                self.capture = cv2.VideoCapture(gstreamer_str, cv2.CAP_GSTREAMER)
+                
+                if not self.capture.isOpened():
+                    raise RuntimeError("Failed to open GStreamer pipeline")
+                    
+                # Test frame capture
+                ret, _ = self.capture.read()
+                if not ret:
+                    raise RuntimeError("Failed to read frame from GStreamer pipeline")
+                    
+            except Exception as e:
+                print(f"Error connecting to robot camera: {e}")
+                print("Falling back to default camera...")
+                self.capture = cv2.VideoCapture(0)
         else:
             self.capture = cv2.VideoCapture(0)
 
-            if not self.capture.isOpened():
-                print("Error: Failed to open the built-in camera. Possible causes:")
-                print("1) The built-in camera may be in use by another application. Close any other applications using the camera and try again.")
-                print("2) The camera resource might not have been properly released from a previous session.")
+        if not self.capture.isOpened():
+            print("Error: Failed to open any camera. Possible causes:")
+            print("1) The camera may be in use by another application")
+            print("2) The camera resource might not have been properly released")
+            print("3) No compatible camera found")
+            return False
+        
+        return True
 
     def read_frame(self):
-        """
-        Read a frame from the camera and return it as a PIL image in RGB format.
-        Returns:
-            - frame: PIL image in RGB format, or None if an error occurs.
-        """
-        success, capture = self.capture.read()
-        if not success:
-            if self.env["connect_robot"]:
-                print("Failed to retrieve frame from robot camera. Possible causes:")
-                print("1) OpenCV without GStreamer support may have been prioritized.")
-                print("2) Network connection to the robot camera may have failed. Please check your LAN cable and try again.")
-            return None 
-        else:
-            image_cv = cv2.cvtColor(capture, cv2.COLOR_BGR2RGB)  # Convert to RGB
-            frame = Image.fromarray(image_cv)
-            return frame  # Return the captured frame as a PIL image
+        if not hasattr(self, 'capture') or self.capture is None:
+            print("Error: Camera not initialized")
+            return None
+
+        try:
+            if self.env["use_test_dataset"]:
+                # Use test dataset logic here
+                return None
+            
+            max_retries = 3
+            for attempt in range(max_retries):
+                ret, frame = self.capture.read()
+                if ret and frame is not None:
+                    return Image.fromarray(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB))
+            
+                print(f"Frame capture failed, attempt {attempt + 1}/{max_retries}")
+                time.sleep(0.1)  # Short delay between retries
+            
+            print("Failed to capture frame after multiple attempts")
+            return None
+        
+        except Exception as e:
+            print(f"Error reading frame: {e}")
+            return None
 
     def shutdown(self, force=False):
         self.robot_auto_thread.join()
@@ -281,22 +308,21 @@ class Dog:
     def activate_sportclient(self, action, move, shift, turn):
         if self.env["woz"]:
             print("Executing WOZ movement sequence:")
-            print("1. Turn right sequence")
-            self.VelocityMove(0, 0, -1.05)
-            self.VelocityMove(0, 0, -1.05)
+            print("1. Turn right")
+            self.VelocityMove(0, 0, -1)
             print("2. Move forward sequence")
             self.VelocityMove(0.5, 0, 0)
             self.VelocityMove(0.5, 0, 0)
             self.VelocityMove(0.5, 0, 0)
-            self.VelocityMove(0.5, 0, 0)
             print("3. Turn left")
-            self.VelocityMove(0, 0, 1.05)
-            print("4. Shift left")
+            self.VelocityMove(0, 0, 1.5)
+            print("4. Move forward sequence")
+            self.VelocityMove(0.5, 0, 0)
+            self.VelocityMove(0.5, 0, 0)
+            self.VelocityMove(0.5, 0, 0)
+            self.VelocityMove(0.5, 0, 0)
+            print("5. Shift left")
             self.VelocityMove(0, 0.5, 0)
-            print("5. Move forward sequence")
-            self.VelocityMove(0.5, 0, 0)
-            self.VelocityMove(0.5, 0, 0)
-            self.VelocityMove(0.5, 0, 0)
             print("6. Final stop")
             self.VelocityMove(0, 0, 0)
             
@@ -312,8 +338,8 @@ class Dog:
                     'move backward': (-0.5, 0, 0),
                     'shift right': (0, -0.5, 0),
                     'shift left': (0, 0.5, 0),
-                    'turn right': (0, 0, -0.8),
-                    'turn left': (0, 0, 0.8)
+                    'turn right': (0, 0, -1.5),
+                    'turn left': (0, 0, 1.5)
                 }
                 
                 for ans in action:
