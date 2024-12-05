@@ -45,8 +45,8 @@ Choose the precise action name from the action dictionary to search for the '{se
    - **Subcase 1.2**: No '{self.env['target']}' falls within the middle third of the image's width.
      - **Action**: Consider turning your orientation to center the detected target within your field of view. 
        - Example: 
-         - If the target is in the left third of the image's width (the width pixel index less than '{self.env['captured_width']*(1/4)}'), **turn left** to bring it closer to the center. 
-         - If the target is in the right third of the image's width (the width pixel index greater than '{self.env['captured_width']*(3/4)}'), **turn right** to bring it closer to the center.
+         - If the target is in the left third of the image's width (the width pixel index less than '{self.env['captured_width']*(1/5)}'), **turn left** to bring it closer to the center. 
+         - If the target is in the right third of the image's width (the width pixel index greater than '{self.env['captured_width']*(4/5)}'), **turn right** to bring it closer to the center.
 
    - **Subcase 1.3**: **All** '{self.env['target']}' are within the middle third of the image's width (i.e., between '{self.env['captured_width']*(1/3)}' and '{self.env['captured_width']*(2/3)}'), and the distance to **all** '{self.env['target']}' is less than the defined stop distance ('{self.env['stop_hurdle_meter_for_target']}').
      - **Action**: Choose action `stop`.
@@ -57,7 +57,7 @@ Choose the precise action name from the action dictionary to search for the '{se
        2. Have you accurately compared the distances of **all** '{self.env['target']}' against the defined stop distance ('{self.env['stop_hurdle_meter_for_target']}')?
        3. Based on these checks, confirm which subcase (1.1, 1.2, or 1.3) applies and proceed with the specified action.
 
-#### Case 2: The '{self.env['target']}' is not detected in the `### Image Analysis` section.
+#### Case 2: The '{self.env['target']}' is **not detected** in the `### Image Analysis` section.
    - **Subcase 2.1**: The '{self.env['object1']}' is **not detected** in the `### Image Analysis` section.
      - **Action**: Explore different orientations. Do not change your position (x, y).
        - **Note**: Avoid revisiting orientations that have already been explored at the same position without detecting the '{self.env['target']}' according to the `### History` section.
@@ -109,8 +109,8 @@ The effect of each action on x and y pixel index depends on the orientation as s
 | 270° (West) | (x - 1*Move, y)   | (x + 1*Move, y)    | (x, y + 1*Shift)  | (x, y - 1*Shift) |
 
 turn right / turn left (Orientation Changes Only):
-- turn right: Increases orientation by 60°*Turn.
-- turn left: Decreases orientation by 60°*Turn.
+- turn right: Increases orientation by 45°*Turn.
+- turn left: Decreases orientation by 45°*Turn.
 After each turn, normalize the orientation to a range of 0° to 360° (e.g., -90° becomes 270°).
 
 stop: 
@@ -183,8 +183,8 @@ The effect of each action on x and y coordinates depends on the orientation as s
 | 270° (West) | (x - 1*Move, y)   | (x + 1*Move, y)    | (x, y + 1*Shift)  | (x, y - 1*Shift) |
 
 turn right / turn left (Orientation Changes Only):
-- turn right: Increases orientation by 60°*Turn.
-- turn left: Decreases orientation by 60°*Turn.
+- turn right: Increases orientation by 45°*Turn.
+- turn left: Decreases orientation by 45°*Turn.
 After each turn, normalize the orientation to a range of 0° to 360° (e.g., -90° becomes 270°).
 
 Verification Step:
