@@ -3,10 +3,12 @@ from PyQt6.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout,
                            QScrollArea, QFrame)
 from PyQt6.QtCore import Qt, QThread, pyqtSignal, QSize, QTimer
 from PyQt6.QtGui import QImage, QPixmap, QFont, QColor, QPalette
-import sys
-import cv2
 from PIL import Image
 import numpy as np
+
+import sys
+import cv2
+from dataclasses import dataclass
 
 class ChatMessage(QFrame):
     def __init__(self, text, is_user=False, image=None, parent=None):
@@ -71,16 +73,120 @@ class ChatMessage(QFrame):
         main_layout.addWidget(container)
         main_layout.addStretch() if not is_user else None
 
+@dataclass
+class MessageData:
+    text: str = ""
+    feedback_mode: bool = False
+    awaiting_feedback: bool = False
+    target_set: bool = False
+    conversation_started: bool = False
+    pending_feedback_action: any = None
+
+class SendMessageThread(QThread):
+    process_target_signal = pyqtSignal(str, str)
+    input_widget_signal = pyqtSignal(bool)
+    feedback_button_signal = pyqtSignal(bool)
+    confirm_feedback_signal = pyqtSignal()
+    add_user_message_signal = pyqtSignal(str)
+    add_robot_message_signal = pyqtSignal(str, object)
+    play_tts_signal = pyqtSignal(str)
+
+    def __init__(self, message_data: MessageData, dog_instance, parent=None):
+        super().__init__(parent)
+        self.message_data = message_data
+        self.dog = dog_instance
+
+    def run(self):
+        print("\n=== send_message called ===")  # Debug print
+        if not self.message_data.conversation_started:
+            print("Conversation not started")  # Debug print
+            return
+        
+        text = self.message_data.text.strip()
+        if not text:
+            print("Empty message")  # Debug print
+            return
+        
+        # Display the user message immediately
+        self.add_user_message_signal.emit(text)
+        
+        print(f"Processing message: '{text}'")  # Debug print
+        print(f"Current mode - Feedback mode: {self.message_data.feedback_mode}, Awaiting feedback: {self.message_data.awaiting_feedback}")  # Debug print
+        
+        # Proceed with processing logic
+        if not self.message_data.target_set:
+            print("Processing target setting")  # Debug print
+
+            if "apple" in text.lower():
+                response = f"I'll start searching for apple now."
+                self.add_robot_message_signal.emit(response, None)
+                self.process_target_signal.emit("apple", response)
+                self.input_widget_signal.emit(False)
+                if self.dog.env["interactive"]:
+                    self.feedback_button_signal.emit(True)
+
+            else:
+                clarify_msg = "Apologies, I didn't catch that. Could you please clarify the target you'd like me to identify?"
+                self.add_robot_message_signal.emit(clarify_msg, None)
+                if self.dog.env["tts"]:
+                    QTimer.singleShot(2000, lambda: self.play_tts_signal.emit(clarify_msg))
+                
+        elif text.lower() == "feedback mode":
+            print("Activating feedback mode")  # Debug print
+            self.dog.feedback_complete_event.clear()
+            self.dog.interrupt_round_flag.set()
+            
+            self.message_data.feedback_mode = True
+            self.message_data.awaiting_feedback = True
+            self.feedback_button_signal.emit(False)
+            self.input_widget_signal.emit(True)
+
+            self.dog.ai_client.history_log_file.write(f"\n=== Conversation ===\n")
+            self.dog.ai_client.history_log_file.flush()
+            
+        elif self.message_data.feedback_mode and self.message_data.awaiting_feedback:
+            print("\n=== Processing feedback in UI ===")  # Debug print
+            print(f"Feedback text: '{text}'")  # Debug print
+            
+            self.dog.ai_client.history_log_file.write(f"User: {text} \n")
+            self.dog.ai_client.history_log_file.flush()
+
+            frame = self.dog.read_frame()
+            print(f"Frame received: {frame is not None}")  # Debug print
+            image_array_bboxes, image_description = self.dog.ai_client.feedback_mode_on(frame)
+
+            if text.endswith("!"):
+                print("❗ Processing feedback with exclamation mark")              
+                confirmation_msg = "Alright, I'm going to execute your feedback!"
+                assistant = self.dog.ai_client.execute_feedback(text, image_array_bboxes, image_description)
+                print(f"🤖 AI interpreted action: {assistant.action if hasattr(assistant, 'action') else 'None'}")
+                self.message_data.pending_feedback_action = assistant
+                self.add_robot_message_signal.emit(confirmation_msg, None)
+                if self.dog.env["tts"]:
+                    QTimer.singleShot(300, lambda: self.play_tts_signal.emit(confirmation_msg))
+                self.confirm_feedback_signal.emit()
+                self.message_data.awaiting_feedback = False
+            
+            else:
+                print("Getting answer to question from AI client...")  # Debug print
+                answer = self.dog.ai_client.get_response_by_feedback(text)
+                print(f"AI answer received: {answer}")  # Debug print
+                self.add_robot_message_signal.emit(answer, None)
+                if self.dog.env["tts"]:
+                    QTimer.singleShot(300, lambda: self.play_tts_signal.emit(answer))
+                
+                self.dog.ai_client.history_log_file.write(f"Go2: {answer} \n")
+                self.dog.ai_client.history_log_file.flush()
+
+        else:
+            print("Type 'feedback' to give feedback")  # Debug print
+            self.dog.feedback = text
 class RobotDogUI(QMainWindow):
     def __init__(self, dog_instance):
         super().__init__()
         self.dog = dog_instance
-        self.feedback_mode = False
+        self.message_data = MessageData()
         self.search_started = False
-        self.target_set = False
-        self.conversation_started = False
-        self.pending_feedback_action = None
-        self.awaiting_feedback = False
 
         self.processing_timer = QTimer()
         self.processing_timer.timeout.connect(self.update_processing_animation)
@@ -351,13 +457,26 @@ class RobotDogUI(QMainWindow):
         welcome_message = "Hello! I'm Go2, your robot dog assistant. What would you like me to find for you?"
         self.add_robot_message(welcome_message)
         
-        self.conversation_started = True
+        self.message_data.conversation_started = True
         self.message_input.setFocus()
         
         if self.dog.env["tts"]:
             QTimer.singleShot(100, lambda: self.play_tts(welcome_message))
 
     def send_message(self):
+        self.message_data.text = self.message_input.text()
+        
+        self.send_message_thread = SendMessageThread(self.message_data, self.dog)
+        self.send_message_thread.process_target_signal.connect(self.process_target)
+        self.send_message_thread.input_widget_signal.connect(self.input_widget.setVisible)
+        self.send_message_thread.feedback_button_signal.connect(self.feedback_button.setVisible)
+        self.send_message_thread.confirm_feedback_signal.connect(self.confirm_feedback)
+        self.send_message_thread.add_user_message_signal.connect(self.add_user_message)
+        self.send_message_thread.add_robot_message_signal.connect(self.add_robot_message)
+        self.send_message_thread.play_tts_signal.connect(self.play_tts)
+        self.send_message_thread.start()
+
+    def send_message_legacy(self):
         print("\n=== send_message called ===")  # Debug print
         if not self.conversation_started:
             print("Conversation not started")  # Debug print
@@ -502,15 +621,15 @@ class RobotDogUI(QMainWindow):
     
     def confirm_feedback(self):
         """사용자가 해석된 피드백을 승인할 때"""
-        if self.pending_feedback_action:
-            print("Pending feedback action:", self.pending_feedback_action)  # 디버그 출력
+        if self.message_data.pending_feedback_action:
+            print("Pending feedback action:", self.message_data.pending_feedback_action)  # 디버그 출력
             # response_text = "I'm going to process your feedback."
             # self.add_robot_message(response_text)
             # if self.dog.env["tts"]:
             #     QTimer.singleShot(300, lambda: self.play_tts(response_text))
 
             # 피드백 액션을 직접 변수에 저장
-            action_to_execute = self.pending_feedback_action
+            action_to_execute = self.message_data.pending_feedback_action
             
             # # UI 상태 초기화
             # self.confirm_widget.hide()
@@ -520,7 +639,7 @@ class RobotDogUI(QMainWindow):
             self.execute_feedback_action(action_to_execute)
             
             # 상태 초기화
-            self.pending_feedback_action = None
+            self.message_data.pending_feedback_action = None
             self.awaiting_feedback = False
 
     def reject_feedback(self):
@@ -537,7 +656,7 @@ class RobotDogUI(QMainWindow):
         
         self.confirm_widget.hide()
         self.input_widget.show()
-        self.pending_feedback_action = None
+        self.message_data.pending_feedback_action = None
         self.awaiting_feedback = True
 
     def play_tts(self, message):
@@ -549,9 +668,10 @@ class RobotDogUI(QMainWindow):
                 print(f"TTS Error: {e}")
 
     def process_target(self, text, response):
+        print()
         self.dog.target = text
         self.dog.ai_client.set_target(text)
-        self.target_set = True
+        self.message_data.target_set = True
         
         self.start_search()
         
