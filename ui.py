@@ -29,7 +29,7 @@ class ChatMessage(QFrame):
             QLabel {{
                 color: {'#1A73E8' if is_user else '#666666'};
                 font-weight: bold;
-                font-size: 13px;
+                font-size: 26px;
             }}
         """)
         container_layout.addWidget(sender)
@@ -43,7 +43,7 @@ class ChatMessage(QFrame):
                 color: {'white' if is_user else 'black'};
                 border-radius: 15px;
                 padding: 10px 15px;
-                font-size: 14px;
+                font-size: 28px;
             }}
         """)
         container_layout.addWidget(message)
@@ -117,7 +117,7 @@ class RobotDogUI(QMainWindow):
                 color: white;
                 border-radius: 20px;
                 padding: 15px 30px;
-                font-size: 16px;
+                font-size: 32px;
                 font-weight: bold;
                 margin: 20px;
             }
@@ -206,7 +206,7 @@ class RobotDogUI(QMainWindow):
                 padding: 10px 15px;
                 background-color: white;
                 color: #333333;
-                font-size: 14px;
+                font-size: 28px;
                 min-height: 20px;
             }
             QLineEdit:focus {
@@ -226,6 +226,7 @@ class RobotDogUI(QMainWindow):
                 color: white;
                 border-radius: 20px;
                 padding: 10px 20px;
+                font-size: 28px;
                 font-weight: bold;
                 border: none;
             }
@@ -242,7 +243,7 @@ class RobotDogUI(QMainWindow):
         layout.addWidget(self.input_widget)
 
         # Feedback button
-        self.feedback_button = QPushButton("💬 Start Feedback Mode")
+        self.feedback_button = QPushButton("💬 Feedback Mode")
         self.feedback_button.setStyleSheet("""
             QPushButton {
                 background-color: #E3F2FD;
@@ -250,7 +251,7 @@ class RobotDogUI(QMainWindow):
                 border: 2px solid #1A73E8;
                 border-radius: 20px;
                 padding: 10px 20px;
-                font-size: 14px;
+                font-size: 28px;
                 font-weight: bold;
                 min-width: 150px;
                 margin: 0 10px;
@@ -271,79 +272,79 @@ class RobotDogUI(QMainWindow):
         self.feedback_button.hide()
         layout.addWidget(self.feedback_button, alignment=Qt.AlignmentFlag.AlignCenter)
 
-        # Exit button
-        self.exit_button = QPushButton("🛑 Exit Feedback Mode")
-        self.exit_button.setStyleSheet("""  
-            QPushButton {
-                background-color: #FFCDD2;
-                color: #f44336;
-                border: 2px solid #f44336;
-                border-radius: 20px;
-                padding: 10px 20px;
-                font-size: 14px;
-                font-weight: bold;
-                min-width: 150px;
-                margin: 0 10px;
-            }
-            QPushButton:hover {
-                background-color: #EF9A9A;
-                color: #B71C1C;
-                border: 2px solid #B71C1C;
-            }
-            QPushButton:pressed {
-                background-color: #B71C1C;
-                color: white;
-                border: 2px solid #B71C1C;
-                padding: 12px 18px;
-            }
-        """)
-        self.exit_button.clicked.connect(self.trigger_exit_mode)
-        self.exit_button.hide()  # Initially hidden
-        layout.addWidget(self.exit_button, alignment=Qt.AlignmentFlag.AlignCenter)
+        # # Exit button
+        # self.exit_button = QPushButton("🛑 Exit Feedback Mode")
+        # self.exit_button.setStyleSheet("""  
+        #     QPushButton {
+        #         background-color: #FFCDD2;
+        #         color: #f44336;
+        #         border: 2px solid #f44336;
+        #         border-radius: 20px;
+        #         padding: 10px 20px;
+        #         font-size: 14px;
+        #         font-weight: bold;
+        #         min-width: 150px;
+        #         margin: 0 10px;
+        #     }
+        #     QPushButton:hover {
+        #         background-color: #EF9A9A;
+        #         color: #B71C1C;
+        #         border: 2px solid #B71C1C;
+        #     }
+        #     QPushButton:pressed {
+        #         background-color: #B71C1C;
+        #         color: white;
+        #         border: 2px solid #B71C1C;
+        #         padding: 12px 18px;
+        #     }
+        # """)
+        # self.exit_button.clicked.connect(self.trigger_exit_mode)
+        # self.exit_button.hide()  # Initially hidden
+        # layout.addWidget(self.exit_button, alignment=Qt.AlignmentFlag.AlignCenter)
 
-        # Action button
-        self.execute_button = QPushButton("🚀 Execute Feedback")
-        self.execute_button.setStyleSheet("""
-            QPushButton {
-                background-color: #E3F2FD;
-                color: #1A73E8;
-                border: 2px solid #1A73E8;
-                border-radius: 20px;
-                padding: 10px 20px;
-                font-size: 14px;
-                font-weight: bold;
-                min-width: 150px;
-                margin: 0 10px;
-            }
-            QPushButton:hover {
-                background-color: #BBDEFB;
-                color: #0D47A1;
-                border: 2px solid #0D47A1;
-            }
-            QPushButton:pressed {
-                background-color: #0D47A1;
-                color: white;
-                border: 2px solid #0D47A1;
-                padding: 12px 18px;
-            }
-        """)
-        self.execute_button.clicked.connect(self.trigger_execute_mode)
-        self.execute_button.hide()  # Initially hidden
-        layout.addWidget(self.execute_button, alignment=Qt.AlignmentFlag.AlignCenter)
+        # # Action button
+        # self.execute_button = QPushButton("🚀 Execute Feedback")
+        # self.execute_button.setStyleSheet("""
+        #     QPushButton {
+        #         background-color: #E3F2FD;
+        #         color: #1A73E8;
+        #         border: 2px solid #1A73E8;
+        #         border-radius: 20px;
+        #         padding: 10px 20px;
+        #         font-size: 14px;
+        #         font-weight: bold;
+        #         min-width: 150px;
+        #         margin: 0 10px;
+        #     }
+        #     QPushButton:hover {
+        #         background-color: #BBDEFB;
+        #         color: #0D47A1;
+        #         border: 2px solid #0D47A1;
+        #     }
+        #     QPushButton:pressed {
+        #         background-color: #0D47A1;
+        #         color: white;
+        #         border: 2px solid #0D47A1;
+        #         padding: 12px 18px;
+        #     }
+        # """)
+        # self.execute_button.clicked.connect(self.trigger_execute_mode)
+        # self.execute_button.hide()  # Initially hidden
+        # layout.addWidget(self.execute_button, alignment=Qt.AlignmentFlag.AlignCenter)
 
-        # Create a horizontal layout for the feedback and action buttons
-        button_layout = QHBoxLayout()
-        button_layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        # # Create a horizontal layout for the feedback and action buttons
+        # button_layout = QHBoxLayout()
+        # button_layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
-        # Add the execute and exit buttons to the horizontal layout
-        button_layout.addWidget(self.execute_button)
-        button_layout.addWidget(self.exit_button)
+        # # Add the execute and exit buttons to the horizontal layout
+        # button_layout.addWidget(self.execute_button)
+        # button_layout.addWidget(self.exit_button)
 
-        # Add the button layout to the main layout
-        layout.addLayout(button_layout)
+        # # Add the button layout to the main layout
+        # layout.addLayout(button_layout)
 
     def start_conversation(self):
-        self.start_button.hide()
+        # self.start_button.hide()
         self.start_button.deleteLater()
         self.input_widget.show()
         
@@ -377,10 +378,11 @@ class RobotDogUI(QMainWindow):
         if not self.target_set:
             print("Processing target setting")  # Debug print
 
-            if "apple" or "사과" in text.lower():
+            if "apple" in text.lower():
                 response = f"I'll start searching for apple now."
                 self.add_robot_message(response)
                 QTimer.singleShot(100, lambda: self.process_target("apple", response))
+                self.input_widget.hide()
                 QTimer.singleShot(1000, self.show_auto_mode_message)
                 QTimer.singleShot(2000, self.start_processing_animation)
                 if self.dog.env["interactive"]:
@@ -392,7 +394,7 @@ class RobotDogUI(QMainWindow):
                 if self.dog.env["tts"]:
                     QTimer.singleShot(300, lambda: self.play_tts(clarify_msg))
                 
-        elif text.lower() == "start feedback mode":
+        elif text.lower() == "feedback mode":
             print("Activating feedback mode")  # Debug print
             self.stop_processing_animation()
             self.dog.feedback_complete_event.clear()
@@ -406,8 +408,9 @@ class RobotDogUI(QMainWindow):
 
             # Hide feedback button and show exit and execute buttons
             self.feedback_button.hide()
-            self.exit_button.show()
-            self.execute_button.show()
+            self.input_widget.show()
+            # self.exit_button.show()
+            # self.execute_button.show()
             
             self.dog.ai_client.history_log_file.write(f"\n=== Conversation ===\n")
             self.dog.ai_client.history_log_file.flush()
@@ -423,36 +426,37 @@ class RobotDogUI(QMainWindow):
             print(f"Frame received: {frame is not None}")  # Debug print
             image_array_bboxes, image_description = self.dog.ai_client.feedback_mode_on(frame)
 
-            # if self.dog.ai_client.is_feedback_mode_exit(text):
-            if text.lower() == "exit feedback mode" :
-                print("Exit command received")  # Debug print
-                exit_msg = "Alright, I'll wrap up feedback mode and switch back to automatic search."
-                self.add_robot_message(exit_msg)
+            # # if self.dog.ai_client.is_feedback_mode_exit(text):
+            # if text.lower() == "exit feedback mode" :
+            #     print("Exit command received")  # Debug print
+            #     exit_msg = "Alright, I'll wrap up feedback mode and switch back to automatic search."
+            #     self.add_robot_message(exit_msg)
                 
-                if self.dog.env["tts"]:
-                    QTimer.singleShot(300, lambda: self.play_tts(exit_msg))
+            #     if self.dog.env["tts"]:
+            #         QTimer.singleShot(300, lambda: self.play_tts(exit_msg))
                 
-                self.awaiting_feedback = False
-                self.resume_auto_mode()
+            #     self.awaiting_feedback = False
+            #     self.resume_auto_mode()
             
-            # elif text.endswith("!"):
-            elif text.lower() == "execute feedback":
+            if text.endswith("!"):
+            # if text.lower() == "execute feedback":
                 print("❗ Processing feedback with exclamation mark")              
                 # confirmation_msg, assistant = self.dog.ai_client.execute_feedback(text, image_array_bboxes, image_description)
+                confirmation_msg = "Alright, I'm going to execute your feedback!"
                 assistant = self.dog.ai_client.execute_feedback(text, image_array_bboxes, image_description)
                 print(f"🤖 AI interpreted action: {assistant.action if hasattr(assistant, 'action') else 'None'}")
                 self.pending_feedback_action = assistant
-                # self.add_robot_message(confirmation_msg)
-                # if self.dog.env["tts"]:
-                #     QTimer.singleShot(300, lambda: self.play_tts(confirmation_msg))
+                self.add_robot_message(confirmation_msg)
+                if self.dog.env["tts"]:
+                    QTimer.singleShot(300, lambda: self.play_tts(confirmation_msg))
                 
                 self.confirm_feedback()
                 # self.confirm_widget.show()
                 # self.input_widget.hide()
                 # print("✅ Waiting for user confirmation...")
                 self.awaiting_feedback = False
-                self.exit_button.hide()  # Hide exit button when execute mode is activated
-                self.execute_button.hide()  # Show execute button when execute mode is activated
+                # self.exit_button.hide()  # Hide exit button when execute mode is activated
+                # self.execute_button.hide()  # Show execute button when execute mode is activated
             
             else:
                 print("Getting answer to question from AI client...")  # Debug print
@@ -481,7 +485,7 @@ class RobotDogUI(QMainWindow):
             self.processing_label.setStyleSheet("""
                 QLabel {
                     color: #1A73E8;
-                    font-size: 14px;
+                    font-size: 28px;
                     font-weight: bold;
                     padding: 10px;
                 }
@@ -601,9 +605,10 @@ class RobotDogUI(QMainWindow):
 
         QTimer.singleShot(1000, self.start_processing_animation)
         if self.dog.env["interactive"]:
+            self.input_widget.hide()
             self.feedback_button.show()
-            self.exit_button.hide()
-            self.execute_button.hide()
+            # self.exit_button.hide()
+            # self.execute_button.hide()
         QTimer.singleShot(0, self._scroll_to_bottom)
 
         self.show_auto_mode_message()  # Show auto mode message when resuming auto mode
@@ -667,8 +672,8 @@ class RobotDogUI(QMainWindow):
         event.accept()
 
     def trigger_feedback_mode(self):
-        """Simulate typing 'start feedback mode' and trigger send_message."""
-        self.message_input.setText("start feedback mode")
+        """Simulate typing 'feedback mode' and trigger send_message."""
+        self.message_input.setText("feedback mode")
         self.send_message()
 
     def trigger_exit_mode(self):
@@ -688,7 +693,7 @@ class RobotDogUI(QMainWindow):
             feedback_mode_label.setStyleSheet("""
                 QLabel {
                     color: #1A73E8;
-                    font-size: 14px;
+                    font-size: 28px;
                     font-weight: bold;
                     padding: 10px;
                 }
@@ -712,7 +717,7 @@ class RobotDogUI(QMainWindow):
             auto_mode_label.setStyleSheet("""
                 QLabel {
                     color: #1A73E8;
-                    font-size: 14px;
+                    font-size: 28px;
                     font-weight: bold;
                     padding: 10px;
                 }
