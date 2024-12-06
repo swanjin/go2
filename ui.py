@@ -2,7 +2,7 @@ from PyQt6.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout,
                            QHBoxLayout, QPushButton, QLabel, QTextEdit, QLineEdit,
                            QScrollArea, QFrame)
 from PyQt6.QtCore import Qt, QThread, pyqtSignal, QSize, QTimer
-from PyQt6.QtGui import QImage, QPixmap, QFont, QColor, QPalette
+from PyQt6.QtGui import QImage, QPixmap, QFont, QColor, QPalette, QPainter
 from PIL import Image
 import numpy as np
 
@@ -73,6 +73,48 @@ class ChatMessage(QFrame):
         main_layout.addWidget(container)
         main_layout.addStretch() if not is_user else None
 
+
+class CircleAnimationWidget(QWidget):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.fill_fraction = 0
+        self.timer = QTimer(self)
+        self.timer.timeout.connect(self.update_fill)
+        self.setFixedSize(30, 30)  # Set the size of the circle
+
+    def start_animation(self):
+        self.fill_fraction = 0
+        self.timer.start(1000)  # Update every 100 milliseconds for faster animation
+
+    def stop_animation(self):
+        self.timer.stop()
+        self.fill_fraction = 0
+        self.update()
+
+    def update_fill(self):
+        self.fill_fraction = (self.fill_fraction + 1) % 14
+        self.update()
+
+    def paintEvent(self, event):
+        painter = QPainter(self)
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+        rect = self.rect()
+
+        # Draw the outer circle (donut)
+        painter.setBrush(QColor("#1A73E8"))
+        painter.drawEllipse(rect)
+
+        # Draw the inner circle to create a donut effect
+        inner_rect = rect.adjusted(5, 5, -5, -5)  # Adjust to create the donut hole
+        painter.setBrush(QColor(self.palette().color(QPalette.ColorRole.Window)))
+        painter.drawEllipse(inner_rect)
+
+        # Draw the rotating arc
+        painter.setBrush(QColor("#FFFFFF"))
+        start_angle = 90 * 16
+        span_angle = -(360/14) * self.fill_fraction * 16
+        painter.drawPie(rect, start_angle, span_angle)
+        
 @dataclass
 class MessageData:
     text: str = ""
@@ -90,6 +132,7 @@ class SendMessageThread(QThread):
     add_user_message_signal = pyqtSignal(str)
     add_robot_message_signal = pyqtSignal(str, object)
     play_tts_signal = pyqtSignal(str)
+    activate_feedback_mode_signal = pyqtSignal()
 
     def __init__(self, message_data: MessageData, dog_instance, parent=None):
         super().__init__(parent)
@@ -129,17 +172,17 @@ class SendMessageThread(QThread):
                 clarify_msg = "Apologies, I didn't catch that. Could you please clarify the target you'd like me to identify?"
                 self.add_robot_message_signal.emit(clarify_msg, None)
                 if self.dog.env["tts"]:
-                    QTimer.singleShot(2000, lambda: self.play_tts_signal.emit(clarify_msg))
+                    QTimer.singleShot(300, lambda: self.play_tts_signal.emit(clarify_msg))
                 
         elif text.lower() == "feedback mode":
             print("Activating feedback mode")  # Debug print
             self.dog.feedback_complete_event.clear()
             self.dog.interrupt_round_flag.set()
             
-            self.message_data.feedback_mode = True
-            self.message_data.awaiting_feedback = True
             self.feedback_button_signal.emit(False)
             self.input_widget_signal.emit(True)
+            
+            QTimer.singleShot(100, self.activate_feedback_mode_signal.emit)
 
             self.dog.ai_client.history_log_file.write(f"\n=== Conversation ===\n")
             self.dog.ai_client.history_log_file.flush()
@@ -181,12 +224,16 @@ class SendMessageThread(QThread):
         else:
             print("Type 'feedback' to give feedback")  # Debug print
             self.dog.feedback = text
+
 class RobotDogUI(QMainWindow):
     def __init__(self, dog_instance):
         super().__init__()
         self.dog = dog_instance
         self.message_data = MessageData()
         self.search_started = False
+
+        self.circle_animation = CircleAnimationWidget()
+
 
         self.processing_timer = QTimer()
         self.processing_timer.timeout.connect(self.update_processing_animation)
@@ -449,6 +496,9 @@ class RobotDogUI(QMainWindow):
         # # Add the button layout to the main layout
         # layout.addLayout(button_layout)
 
+        input_layout.addWidget(self.circle_animation)
+        self.circle_animation.hide()
+
     def start_conversation(self):
         # self.start_button.hide()
         self.start_button.deleteLater()
@@ -474,6 +524,7 @@ class RobotDogUI(QMainWindow):
         self.send_message_thread.add_user_message_signal.connect(self.add_user_message)
         self.send_message_thread.add_robot_message_signal.connect(self.add_robot_message)
         self.send_message_thread.play_tts_signal.connect(self.play_tts)
+        self.send_message_thread.activate_feedback_mode_signal.connect(self.activate_feedback_mode)
         self.send_message_thread.start()
 
     def send_message_legacy(self):
@@ -734,12 +785,20 @@ class RobotDogUI(QMainWindow):
         self.show_auto_mode_message()  # Show auto mode message when resuming auto mode
 
     def add_user_message(self, text):
+        if self.message_data.feedback_mode and self.message_data.awaiting_feedback:
+            self.circle_animation.show()
+            self.circle_animation.start_animation()
+    
         message = ChatMessage(text, is_user=True)
         self.chat_layout.addWidget(message)
         QTimer.singleShot(0, self._scroll_to_bottom)
         self.message_input.clear()
 
     def add_robot_message(self, text, image=None):
+        if self.message_data.feedback_mode:
+            self.circle_animation.stop_animation()
+            self.circle_animation.hide()
+        
         message = ChatMessage(text, is_user=False, image=image)
         self.chat_layout.addWidget(message)
         QTimer.singleShot(0, self._scroll_to_bottom)
@@ -795,6 +854,17 @@ class RobotDogUI(QMainWindow):
         """Simulate typing 'feedback mode' and trigger send_message."""
         self.message_input.setText("feedback mode")
         self.send_message()
+
+        # Introduce a slight delay before setting feedback mode flags
+        QTimer.singleShot(100, self.activate_feedback_mode)
+
+        # Set focus to the message input area
+        self.message_input.setFocus()
+
+    def activate_feedback_mode(self):
+        """Activate feedback mode after a delay."""
+        self.message_data.feedback_mode = True
+        self.message_data.awaiting_feedback = True
 
     def trigger_exit_mode(self):
         """Simulate typing 'exit feedback mode' and trigger send_message."""
