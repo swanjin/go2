@@ -25,6 +25,7 @@ class ChatMessage(QFrame):
         container_layout = QVBoxLayout(container)
         container_layout.setContentsMargins(0, 0, 0, 0)
         
+        
         # Sender label (Go2 or User)
         sender = QLabel("You" if is_user else "Go2")
         sender.setStyleSheet(f"""
@@ -527,123 +528,6 @@ class RobotDogUI(QMainWindow):
         self.send_message_thread.activate_feedback_mode_signal.connect(self.activate_feedback_mode)
         self.send_message_thread.start()
 
-    def send_message_legacy(self):
-        print("\n=== send_message called ===")  # Debug print
-        if not self.conversation_started:
-            print("Conversation not started")  # Debug print
-            return
-        
-        text = self.message_input.text().strip()
-        if not text:
-            print("Empty message")  # Debug print
-            return
-        
-        # Display the user message immediately
-        self.add_user_message(text)
-        
-        print(f"Processing message: '{text}'")  # Debug print
-        print(f"Current mode - Feedback mode: {self.feedback_mode}, Awaiting feedback: {self.awaiting_feedback}")  # Debug print
-        
-        # Proceed with processing logic
-        if not self.target_set:
-            print("Processing target setting")  # Debug print
-
-            if "apple" in text.lower():
-                response = f"I'll start searching for apple now."
-                self.add_robot_message(response)
-                QTimer.singleShot(100, lambda: self.process_target("apple", response))
-                self.input_widget.hide()
-                QTimer.singleShot(1000, self.show_auto_mode_message)
-                QTimer.singleShot(2000, self.start_processing_animation)
-                if self.dog.env["interactive"]:
-                    self.feedback_button.show()
-
-            else:
-                clarify_msg = "Apologies, I didn't catch that. Could you please clarify the target you'd like me to identify?"
-                self.add_robot_message(clarify_msg)
-                if self.dog.env["tts"]:
-                    QTimer.singleShot(300, lambda: self.play_tts(clarify_msg))
-                
-        elif text.lower() == "feedback mode":
-            print("Activating feedback mode")  # Debug print
-            self.stop_processing_animation()
-            self.dog.feedback_complete_event.clear()
-            self.dog.interrupt_round_flag.set()
-            self.feedback_mode = True
-            self.awaiting_feedback = True
-            
-            # Hide auto mode message and show feedback mode message
-            self.hide_auto_mode_message()
-            self.show_feedback_mode_message()
-
-            # Hide feedback button and show exit and execute buttons
-            self.feedback_button.hide()
-            self.input_widget.show()
-            # self.exit_button.show()
-            # self.execute_button.show()
-            
-            self.dog.ai_client.history_log_file.write(f"\n=== Conversation ===\n")
-            self.dog.ai_client.history_log_file.flush()
-
-        elif self.feedback_mode and self.awaiting_feedback:
-            print("\n=== Processing feedback in UI ===")  # Debug print
-            print(f"Feedback text: '{text}'")  # Debug print
-            
-            self.dog.ai_client.history_log_file.write(f"User: {text} \n")
-            self.dog.ai_client.history_log_file.flush()
-
-            frame = self.dog.read_frame()
-            print(f"Frame received: {frame is not None}")  # Debug print
-            image_array_bboxes, image_description = self.dog.ai_client.feedback_mode_on(frame)
-
-            # # if self.dog.ai_client.is_feedback_mode_exit(text):
-            # if text.lower() == "exit feedback mode" :
-            #     print("Exit command received")  # Debug print
-            #     exit_msg = "Alright, I'll wrap up feedback mode and switch back to automatic search."
-            #     self.add_robot_message(exit_msg)
-                
-            #     if self.dog.env["tts"]:
-            #         QTimer.singleShot(300, lambda: self.play_tts(exit_msg))
-                
-            #     self.awaiting_feedback = False
-            #     self.resume_auto_mode()
-            
-            if text.endswith("!"):
-            # if text.lower() == "execute feedback":
-                print("❗ Processing feedback with exclamation mark")              
-                # confirmation_msg, assistant = self.dog.ai_client.execute_feedback(text, image_array_bboxes, image_description)
-                confirmation_msg = "Alright, I'm going to execute your feedback!"
-                assistant = self.dog.ai_client.execute_feedback(text, image_array_bboxes, image_description)
-                print(f"🤖 AI interpreted action: {assistant.action if hasattr(assistant, 'action') else 'None'}")
-                self.pending_feedback_action = assistant
-                self.add_robot_message(confirmation_msg)
-                if self.dog.env["tts"]:
-                    QTimer.singleShot(300, lambda: self.play_tts(confirmation_msg))
-                
-                self.confirm_feedback()
-                # self.confirm_widget.show()
-                # self.input_widget.hide()
-                # print("✅ Waiting for user confirmation...")
-                self.awaiting_feedback = False
-                # self.exit_button.hide()  # Hide exit button when execute mode is activated
-                # self.execute_button.hide()  # Show execute button when execute mode is activated
-            
-            else:
-                print("Getting answer to question from AI client...")  # Debug print
-                answer = self.dog.ai_client.get_response_by_feedback(text)
-                print(f"AI answer received: {answer}")  # Debug print
-                
-                self.hide_feedback_mode_message()
-                self.add_robot_message(answer)
-                if self.dog.env["tts"]:
-                    QTimer.singleShot(300, lambda: self.play_tts(answer))
-                self.dog.ai_client.history_log_file.write(f"Go2: {answer} \n")
-                self.dog.ai_client.history_log_file.flush()
-
-        else:
-            print("Type 'feedback' to give feedback")  # Debug print
-            self.dog.feedback = text
-
     def update_processing_animation(self):
         self.processing_dots = (self.processing_dots + 1) % 4
         dots = "." * self.processing_dots
@@ -694,7 +578,6 @@ class RobotDogUI(QMainWindow):
             self.awaiting_feedback = False
 
     def reject_feedback(self):
-        """사용자가 해석된 피드백을 거부할 때"""
         reject_msg = """It seems my suggested actions don't align with your needs. Could you clarify your expectations or suggest adjustments?"""
         self.add_robot_message(reject_msg)
         self.dog.ai_client.openai_params_for_text["messages"] = self.dog.ai_client.openai_params_for_text["messages"][:-1]
@@ -730,7 +613,6 @@ class RobotDogUI(QMainWindow):
             QTimer.singleShot(300, lambda: self.play_tts(response))
 
     def execute_feedback_action(self, assistant):
-        """피드백 액션을 실행하는 메소드"""
         try:
             if not assistant:
                 print("Error: No assistant object provided")
