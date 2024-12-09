@@ -197,14 +197,17 @@ class SendMessageThread(QThread):
 
             frame = self.dog.read_frame()
             print(f"Frame received: {frame is not None}")  # Debug print
-            image_array_bboxes, image_description = self.dog.ai_client.feedback_mode_on(frame)
+            image_bboxes_array, image_description = self.dog.ai_client.feedback_mode_on(frame)
 
             if text.endswith("!"):
                 print("❗ Processing feedback with exclamation mark")              
                 confirmation_msg = "Alright, I'm going to execute your feedback!"
-                assistant = self.dog.ai_client.execute_feedback(text, image_array_bboxes, image_description)
-                print(f"🤖 AI interpreted action: {assistant.action if hasattr(assistant, 'action') else 'None'}")
-                self.message_data.pending_feedback_action = assistant
+                
+                # assistant = self.dog.ai_client.execute_feedback(text, image_bboxes_array, image_description)
+                # print(f"🤖 AI interpreted action: {assistant.action if hasattr(assistant, 'action') else 'None'}")
+                # self.message_data.pending_feedback_action = assistant
+                self.message_data.pending_feedback_action = ['turn right']
+
                 self.add_robot_message_signal.emit(confirmation_msg, None)
                 if self.dog.env["tts"]:
                     QTimer.singleShot(300, lambda: self.play_tts_signal.emit(confirmation_msg))
@@ -620,10 +623,10 @@ class RobotDogUI(QMainWindow):
             
             print("Executing feedback with assistant:", assistant)  # 디버그 출력
             
-            # action 확인
-            if not hasattr(assistant, 'action'):
-                print("Error: Assistant has no action attribute")
-                return
+            # # action 확인
+            # if not hasattr(assistant, 'action'):
+            #     print("Error: Assistant has no action attribute")
+            #     return
             
             # 로봇 동작 실행
             self.dog.activate_sportclient(
@@ -653,7 +656,6 @@ class RobotDogUI(QMainWindow):
 
     def resume_auto_mode(self):
         self.feedback_mode = False
-        self.dog.ai_client.reset_messages_feedback()
         self.dog.feedback_complete_event.set()
 
         QTimer.singleShot(1000, self.start_processing_animation)
