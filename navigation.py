@@ -79,9 +79,8 @@ class NaviModel:
                 neighbors.append((next_pos, action))
         return neighbors
 
-    def navigate_to(self, target_position, obstacles):
+    def navigate_to(self, start, target_position, obstacles):
         """A* pathfinding to target position with obstacle avoidance"""
-        start = self.position
         goal_orientation = (target_position[2] + 180) % 360
         goal = (target_position[0], target_position[1], goal_orientation)
         open_set = [(0, start)]
@@ -227,7 +226,8 @@ class Mapping:
             "bottle": (4, 0, 270)
         }
         self.obstacles = {"obstacle": (-1, 0, 0)}
-        self.excluded_points = {(l[0], l[1]) for l in self.landmarks.values()}
+        # self.excluded_points = {(l[0], l[1]) for l in self.landmarks.values()}
+        self.excluded_points = {}
         self.border_points = self.generate_border_points()
         self.add_border_obstacles()
 
@@ -247,14 +247,16 @@ class Mapping:
             if (point[0], point[1]) not in self.excluded_points:
                 self.obstacles[f"border_{idx}"] = (point[0], point[1], 0)
 
-# Initialize Mapping
-mapping = Mapping()
+# ### Initialize Mapping
+# mapping = Mapping()
 
-# Run simulation with obstacle avoidance
-robot = NaviModel((0, 0, 180))
-target = mapping.landmarks["tv"]
-path_to_target = robot.navigate_to(target, mapping.obstacles)
+# ### Run simulation with obstacle avoidance
+# navi_model = NaviModel((0, 0, 180))
+# # target = mapping.landmarks["tv"]
+# target = (-4, -1, 90)
+# path_to_target = navi_model.navigate_to(navi_model.position, target, mapping.obstacles)
 
-# Run animation
-animator = PathAnimator(robot.position, target, path_to_target, mapping.landmarks, mapping.obstacles)
-animator.animate()
+# ### Run animation
+# print(path_to_target)
+# animator = PathAnimator(navi_model.position, target, path_to_target, mapping.landmarks, mapping.obstacles)
+# animator.animate()

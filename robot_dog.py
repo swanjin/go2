@@ -229,7 +229,7 @@ class Dog:
                         if self.env["tts"]:
                             self.ai_client.tts(combined_message)
                     
-                    self.activate_sportclient(assistant.action, int(assistant.move), int(assistant.shift), int(assistant.turn))
+                    self.activate_sportclient_auto(assistant.action, int(assistant.move), int(assistant.shift), int(assistant.turn))
 
                     if formatted_action == 'stop':
                         end_message = "I found the apple, so I'm stopping here. You can now end the chat."
@@ -256,7 +256,7 @@ class Dog:
             if self.env["tts"]:
                 self.ai_client.tts(assistant.action)
             
-            self.activate_sportclient(assistant.action, int(assistant.move), int(assistant.shift), int(assistant.turn))
+            self.activate_sportclient_auto(assistant.action, int(assistant.move), int(assistant.shift), int(assistant.turn))
 
     def user_input(self):
         if self.env["speechable"]:
@@ -285,7 +285,7 @@ class Dog:
                     if assistant is not None:
                         print(assistant.action)
                         print(assistant.reason)
-                        self.activate_sportclient(assistant.action, int(assistant.move), int(assistant.shift), int(assistant.turn))
+                        self.activate_sportclient_auto(assistant.action, int(assistant.move), int(assistant.shift), int(assistant.turn))
                         # if self.env["tts"]:
                         #     self.ai_client.tts(assistant.action)
                             
@@ -305,7 +305,7 @@ class Dog:
                 self.sport_client.StopMove()
                 time.sleep(dt)
 
-    def activate_sportclient(self, action, move, shift, turn):
+    def activate_sportclient_auto(self, action, move, shift, turn):
         if self.env["woz"]:
             print("Executing WOZ movement sequence:")
             print("1. Turn right")
@@ -348,7 +348,26 @@ class Dog:
                             self.VelocityMove(*velocity)
                     else:
                         print("Action not recognized: " + ans)
-        return 0
+
+    def activate_sportclient_feedback(self, actions):
+        if actions == ['stop']:
+            self.sport_client.StopMove()
+        else:
+            action_map = {
+                'move forward': (0.5, 0, 0),
+                'move backward': (-0.5, 0, 0),
+                'shift right': (0, -0.5, 0),
+                'shift left': (0, 0.5, 0),
+                'turn right': (0, 0, -1.5),
+                'turn left': (0, 0, 1.5)
+            }
+            
+            for action in actions:
+                if action in action_map:
+                    velocity = action_map[action]
+                    self.VelocityMove(*velocity)
+                else:
+                    print("Not in action_map: " + action)
 
     def run_gpt(self):
         self.robot_auto_thread = threading.Thread(target=self.queryGPT_by_LLM)

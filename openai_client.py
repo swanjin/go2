@@ -11,6 +11,7 @@ import cv2
 
 from ai_client_base import AiClientBase, ResponseMessage
 from vision import VisionModel
+from navigation import NaviModel, Mapping
 # from round import Round
 import utils
 from round import Round
@@ -19,51 +20,54 @@ class OpenaiClient(AiClientBase):
     def __init__(self, env, key):
         # Call the parent class's constructor to initialize system_prompt and other attributes
         super().__init__(env)
-        
-        self.client = OpenAI(api_key=key)
         self.env = env
         self.image_counter = 0
         self.history = "None."
-        self.vision_model = VisionModel(env)
-        self.message = []
+        self.msg = []
+        self.msg_feedback = []
         self.round_list = []
+        self.curr_state = (0,0,0)
+        self.client = OpenAI(api_key=key)
+        self.vision_model = VisionModel(self.env)
+        self.navi_model = NaviModel(self.curr_state)
+        self.mapping = Mapping()
 
         try:
             os.makedirs('test', exist_ok=True)
             self.save_dir = f"test/test_{datetime.datetime.now().strftime('%Y%m%d%H%M%S')}"
             os.mkdir(self.save_dir)
-            self.history_log_file = open(f"{self.save_dir}/history.log", "a+") # append: a+ overwrite: w+
+            self.log_file = open(f"{self.save_dir}/history.log", "a+") # append: a+ overwrite: w+
         except Exception as e:
             print(f"Failed to create directory: {e}")
 
     def set_target(self, target):
         self.target = target
 
-    def save_round(self, assistant, feedback, image_description_str):
-        # Update history.log
-        self.history_log_file.write(f"\n=== image{len(self.round_list)+1} ===\n")
+    def update_log(self, assistant, feedback, image_description_str):
+        self.log_file.write(f"\n=== image{len(self.round_list)+1} ===\n")
         
         if image_description_str == "No objects related to the target is detected.":
-            self.history_log_file.write(f"Image Analysis: \n None. \n")
+            self.log_file.write(f"Image Analysis: \n None. \n")
         else: 
-            self.history_log_file.write(f"Image Analysis: \n{image_description_str} \n")
+            self.log_file.write(f"Image Analysis: \n{image_description_str} \n")
 
         if feedback:
-            self.history_log_file.write(f"Feedback: \n {feedback} \n")
+            self.log_file.write(f"Feedback: \n {feedback} \n")
 
         if assistant is None:
-            self.history_log_file.write(f"Response: \n None.")  # This prevents logging False
+            self.log_file.write(f"Response: \n None.")  # This prevents logging False
         else:
-            self.history_log_file.write(
+            self.log_file.write(
                 f"Response: \n"
                 f"Action) {assistant.action} \n"
                 f"Move) {assistant.move} \n"
                 f"Shift) {assistant.shift} \n"
                 f"Turn) {assistant.turn} \n"
+                f"New state) {assistant.new_state} \n"
                 f"Reason) {assistant.reason} \n"
             )
 
-        self.history_log_file.flush()
+        self.log_file.flush()
 
     def update_history_prompt(self, assistant, feedback, image_description_str):
         self.round_list.append(Round(len(self.round_list) + 1, assistant, feedback))
@@ -72,15 +76,12 @@ class OpenaiClient(AiClientBase):
         self.history = self.history if round_number > 1 else "None."   
         self.history += (
             f"- Round {round_number}: "
-            f"The user provided feedback: {feedback}. "
-            f"From the tuple {assistant.curr_state}, {image_description_str} "
-            f"The likelihood of target presence at this tuple was {assistant.likelihood}. "
-            f"You executed the '{assistant.action}' action which led to the updated tuple of {assistant.new_state}. \n"
+            f"Conversation between Go2: {feedback}. "
+            f"From the state {assistant.curr_state}, {image_description_str} "
+            f"The likelihood of target presence at this state was {assistant.likelihood}. "
+            f"You executed the '{assistant.action}' action which led to the updated state of {assistant.new_state}. \n"
         )
         # self.history += "None."
-
-    def append_message(self, message_role: str, message_content: str):
-        self.message.append({"role": message_role, "content": message_content})
 
     def construct_image_analysis(self, image_description_str):
         return (
@@ -101,12 +102,23 @@ class OpenaiClient(AiClientBase):
             image_analysis.description = "No objects related to the target is detected."
         return image_analysis.frame, image_analysis.description # array, string
 
-    def get_ai_response(self):
+    def append_message(self, message, message_role: str, message_content: str):
+        message.append({"role": message_role, "content": message_content})
+
+    def get_ai_response(self, message):
         result = self.client.chat.completions.create(
-        model="gpt-4o",
-            messages=self.message
+            model=self.env['ai_model'],
+            messages=message
         )
         return result.choices[0].message.content
+    
+    def string_to_tuple(self, input_string):
+        # Remove markdown code block formatting if present
+        cleaned_string = input_string.replace('```', '').strip()
+        # Remove any newlines
+        cleaned_string = cleaned_string.replace('\n', '')
+        # Parse the tuple
+        return tuple(map(int, cleaned_string.strip("()").split(",")))
 
     def get_response_by_LLM(self, image_pil, dog_instance, feedback = None):   
         # Check for feedback interruption early in the function
@@ -121,11 +133,11 @@ class OpenaiClient(AiClientBase):
         image_bboxes_array, image_description_str = self.analyze_image(image_pil)
         
         # Initialize messages
-        self.message = []
-        self.append_message("user", self.user_prompt_auto())
-        self.append_message("user", self.construct_image_analysis(image_description_str))
-        self.append_message("user", self.construct_history(self.history))
-        self.append_message("user", self.response_format_auto())
+        self.msg = []
+        self.append_message(self.msg, "user", self.user_prompt_auto(self.curr_state))
+        self.append_message(self.msg, "user", self.construct_image_analysis(image_description_str))
+        self.append_message(self.msg, "user", self.construct_history(self.history))
+        self.append_message(self.msg, "user", self.response_format_auto())
             
         if self.env["print_history"]:
             print(self.history)
@@ -135,7 +147,7 @@ class OpenaiClient(AiClientBase):
             dog_instance.round_number += 1
             return None
 
-        rawAssistant = self.get_ai_response()
+        rawAssistant = self.get_ai_response(self.msg)
         assistant = ResponseMessage.parse(rawAssistant)
 
         # Check for feedback interruption early in the function
@@ -143,10 +155,12 @@ class OpenaiClient(AiClientBase):
             dog_instance.round_number += 1
             return None  
 
-        # store data and reset messages
+        # update data and reset messages
+        self.curr_state = assistant.new_state
         self.store_image(image_bboxes_array)
-        self.save_round(assistant, feedback, image_description_str)
+        self.update_log(assistant, feedback, image_description_str)
         self.update_history_prompt(assistant, feedback, image_description_str)
+        self.msg = []
 
         return assistant
 
@@ -155,37 +169,49 @@ class OpenaiClient(AiClientBase):
         image_bboxes_array, image_description_str = self.analyze_image(image_pil)
 
         # Initialize messages
-        self.message = []
-        self.append_message("user", self.user_prompt_feedback())
-        self.append_message("user", self.construct_image_analysis(image_description_str))
-        self.append_message("user", self.construct_history(self.history))      
+        self.append_message(self.msg_feedback, "user", self.user_prompt_feedback(self.curr_state))
+        self.append_message(self.msg_feedback, "user", self.construct_image_analysis(image_description_str))
+        self.append_message(self.msg_feedback, "user", self.construct_history(self.history))      
+
+        # Save conversation
+        self.log_file.write(f"\n=== Conversation ===\n")
 
         return image_bboxes_array, image_description_str
 
     def get_response_by_feedback(self, user_input):
-        self.append_message("user", self.response_format_feedback())
-        self.append_message("user", user_input)      
+        self.append_message(self.msg_feedback, "user", self.response_format_feedback())
+        self.append_message(self.msg_feedback, "user", user_input)      
 
-        rawAssistant = self.get_ai_response()
-        self.append_message("assistant", rawAssistant)
+        rawAssistant = self.get_ai_response(self.msg_feedback)
+        self.append_message(self.msg_feedback, "assistant", rawAssistant)
+
+        # Save conversation
+        self.log_file.write(f"User: \n {user_input} \n")
+        self.log_file.write(f"Assistant: \n {rawAssistant} \n")
 
         return rawAssistant
         
     def execute_feedback(self, user_input, image_bboxes_array, image_description_str):     
-        self.append_message("user", self.response_format_feedback()) 
-        self.append_message("user", user_input)
-
-        new_state = self.get_ai_response()
+        self.append_message(self.msg_feedback, "user", self.response_format_execute_feedback()) 
+        self.append_message(self.msg_feedback, "user", user_input)
+        print(self.msg_feedback)
+        new_state = self.string_to_tuple(self.get_ai_response(self.msg_feedback))
+        action_to_goal = self.navi_model.navigate_to(self.navi_model.position, new_state, self.mapping.obstacles)
 
         # Put feedback mode label on the image
         image_pil_fmode = utils.put_text_top_left(image_bboxes_array, text="feedback mode")
         
-        # # store data and reset messages
-        # self.store_image(image_pil_fmode)
-        # self.save_round(assistant, user_input, image_description_str)
-        # self.update_history_prompt(assistant, user_input, image_description_str)
+        # Save conversation
+        self.log_file.write(f"User: \n {user_input} \n")
 
-        return new_state
+        # store data and reset messages
+        self.curr_state = new_state
+        # self.store_image(image_pil_fmode)
+        # self.update_log(assistant, user_input, image_description_str)
+        # self.update_history_prompt(assistant, user_input, image_description_str)
+        self.msg_feedback = []
+
+        return action_to_goal
 
     def stt(self, voice_buffer):
         container = voice_buffer
@@ -239,7 +265,7 @@ class OpenaiClient(AiClientBase):
             os.close(original_stderr)
 
     def close(self):
-        self.history_log_file.close()
+        self.log_file.close()
 
     def is_feedback_mode_exit(self, input): 
         messages = [
@@ -256,10 +282,8 @@ class OpenaiClient(AiClientBase):
         ]
 
         params_for_interpreter = {
-            "model": "gpt-4o",
+            "model": self.env['ai_model'],
             "messages": messages,
-            "max_tokens": 200,
-            "temperature": 0
         }
 
         try:

@@ -239,7 +239,7 @@ class Dog:
                 action_parsed = assistant.action.strip('* ').lower()
                 print(action_parsed)
                 print(assistant.reason)
-                self.activate_sportclient(action_parsed)
+                self.activate_sportclient_auto(action_parsed)
                 if self.env["tts"]:
                     self.ai_client.tts(action_parsed)
                     self.ai_client.tts(assistant.reason)
@@ -271,13 +271,13 @@ class Dog:
                 action_parsed = assistant.action.strip('* ').lower()
                 print(action_parsed)
                 print(assistant.reason)
-                self.activate_sportclient(assistant.action)
+                self.activate_sportclient_auto(assistant.action)
                 if self.env["tts"]:
                     self.ai_client.tts(assistant.reason)
                 self.pause_by_trigger = False
                 self.feedback_end.put(1)
 
-    def activate_sportclient(self, ans):
+    def activate_sportclient_auto(self, ans):
         # if len(sys.argv) < 2:
         #     print(f"Usage: {sys.argv[0]} networkInterface")
         #     return -1

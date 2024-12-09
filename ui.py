@@ -184,16 +184,10 @@ class SendMessageThread(QThread):
             self.input_widget_signal.emit(True)
             
             QTimer.singleShot(100, self.activate_feedback_mode_signal.emit)
-
-            self.dog.ai_client.history_log_file.write(f"\n=== Conversation ===\n")
-            self.dog.ai_client.history_log_file.flush()
             
         elif self.message_data.feedback_mode and self.message_data.awaiting_feedback:
             print("\n=== Processing feedback in UI ===")  # Debug print
             print(f"Feedback text: '{text}'")  # Debug print
-            
-            self.dog.ai_client.history_log_file.write(f"User: {text} \n")
-            self.dog.ai_client.history_log_file.flush()
 
             frame = self.dog.read_frame()
             print(f"Frame received: {frame is not None}")  # Debug print
@@ -203,10 +197,9 @@ class SendMessageThread(QThread):
                 print("❗ Processing feedback with exclamation mark")              
                 confirmation_msg = "Alright, I'm going to execute your feedback!"
                 
-                # assistant = self.dog.ai_client.execute_feedback(text, image_bboxes_array, image_description)
-                # print(f"🤖 AI interpreted action: {assistant.action if hasattr(assistant, 'action') else 'None'}")
-                # self.message_data.pending_feedback_action = assistant
-                self.message_data.pending_feedback_action = ['turn right']
+                action = self.dog.ai_client.execute_feedback(text, image_bboxes_array, image_description)
+                print(f"🤖 AI interpreted action: {action}")
+                self.message_data.pending_feedback_action = action
 
                 self.add_robot_message_signal.emit(confirmation_msg, None)
                 if self.dog.env["tts"]:
@@ -221,9 +214,6 @@ class SendMessageThread(QThread):
                 self.add_robot_message_signal.emit(answer, None)
                 if self.dog.env["tts"]:
                     QTimer.singleShot(300, lambda: self.play_tts_signal.emit(answer))
-                
-                self.dog.ai_client.history_log_file.write(f"Go2: {answer} \n")
-                self.dog.ai_client.history_log_file.flush()
 
         else:
             print("Type 'feedback' to give feedback")  # Debug print
@@ -585,8 +575,6 @@ class RobotDogUI(QMainWindow):
         self.add_robot_message(reject_msg)
         self.dog.ai_client.openai_params_for_text["messages"] = self.dog.ai_client.openai_params_for_text["messages"][:-1]
         self.dog.ai_client.openai_params_for_text["messages"].append({"role": "assistant", "content": reject_msg})
-        self.dog.ai_client.history_log_file.write(f"Go2: {reject_msg} \n")
-        self.dog.ai_client.history_log_file.flush()
 
         if self.dog.env["tts"]:
             QTimer.singleShot(300, lambda: self.play_tts(reject_msg))
@@ -615,26 +603,21 @@ class RobotDogUI(QMainWindow):
         if self.dog.env["tts"]:
             QTimer.singleShot(300, lambda: self.play_tts(response))
 
-    def execute_feedback_action(self, assistant):
+    def execute_feedback_action(self, action):
         try:
-            if not assistant:
-                print("Error: No assistant object provided")
+            if not action:
+                print("Error: No actions provided")
                 return
             
-            print("Executing feedback with assistant:", assistant)  # 디버그 출력
+            print("Executing feedback with actions:", action)  # 디버그 출력
             
             # # action 확인
-            # if not hasattr(assistant, 'action'):
+            # if not hasattr(action, 'action'):
             #     print("Error: Assistant has no action attribute")
             #     return
             
             # 로봇 동작 실행
-            self.dog.activate_sportclient(
-                assistant.action,
-                int(assistant.move),
-                int(assistant.shift),
-                int(assistant.turn)
-            )
+            self.dog.activate_sportclient_feedback(action)
             
             # 실행 완료 처리
             QTimer.singleShot(3000, self.complete_feedback)

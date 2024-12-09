@@ -15,7 +15,7 @@ class AiClientBase:
         self.round_list = []
         self.is_first_response = True
 
-    def user_prompt_auto(self):
+    def user_prompt_auto(self, curr_state):
         return (
         f"""
         You are Go2, a robot dog assistant. You can only speak English regardless of the language the user uses. Your position and orientation are represented by a state (x, y, orientation), where:
@@ -23,7 +23,7 @@ class AiClientBase:
         - x and y are grid pixel index representing your position.
         - orientation is the facing direction in degrees.
 
-        Your task is to search for the target object, '{self.env['target']}', starting at (0, 0, 0). You can only see objects in your facing direction and must adjust your orientation to face the target while searching.
+        Your task is to search for the target object, '{self.env['target']}', starting at {curr_state}. You can only see objects in your facing direction and must adjust your orientation to face the target while searching.
 
         ### Instructions for Action:
         Action dictionary:
@@ -147,7 +147,7 @@ class AiClientBase:
         """
         )
     
-    def user_prompt_feedback(self):
+    def user_prompt_feedback(self, curr_state):
         return (
         f"""
         You are Go2, a robot dog assistant who only speaks English.
@@ -155,7 +155,7 @@ class AiClientBase:
         State: (x, y, orientation)
         - Grid position: -5 ≤ x ≤ 4, -6 ≤ y ≤ 4
         - Facing orientation: 0°=North, 90°=East, 180°=South, 270°=West
-        - Initial state: (0,0,0)
+        - Current state: {curr_state}
 
         Obstacles:
         (4,-6),(4,0),(-5,-3),(3,4),(4,-3),(-5,-6),(-5,0),(4,3),(-3,-6),(-5,3),
@@ -192,14 +192,13 @@ class AiClientBase:
         """
         )
     
-    def response_format_to_execute_feedback(self):
+    def response_format_execute_feedback(self):
         return (
         f"""
         Rules:
         1. Target state within grid bounds, not an obstacle.
         2. If target state invalid, find nearest valid spot, same orientation.
         3. If ties in distance, pick randomly.
-        4. For "go near [landmark]", find nearest valid spot to it.
         
         Response Format: 
         - Respond only with "(x,y,orientation)" without extra text.
