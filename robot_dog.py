@@ -312,7 +312,7 @@ class Dog:
                             velocity = action_map[action]
                             self.VelocityMove(*velocity)
                         else:
-                            print("Action not recognized: " + actions)
+                            print("Action not recognized: " + action)
 
     def run_gpt(self):
         self.robot_auto_thread = threading.Thread(target=self.queryGPT_by_LLM)

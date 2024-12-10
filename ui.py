@@ -635,7 +635,7 @@ class RobotDogUI(QMainWindow):
             self.resume_auto_mode()
 
     def complete_feedback(self):
-        resume_msg = "I am going process your feedback and back to automatic search mode now."
+        resume_msg = "I just processed your feedback. I'm back to automatic search mode now."
         self.add_robot_message(resume_msg)
         
         if self.dog.env["tts"]:

@@ -216,16 +216,16 @@ class Mapping:
         self.landmarks = {
             "refrigerator": (4, 4, 0),
             "kitchen": (0, 4, 0),
-            "tv": (-5, -1, 270),
+            "tv": (-4, -1, 270),
             "desk": (-3, -6, 180),
             "cabinet": (0, -6, 180),
-            "sofa": (4, -3, 90),
+            "sofa": (4, -2, 90),
             "banana": (2, 4, 0),
-            "bottle": (4, 0, 90)
+            "bottle": (4, -1, 90)
         }
         self.obstacles = {
-            "obstacle1": (-1, 0, 0),
-            "obstacle2": (-2, 0, 0)
+            "obstacle1": (-1, 1, 0),
+            "obstacle2": (-2, 1, 0)
         }
         # self.excluded_points = {(l[0], l[1]) for l in self.landmarks.values()}
         self.excluded_points = {}
@@ -234,11 +234,11 @@ class Mapping:
 
     def generate_border_points(self):
         border_points = []
-        for i in range(-5, 5):
+        for i in range(-4, 5):
             border_points.extend([
                 (i, 4),    # top border
                 (i, -6),   # bottom border
-                (-5, i-1), # left border
+                (-4, i-1), # left border
                 (4, i-1)   # right border
             ])
         return border_points
