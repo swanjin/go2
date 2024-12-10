@@ -249,30 +249,20 @@ class OpenaiClient(AiClientBase):
     def close(self):
         self.log_file.close()
 
-    def is_feedback_mode_exit(self, input): 
-        messages = [
-            {"role": "system", "content": """
-        You are Go2, a robot dog assistant. You can only speak English even if the user speaks other languages. Your task is to search for a target object. You operate in two modes:
-        1. Automatic Search Mode: Search independently based on your discretion.
-        2. Feedback Mode: Follow user guidance to locate the object.
-
-        You are currently in Feedback Mode. Your job is to evaluate the user's input and decide whether to switch back to Automatic Search Mode or stay in Feedback Mode.
-
-        If the user's input indicates a desire to switch back to Automatic Search Mode, respond with 'true'. For all other inputs, respond with 'false'.
-        """},
-            {'role': 'user', 'content': input}
-        ]
-
-        params_for_interpreter = {
-            "model": self.env['ai_model'],
-            "messages": messages,
-        }
+    def is_instruction_command(self, input): 
+        msg = []
+        prompt = (
+            "You are Go2, a helpful robot dog assistant who only speaks English. "
+            "Your task: Determine if the user input is an instruction or command asking you to do execute the action. "
+            "If yes, respond with 'true'. If no, respond with 'false'."
+        )
+        self.append_message(msg, "user", prompt)
+        self.append_message(msg, "user", input)
 
         try:
-            result = self.client.chat.completions.create(**params_for_interpreter)
-            assistant_response = result.choices[0].message.content.strip()  # Strip unnecessary whitespace
-            exit_fmode = assistant_response.lower() == "true"
+            rawAssistant = self.get_ai_response(msg)
+            is_command = rawAssistant.lower() == "true"
         except (KeyError, IndexError, AttributeError) as e:
-            print(f"Error in is_feedback_mode_exit: {e}")
+            print(f"Error in is_instruction_command: {e}")
             return False
-        return exit_fmode
+        return is_command

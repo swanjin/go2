@@ -195,12 +195,13 @@ class SendMessageThread(QThread):
             print(f"Frame received: {frame is not None}")  # Debug print
             image_bboxes_array, image_description = self.dog.ai_client.feedback_mode_on(frame)
 
-            if text.endswith("!"):
-                print("❗ Processing feedback with exclamation mark")              
+            if self.dog.ai_client.is_instruction_command(text):
+            # if text.endswith("!"):
+                print("❗ Processing instruction or command")              
                 # confirmation_msg = "Alright, I'm going to execute your feedback!"
                 
                 assistant = self.dog.ai_client.execute_feedback(text, image_bboxes_array, image_description)
-                print(f"🤖 Navigation model executed action: {assistant.action}")
+                print(f"🤖 Action determined by the navigation model: {assistant.action}")
                 self.message_data.pending_feedback_action = assistant.action
 
                 # self.add_robot_message_signal.emit(confirmation_msg, None)

@@ -78,6 +78,10 @@ class NaviModel:
 
     def navigate_to(self, start, goal, obstacles):
         """A* pathfinding to target position with obstacle avoidance"""
+        # Debugging message for target being an obstacle
+        if (goal[0], goal[1]) in [(obs[0], obs[1]) for obs in obstacles.values()]:
+            print(f"Error: Target {goal} is an obstacle point.")
+
         open_set = [(0, start)]
         came_from = {}
         cost_so_far = {start: 0}
