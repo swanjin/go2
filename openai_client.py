@@ -26,14 +26,14 @@ class OpenaiClient(AiClientBase):
         self.msg_feedback = []
         self.round_number = 1
         self.chat = []
-        self.curr_state = (0,0,0)
+        self.curr_state = (0,0,270)
         self.memory_list = []
         self.is_initial_prompt_feedback = True
         self.is_initial_response_format_feedback = True
 
         self.client = OpenAI(api_key=key)
         self.vision_model = VisionModel(self.env)
-        self.navi_model = NaviModel(self.curr_state)
+        self.navi_model = NaviModel()
         self.mapping = Mapping()
 
         try:
@@ -181,7 +181,7 @@ class OpenaiClient(AiClientBase):
         self.append_message(self.msg_feedback, "user", self.response_format_execute_feedback()) 
 
         new_state = utils.string_to_tuple(self.get_ai_response(self.msg_feedback))
-        action_to_goal = self.navi_model.navigate_to(self.navi_model.position, new_state, self.mapping.obstacles)
+        action_to_goal = self.navi_model.navigate_to(self.curr_state, new_state, self.mapping.obstacles)
         assistant = ResponseMsg(self.curr_state, new_state, action_to_goal, "")
 
         # Update data

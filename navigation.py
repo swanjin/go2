@@ -4,9 +4,6 @@ from matplotlib.patches import Polygon
 from matplotlib.animation import FuncAnimation
 
 class NaviModel:
-    def __init__(self, start_position):
-        self.position = start_position  # (x, y, orientation)
-
     @staticmethod
     def heuristic(a, b):
         """Manhattan distance heuristic for grid navigation"""
@@ -221,7 +218,8 @@ class Mapping:
             "cabinet": (0, -6, 180),
             "sofa": (4, -2, 90),
             "banana": (2, 4, 0),
-            "bottle": (4, -1, 90)
+            "bottle": (4, -1, 90),
+            "apple": (-2, -2, 270) # temporary
         }
         self.obstacles = {
             "obstacle1": (-1, 1, 0),
@@ -253,11 +251,12 @@ if __name__ == "__main__":
     mapping = Mapping()
 
     # Run simulation with obstacle avoidance
-    navi_model = NaviModel((0, 0, 0))
-    target = (2, 3, 0)
-    path_to_target = navi_model.navigate_to(navi_model.position, target, mapping.obstacles)
+    navi_model = NaviModel()
+    start = (3, 3, 90)
+    target = (3, 3, 0)
+    path_to_target = navi_model.navigate_to(start, target, mapping.obstacles)
     print("Path to target:", path_to_target)
 
     # Run animation
-    animator = PathAnimator(navi_model.position, target, path_to_target, mapping.landmarks, mapping.obstacles)
+    animator = PathAnimator(start, target, path_to_target, mapping.landmarks, mapping.obstacles)
     animator.animate()

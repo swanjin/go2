@@ -4,6 +4,7 @@ import textwrap
 from PIL import Image, ImageDraw, ImageFont
 import cv2
 import numpy as np
+import ast
 
 def alarm_handler(signum, frame):
     raise TimeoutError
@@ -161,11 +162,31 @@ def OpenCV2PIL(opencv_image):
     return pil_image
 
 def string_to_list(action: str):
-    # action = action.replace(".", "").lower()
-    # if action.startswith("[") or action.endswith("]"):
-    #     action = action[2:-2]
-    actions = [act.strip() for act in action.split(',')]
-    return actions
+    """
+    Converts a string action into a list of actions.
+    
+    - If the action is a string representation of a list (e.g., "['turn right']"),
+      it parses and returns the list.
+    - If the action is a simple string (e.g., 'turn right'), it returns a list containing that string.
+    
+    Args:
+        action (str): The action string to convert.
+        
+    Returns:
+        list: A list of action strings.
+    """
+    action = action.strip()
+    try:
+        # Attempt to parse the string as a Python literal (e.g., list)
+        parsed_action = ast.literal_eval(action)
+        if isinstance(parsed_action, list):
+            # Ensure all elements are stripped of whitespace
+            return [act.strip() for act in parsed_action]
+    except (ValueError, SyntaxError):
+        # If parsing fails, treat the input as a single action string
+        pass
+    # Return the action as a single-element list
+    return [action]
 
 def string_to_tuple(input_string):
     # Remove markdown code block formatting if present

@@ -60,25 +60,25 @@ class AiClientBase:
             3. Based on these checks, confirm which subcase (1.1, 1.2, or 1.3) applies and proceed with the specified action.
 
         #### Case 2: The '{self.env['target']}' is **not detected** in the 'Detection' section.
-        - **Subcase 2.1**: The '{self.env['object1']}' is **not detected** in the 'Detection' section.
-            - **Action**: Explore different orientations by turning 1 time . Do not change your position (x, y).
+        - **Subcase 2.1**: The {self.env['object1']} is **not detected** in the 'Detection' section.
+            - **Action**: Rotate once to explore a different orientation without changing your position (x, y). Avoid exploring any orientation that was already explored at the same position (x, y) during previous rounds, as recorded in the 'Memory' section.
             - **Note**: Avoid revisiting orientations that have already been explored at the same position without detecting the '{self.env['target']}' according to the 'Memory' section.
 
-        - **Subcase 2.2**: The '{self.env['object1']}' **is detected** in the 'Detection' section, and its distance is **more than** the stopping threshold ('{self.env['hurdle_meter_for_non_target']}').
-            - **Action**: Adjust your position (x, y) vertically towards the detected '{self.env['object1']}'. Do not explore different orientations with the number of times as below.
-                - If the chosen action is 'move forward' and the distance to '{self.env['object1']}' is less than '{self.env['hurdle_meter_for_non_target']}', execute 0 times.
-                - If the chosen action is 'move forward' and the distance to '{self.env['object1']}' is between '{self.env['hurdle_meter_for_non_target']}' and 2.5 meters, execute 1 times.
+        - **Subcase 2.2**: The {self.env['object1']} **is detected** in the 'Detection' section, and its distance is **more than** the stopping threshold ('{self.env['hurdle_meter_for_non_target']}').
+            - **Action**: Adjust your position (x, y) vertically towards the detected {self.env['object1']}. Do not explore different orientations with the number of times as below.
+                - If the chosen action is 'move forward' and the distance to {self.env['object1']} is less than '{self.env['hurdle_meter_for_non_target']}', execute 0 times.
+                - If the chosen action is 'move forward' and the distance to {self.env['object1']} is between '{self.env['hurdle_meter_for_non_target']}' and 2.5 meters, execute 1 times.
                 - Otherwise, execute 2 times.
 
-        - **Subcase 2.3**: The '{self.env['object1']}' **is detected** in the 'Detection' section, and its distance is **less than** the stopping threshold ('{self.env['hurdle_meter_for_non_target']}').
-            - **Action**: Explore different orientations by turning 1 time. Do not change your position (x, y).
+        - **Subcase 2.3**: The {self.env['object1']} **is detected** in the 'Detection' section, and its distance is **less than** the stopping threshold ('{self.env['hurdle_meter_for_non_target']}').
+            - **Action**: Rotate once to explore a different orientation without changing your position (x, y). Avoid exploring any orientation that was already explored at the same position (x, y) during previous rounds, as recorded in the 'Memory' section.
             - **Note**: Avoid revisiting orientations that have already been explored at the same position without detecting the '{self.env['target']}' according to the 'Memory' section.
 
         - **Verification Step for Case 2**:
             - Ensure the following before proceeding:
             1. Have you checked whether the '{self.env['target']}' is **not detected** in the 'Detection' section?
-            2. Have you confirmed the presence or absence of '{self.env['object1']}' in the 'Detection' section?
-            3. If '{self.env['object1']}' is detected:
+            2. Have you confirmed the presence or absence of {self.env['object1']} in the 'Detection' section?
+            3. If {self.env['object1']} is detected:
                 - Have you measured the distance accurately against the stopping threshold ('{self.env['hurdle_meter_for_non_target']}')?
             4. Based on these checks, confirm which subcase (2.1, 2.2, or 2.3) applies and proceed with the specified action.
 
@@ -117,6 +117,7 @@ class AiClientBase:
         )
     
     def user_prompt_feedback(self, curr_state):
+        # apple is temporary
         return (
         f"""
         You are Go2, a robot dog assistant who only speaks English.
@@ -130,10 +131,9 @@ class AiClientBase:
         Landmarks:
         "refrigerator":(4,4,0),"kitchen":(0,4,0),"TV":(-4,-1,270),
         "desk":(-3,-6,180),"cabinet":(0,-6,180),"sofa":(4,-2,90),
-        "banana":(2,4,0),"bottle":(4,-1,90)
+        "banana":(2,4,0),"bottle":(4,-1,90), "apple":(-2,-2,270) 
         """
         )
-
 
     def response_format_auto(self):
         return (
@@ -147,7 +147,7 @@ class AiClientBase:
         - Explain your choice of actions in one concise complete sentence.
         - Don't mention about case/subcase number and any section name.
         - If you need to mention about whether the '{self.env['target']}' is in the left/middle/right third of the image, just say 'left', 'middle', or 'right' without mentioning the 'third'. 
-        - If '{self.env['object1']}' is not detected in the 'Detection' section, you must not mention anything about '{self.env['object1']}'. Even if the reasoing behind your action considers whether '{self.env['object1']}' is detected or not, you must not mention any about '{self.env['object1']}'. Even if '{self.env['object1']}' is detected at previous rounds in the 'Memory' section, you must not mention anything about '{self.env['object1']}' in your reasoning. You can mention about '{self.env['object1']}' in your reasoning only if '{self.env['object1']}' is detected in the 'Detection' section, **not in the 'Memory' section.** 
+        - If {self.env['object1']} is not detected in the 'Detection' section, you must not mention anything about {self.env['object1']}. Even if the reasoing behind your action considers whether {self.env['object1']} is detected or not, you must not mention any about {self.env['object1']}. Even if {self.env['object1']} is detected at previous rounds in the 'Memory' section, you must not mention anything about {self.env['object1']} in your reasoning. You can mention about {self.env['object1']} in your reasoning only if {self.env['object1']} is detected in the 'Detection' section, **not in the 'Memory' section.** 
         """
         )
     
@@ -163,8 +163,9 @@ class AiClientBase:
         
         Rules:
         1. Target state within grid bounds, not an obstacle.
-        2. If target state invalid, find nearest valid spot, same orientation.
-        3. If ties in distance, pick randomly.
+        2. If target state based on a landmark, set orientation to landmark's orientation.
+        3. If target state invalid, find nearest valid spot, same orientation.
+        4. If ties in distance, pick randomly.
         
         Response Format: 
         - Respond only with "(x,y,orientation)" without extra text.

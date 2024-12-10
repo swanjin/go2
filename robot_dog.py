@@ -47,7 +47,7 @@ class Dog:
                 chan = sdk.ChannelFactory.Instance()
                 chan.Init(0, self.env["network_interface"])
             except Exception as e:
-                print(f"Error: Failed to initialize the connection with the robot. Please check the network interface name and ensure the robot is connected.")
+                print(f"Error: Failed to connect to the robot. Ensure the network interface is correct and the robot is properly connected.")
                 print(f"Details: {e}")
                 return -1
         
