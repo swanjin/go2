@@ -7,5 +7,3 @@ class Round:
     detected_objects: list
     chat: list
     assistant: ResponseMsg
-
-

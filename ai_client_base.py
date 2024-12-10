@@ -23,7 +23,7 @@ class AiClientBase:
         - x and y are grid pixel index representing your position.
         - orientation is the facing direction in degrees.
 
-        Your task is to search for the target object, '{self.env['target']}', starting at {curr_state}. You can only see objects in your facing direction and must adjust your orientation to face the target while searching.
+        Your task is to search for the target object, '{self.env['target']}'. Current state is {curr_state}. You can only see objects in your facing direction and must adjust your orientation to face the target while searching.
 
         ### Instructions for Action:
         Action dictionary:

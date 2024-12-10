@@ -23,7 +23,7 @@ def import_langsam():
 class VisionResponse:
     frame: "cv2.typing.MatLike"
     detected_objects: list
-
+    description: list
 class VisionModel:
     def __init__(self, env, depth_model_checkpoint="Intel/zoedepth-nyu-kitti"):
         """
@@ -233,6 +233,7 @@ class VisionModel:
         center_depths = self.depth_estimation(image_pil, boxes)
 
         detected_objects = []
+        description = []
         depth_threshold = self.env["depth_threshold"]
 
         # Process each detected object on the CPU (text formatting, logic is more efficient on CPU)
@@ -250,8 +251,8 @@ class VisionModel:
             center_y = (y1 + y2) / 2
 
             # Generate description for each detected object (on CPU)
-            # description.append(f"You detected {label} at pixel index ({center_x:.0f}, {center_y:.0f}) with a distance of {avg_depth:.2f} meters.")
             detected_objects.append(f"{label}")
+            description.append(f"You detected {label} at pixel index ({center_x:.0f}, {center_y:.0f}) with a distance of {avg_depth:.2f} meters.")
 
         # Draw bounding boxes and labels on the frame if draw_on_frame is True (done on CPU using OpenCV)
         if draw_on_frame:
@@ -263,7 +264,7 @@ class VisionModel:
                 # cv2.putText(frame, f"{labels[i]}: {average_depths[i]:.1f}m", org, font, 0.5, (0, 0, 255), 1)
                 cv2.putText(image_array, f"{labels[i]}: {scores[i]:.1f}", org, font, 0.5, (0, 0, 255), 1)
 
-        return VisionResponse(image_array, detected_objects)
+        return VisionResponse(image_array, detected_objects, description)
     
     # def store_image(self, cv2_image = None):
     #     if cv2_image is None:

@@ -65,11 +65,17 @@ class OpenaiClient(AiClientBase):
         self.round_number += 1
         self.curr_state = round.assistant.new_state
 
-    def construct_image_analysis(self, detected_objects):
+    def construct_detection_auto(self, description):
         return (
             f"Detection:\n"
             f"(The image size is {self.env['captured_width']}x{self.env['captured_height']}, "
-            f"with the pixel index (0, 0) located at the top-left corner.):\n"
+            f"with the pixel index (0, 0) located at the top-left corner.)\n"
+            f"{description} \n\n"
+        )
+
+    def construct_detection_feedback(self, detected_objects):
+        return (
+            f"Detection:\n"
             f"{detected_objects} \n\n"
         )
 
@@ -80,12 +86,13 @@ class OpenaiClient(AiClientBase):
 
     def analyze_image(self, image_pil):
         image_analysis = self.vision_model.describe_image(image_pil)
-        return image_analysis.frame, image_analysis.detected_objects # array, list
+        return image_analysis.frame, image_analysis.detected_objects, image_analysis.description # array, list, list
 
     def append_message(self, message, message_role: str, message_content: str):
         message.append({"role": message_role, "content": message_content})
 
     def get_ai_response(self, message):
+        # print(message)
         result = self.client.chat.completions.create(
             model=self.env['ai_model'],
             messages=message
@@ -100,10 +107,10 @@ class OpenaiClient(AiClientBase):
         # Parse the tuple
         return tuple(map(int, cleaned_string.strip("()").split(",")))
 
-    def initialize_prompt_auto(self, detected_objects):
+    def initialize_prompt_auto(self, description):
         self.msg.clear()
         self.append_message(self.msg, "user", self.user_prompt_auto(self.curr_state))
-        self.append_message(self.msg, "user", self.construct_image_analysis(detected_objects))
+        self.append_message(self.msg, "user", self.construct_detection_auto(description))
         self.append_message(self.msg, "user", self.construct_memory(self.memory_list))
         self.append_message(self.msg, "user", self.response_format_auto())
     
@@ -112,17 +119,11 @@ class OpenaiClient(AiClientBase):
         if dog_instance.check_feedback_and_interruption():
             return None
         
-        # if chat is None:
-        #     chat = "None"
-
         # Analyze image
-        frame_bboxes_array, detected_objects = self.analyze_image(image_pil)
+        frame_bboxes_array, detected_objects, description = self.analyze_image(image_pil)
         
         # Initialize messages
-        self.initialize_prompt_auto(detected_objects)
-            
-        # if self.env["print_memory"]:
-        #     print(self.memory)
+        self.initialize_prompt_auto(description)
         
         # Check for feedback interruption early in the function
         if dog_instance.check_feedback_and_interruption():
@@ -145,7 +146,7 @@ class OpenaiClient(AiClientBase):
         # Initialize messages
         if self.is_initial_prompt_feedback:
             self.append_message(self.msg_feedback, "user", self.user_prompt_feedback(self.curr_state))
-            self.append_message(self.msg_feedback, "user", self.construct_image_analysis(detected_objects))
+            self.append_message(self.msg_feedback, "user", self.construct_detection_feedback(detected_objects))
             self.append_message(self.msg_feedback, "user", self.construct_memory(self.memory_list))      
             self.is_initial_prompt_feedback = False
 
@@ -156,7 +157,7 @@ class OpenaiClient(AiClientBase):
 
     def feedback_mode_on(self, image_pil):
         # Analyze image
-        frame_bboxes_array, detected_objects = self.analyze_image(image_pil)
+        frame_bboxes_array, detected_objects, description = self.analyze_image(image_pil)
 
         # Initialize messages
         self.initialize_prompt_feedback(detected_objects)
@@ -164,9 +165,9 @@ class OpenaiClient(AiClientBase):
         return frame_bboxes_array, detected_objects
 
     def get_response_by_feedback(self, user_input):
+        self.initialize_response_format_feedback()
         self.append_message(self.msg_feedback, "user", user_input)
         self.append_message(self.chat, "user", user_input)
-        self.initialize_response_format_feedback()
 
         rawAssistant = self.get_ai_response(self.msg_feedback)
         self.append_message(self.msg_feedback, "assistant", rawAssistant)
