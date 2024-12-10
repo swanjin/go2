@@ -17,7 +17,7 @@ import robot_interface as sdk
 
 from vision import VisionModel
 from ai_selector import AiSelector
-from ai_client_base import AiClientBase, ResponseMessage
+from ai_client_base import AiClientBase, ResponseMsg
 import utils
 from recorder import SpeechByEnter
 
@@ -38,9 +38,8 @@ class Dog:
         self.ai_client.dog = self  # Give the client a reference to the dog instance
         self.vision_model = VisionModel(env)
         self.image_files = None  # To store image paths when using test_dataset
-        self.feedback = None
-        self.round_number = 1
-        self.window = None  # Will be set by the UI
+        # self.feedback = None
+        # self.window = None  # Will be set by the UI
 
         # Initialize the communication channel and the sport client
         if self.env["connect_robot"]:
@@ -184,79 +183,47 @@ class Dog:
         return str(actions)
 
     def queryGPT_by_LLM(self):
-        if self.env["use_test_dataset"]:
-            for i, image_file in enumerate(self.image_files):
-                print(f"Round #{i+1}")
-                image_cv = cv2.cvtColor(cv2.imread(image_file), cv2.COLOR_BGR2RGB)
-                frame = Image.fromarray(image_cv)
-                self.process_frame(frame)
-        else:
-            if self.env["woz"]:
-                self.env["max_round"] = 1
-            while self.round_number <= self.env["max_round"]:
-                self.feedback_complete_event.wait()
+        if self.env["woz"]:
+            self.env["max_round"] = 1
+        while self.ai_client.round_number <= self.env["max_round"]:
+            self.feedback_complete_event.wait()
 
-                frame = self.read_frame()
-                print(f"Starting round #{self.round_number}")
+            frame = self.read_frame()
+            print(f"Starting round #{self.ai_client.round_number}")
 
-                if (self.round_number) % self.env["feedback_interval"] == 0:
-                    print("Go2) Would you give any feedback? [Y/n]")
-                    if input("User) ").strip().lower() == "y":
-                        print("Go2) Thanks for your help! Please provide your feedback.")
-                        self.feedback = input("User) ")
+            if self.check_feedback_and_interruption():
+                continue  # Skip the rest of the current iteration and proceed to the next one.
 
+            if not self.env["connect_ai"]:
+                print("Assumed GPT answered")
+            else:
+                assistant = self.ai_client.get_response_by_LLM(frame, dog_instance=self)
+
+                # If get_response_by_LLM returned None, skip the rest of the loop
+                if assistant is None:
+                    continue  # Skip to the next round if interrupted
+        
                 if self.check_feedback_and_interruption():
-                    self.round_number += 1  # Increment round number before continuing
-                    continue  # Skip the rest of the current iteration and proceed to the next one.
+                    continue
+                
+                formatted_action = self.format_actions(assistant.action)
+                combined_message = f"I'm going to {formatted_action}. {assistant.reason}."
+                if self.env["interactive"] or self.env["vo"]:
+                    if self.env["tts"]:
+                        self.ai_client.tts(combined_message)
+                
+                self.activate_sportclient(assistant.action)
 
-                if not self.env["connect_ai"]:
-                    self.ai_client.vision_model_test(frame)
-                    print("Assumed GPT answered")
-                else:
-                    assistant = self.ai_client.get_response_by_LLM(frame, dog_instance=self)
+                if formatted_action == 'stop':
+                    end_message = "I found the apple, so I'm stopping here. You can now end the chat."
+                    if self.env["tts"]:
+                        self.ai_client.tts(end_message)
 
-                    # If get_response_by_LLM returned None, skip the rest of the loop
-                    if assistant is None:
-                        continue  # Skip to the next round if interrupted
-            
-                    if self.check_feedback_and_interruption():
-                        self.round_number += 1
-                        continue
-                    
-                    formatted_action = self.format_actions(assistant.action)
-                    combined_message = f"I'm going to {formatted_action}. {assistant.reason}."
-                    if self.env["interactive"] or self.env["vo"]:
-                        if self.env["tts"]:
-                            self.ai_client.tts(combined_message)
-                    
-                    self.activate_sportclient_auto(assistant.action, int(assistant.move), int(assistant.shift), int(assistant.turn))
-
-                    if formatted_action == 'stop':
-                        end_message = "I found the apple, so I'm stopping here. You can now end the chat."
-                        if self.env["tts"]:
-                            self.ai_client.tts(end_message)
-
-                self.feedback = None
-                print(f"Round {self.round_number} completed.\n")
-                self.round_number += 1
-            
-            print("All rounds completed. Press Enter to end session.")
-            self.session_active_event.clear()  # Indicate that the session is now inactive
-
-    def process_frame(self, frame, feedback):
-        if not self.env["connect_ai"]:
-            self.ai_client.vision_model_test(frame)
-            print("Assumed GPT answered")
-        else:
-            assistant = self.ai_client.get_response_by_LLM(frame, feedback)
-            self.feedback_complete_event.wait()  # Blocks until feedback_complete_event is set
-
-            print(assistant.action)
-            print(assistant.reason)
-            if self.env["tts"]:
-                self.ai_client.tts(assistant.action)
-            
-            self.activate_sportclient_auto(assistant.action, int(assistant.move), int(assistant.shift), int(assistant.turn))
+            # self.feedback = None
+            print(f"Round {self.ai_client.round_number} completed.\n")
+        
+        print("All rounds completed. Press Enter to end session.")
+        self.session_active_event.clear()  # Indicate that the session is now inactive
 
     def user_input(self):
         if self.env["speechable"]:
@@ -280,94 +247,72 @@ class Dog:
                     self.interrupt_round_flag.set()  # Set the flag to skip the current round
                     print("Giving feedback... (Press Enter when done)")
                     
-                    frame = self.read_frame()
-                    assistant = self.ai_client.get_response_by_feedback(frame)
-                    if assistant is not None:
-                        print(assistant.action)
-                        print(assistant.reason)
-                        self.activate_sportclient_auto(assistant.action, int(assistant.move), int(assistant.shift), int(assistant.turn))
-                        # if self.env["tts"]:
-                        #     self.ai_client.tts(assistant.action)
+                    # frame = self.read_frame()
+                    # assistant = self.ai_client.get_response_by_feedback(frame)
+                    # if assistant is not None:
+                    #     print(f"Printing {assistant.action} from robot_dog.")
+                    #     self.activate_sportclient(assistant.action)
+                    #     # if self.env["tts"]:
+                    #     #     self.ai_client.tts(assistant.action)
                             
                     self.feedback_complete_event.set()  # Allow round_sequence to continue after feedback
                     print("Feedback complete. Moving to next round...")
 
     def VelocityMove(self, vx, vy, vyaw, elapsed_time = 1, dt = 0.01):
+        for i in range(int(elapsed_time / dt)):
+            self.sport_client.Move(vx, vy, vyaw)
+            time.sleep(dt)
+        if self.env["woz"]:
+            elapsed_time = 5
+        for i in range(int(elapsed_time / dt)):
+            self.sport_client.StopMove()
+            time.sleep(dt)
+
+    def activate_sportclient(self, actions):
         if not self.env["connect_robot"]:
             print("Assumed action executed.")
-        else:
-            for i in range(int(elapsed_time / dt)):
-                self.sport_client.Move(vx, vy, vyaw)
-                time.sleep(dt)
+        else:      
             if self.env["woz"]:
-                elapsed_time = 5
-            for i in range(int(elapsed_time / dt)):
-                self.sport_client.StopMove()
-                time.sleep(dt)
-
-    def activate_sportclient_auto(self, action, move, shift, turn):
-        if self.env["woz"]:
-            print("Executing WOZ movement sequence:")
-            print("1. Turn right")
-            self.VelocityMove(0, 0, -1)
-            print("2. Move forward sequence")
-            self.VelocityMove(0.5, 0, 0)
-            self.VelocityMove(0.5, 0, 0)
-            self.VelocityMove(0.5, 0, 0)
-            print("3. Turn left")
-            self.VelocityMove(0, 0, 1.5)
-            print("4. Move forward sequence")
-            self.VelocityMove(0.5, 0, 0)
-            self.VelocityMove(0.5, 0, 0)
-            self.VelocityMove(0.5, 0, 0)
-            print("5. Shift left")
-            self.VelocityMove(0, 0.5, 0)
-            print("6. Final stop")
-            self.VelocityMove(0, 0, 0)
-            
-            # stop_message = "Stop. I found an apple."
-            # if self.env["tts"]:
-            #     self.ai_client.tts(stop_message)   
-        else: 
-            if move + shift + turn == 0:
-                self.sport_client.StopMove()
-            else:
-                action_map = {
-                    'move forward': (0.5, 0, 0),
-                    'move backward': (-0.5, 0, 0),
-                    'shift right': (0, -0.5, 0),
-                    'shift left': (0, 0.5, 0),
-                    'turn right': (0, 0, -1.5),
-                    'turn left': (0, 0, 1.5)
-                }
+                print("Executing WOZ movement sequence:")
+                print("1. Turn right")
+                self.VelocityMove(0, 0, -1)
+                print("2. Move forward sequence")
+                self.VelocityMove(0.5, 0, 0)
+                self.VelocityMove(0.5, 0, 0)
+                self.VelocityMove(0.5, 0, 0)
+                print("3. Turn left")
+                self.VelocityMove(0, 0, 1.5)
+                print("4. Move forward sequence")
+                self.VelocityMove(0.5, 0, 0)
+                self.VelocityMove(0.5, 0, 0)
+                self.VelocityMove(0.5, 0, 0)
+                print("5. Shift left")
+                self.VelocityMove(0, 0.5, 0)
+                print("6. Final stop")
+                self.VelocityMove(0, 0, 0)
                 
-                for ans in action:
-                    if ans in action_map:
-                        velocity = action_map[ans]
-                        for _ in range(move if 'move' in ans else shift if 'shift' in ans else turn):
-                            self.VelocityMove(*velocity)
-                    else:
-                        print("Action not recognized: " + ans)
-
-    def activate_sportclient_feedback(self, actions):
-        if actions == ['stop']:
-            self.sport_client.StopMove()
-        else:
-            action_map = {
-                'move forward': (0.5, 0, 0),
-                'move backward': (-0.5, 0, 0),
-                'shift right': (0, -0.5, 0),
-                'shift left': (0, 0.5, 0),
-                'turn right': (0, 0, -1.5),
-                'turn left': (0, 0, 1.5)
-            }
-            
-            for action in actions:
-                if action in action_map:
-                    velocity = action_map[action]
-                    self.VelocityMove(*velocity)
+                # stop_message = "Stop. I found an apple."
+                # if self.env["tts"]:
+                #     self.ai_client.tts(stop_message) 
+            else:                
+                if actions == ['stop']:
+                    self.sport_client.StopMove()
                 else:
-                    print("Not in action_map: " + action)
+                    action_map = {
+                        'move forward': (0.5, 0, 0),
+                        'move backward': (-0.5, 0, 0),
+                        'shift right': (0, -0.5, 0),
+                        'shift left': (0, 0.5, 0),
+                        'turn right': (0, 0, -1.5),
+                        'turn left': (0, 0, 1.5)
+                    }
+                    
+                    for action in actions:
+                        if action in action_map:
+                            velocity = action_map[action]
+                            self.VelocityMove(*velocity)
+                        else:
+                            print("Action not recognized: " + ans)
 
     def run_gpt(self):
         self.robot_auto_thread = threading.Thread(target=self.queryGPT_by_LLM)

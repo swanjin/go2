@@ -159,3 +159,18 @@ def OpenCV2PIL(opencv_image):
     color_coverted = cv2.cvtColor(opencv_image, cv2.COLOR_BGR2RGB)
     pil_image = Image.fromarray(color_coverted)
     return pil_image
+
+def string_to_list(action: str):
+    # action = action.replace(".", "").lower()
+    # if action.startswith("[") or action.endswith("]"):
+    #     action = action[2:-2]
+    actions = [act.strip() for act in action.split(',')]
+    return actions
+
+def string_to_tuple(input_string):
+    # Remove markdown code block formatting if present
+    cleaned_string = input_string.replace('```', '').strip()
+    # Remove any newlines
+    cleaned_string = cleaned_string.replace('\n', '')
+    # Parse the tuple
+    return tuple(map(int, cleaned_string.strip("()").split(",")))

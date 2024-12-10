@@ -197,9 +197,9 @@ class SendMessageThread(QThread):
                 print("❗ Processing feedback with exclamation mark")              
                 confirmation_msg = "Alright, I'm going to execute your feedback!"
                 
-                action = self.dog.ai_client.execute_feedback(text, image_bboxes_array, image_description)
-                print(f"🤖 Navigation model executed action: {action}")
-                self.message_data.pending_feedback_action = action
+                assistant = self.dog.ai_client.execute_feedback(text, image_bboxes_array, image_description)
+                print(f"🤖 Navigation model executed action: {assistant.action}")
+                self.message_data.pending_feedback_action = assistant.action
 
                 self.add_robot_message_signal.emit(confirmation_msg, None)
                 if self.dog.env["tts"]:
@@ -617,7 +617,7 @@ class RobotDogUI(QMainWindow):
             #     return
             
             # 로봇 동작 실행
-            self.dog.activate_sportclient_feedback(action)
+            self.dog.activate_sportclient(action)
             
             # 실행 완료 처리
             QTimer.singleShot(3000, self.complete_feedback)

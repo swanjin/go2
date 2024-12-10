@@ -9,7 +9,7 @@ import pyaudio
 from openai import OpenAI
 import cv2
 
-from ai_client_base import AiClientBase, ResponseMessage
+from ai_client_base import AiClientBase, ResponseMsg
 from vision import VisionModel
 from navigation import NaviModel, Mapping
 # from round import Round
@@ -22,11 +22,16 @@ class OpenaiClient(AiClientBase):
         super().__init__(env)
         self.env = env
         self.image_counter = 0
-        self.history = "None."
+        self.memory = "None."
         self.msg = []
         self.msg_feedback = []
-        self.round_list = []
+        self.round_number = 1
+        self.chat = []
         self.curr_state = (0,0,0)
+        self.memory_list = []
+        self.is_initial_prompt_feedback = True
+        self.is_initial_response_format_feedback = True
+
         self.client = OpenAI(api_key=key)
         self.vision_model = VisionModel(self.env)
         self.navi_model = NaviModel(self.curr_state)
@@ -36,71 +41,47 @@ class OpenaiClient(AiClientBase):
             os.makedirs('test', exist_ok=True)
             self.save_dir = f"test/test_{datetime.datetime.now().strftime('%Y%m%d%H%M%S')}"
             os.mkdir(self.save_dir)
-            self.log_file = open(f"{self.save_dir}/history.log", "a+") # append: a+ overwrite: w+
+            self.log_file = open(f"{self.save_dir}/log.log", "a+") # append: a+ overwrite: w+
         except Exception as e:
             print(f"Failed to create directory: {e}")
 
     def set_target(self, target):
         self.target = target
 
-    def update_log(self, assistant, feedback, image_description_str):
-        self.log_file.write(f"\n=== image{len(self.round_list)+1} ===\n")
-        
-        if image_description_str == "No objects related to the target is detected.":
-            self.log_file.write(f"Image Analysis: \n None. \n")
-        else: 
-            self.log_file.write(f"Image Analysis: \n{image_description_str} \n")
+    def update_memory_list(self, detected_objects, chat, assistant):
+        round = Round(self.round_number, detected_objects, chat, assistant)
+        self.memory_list.append(round)
 
-        if feedback:
-            self.log_file.write(f"Feedback: \n {feedback} \n")
-
-        if assistant is None:
-            self.log_file.write(f"Response: \n None.")  # This prevents logging False
-        else:
-            self.log_file.write(
-                f"Response: \n"
-                f"Action) {assistant.action} \n"
-                f"Move) {assistant.move} \n"
-                f"Shift) {assistant.shift} \n"
-                f"Turn) {assistant.turn} \n"
-                f"New state) {assistant.new_state} \n"
-                f"Reason) {assistant.reason} \n"
-            )
+        self.log_file.write(
+            f"Round {round.round_number}:\n"
+            f"- Detected Objects: {round.detected_objects if round.detected_objects else 'None'}\n"
+            f"- Chat: {round.chat if round.chat else 'None'}\n"
+            f"- Initial State: {round.assistant.initial_state}\n"
+            f"- Action: {round.assistant.action}\n"
+            f"- New State: {round.assistant.new_state}\n"
+            f"- Reason: {round.assistant.reason if round.assistant.reason else 'None'}\n\n"
+        )
 
         self.log_file.flush()
+        self.round_number += 1
+        self.curr_state = round.assistant.new_state
 
-    def update_history_prompt(self, assistant, feedback, image_description_str):
-        self.round_list.append(Round(len(self.round_list) + 1, assistant, feedback))
-        round_number = len(self.round_list)
-        
-        self.history = self.history if round_number > 1 else "None."   
-        self.history += (
-            f"- Round {round_number}: "
-            f"Conversation between Go2: {feedback}. "
-            f"From the state {assistant.curr_state}, {image_description_str} "
-            f"The likelihood of target presence at this state was {assistant.likelihood}. "
-            f"You executed the '{assistant.action}' action which led to the updated state of {assistant.new_state}. \n"
-        )
-        # self.history += "None."
-
-    def construct_image_analysis(self, image_description_str):
+    def construct_image_analysis(self, detected_objects):
         return (
-            f"### Image analysis:\n"
+            f"Detection:\n"
             f"(The image size is {self.env['captured_width']}x{self.env['captured_height']}, "
             f"with the pixel index (0, 0) located at the top-left corner.):\n"
-            f"{image_description_str} \n\n"
+            f"{detected_objects} \n\n"
         )
 
-    def construct_history(self, history):
+    def construct_memory(self, memory):
         return (
-            f"### History:\n {history}\n\n"
+            f"Memory:\n {memory}\n\n"
         )
 
     def analyze_image(self, image_pil):
         image_analysis = self.vision_model.describe_image(image_pil)
-        if image_analysis.description == "":
-            image_analysis.description = "No objects related to the target is detected."
-        return image_analysis.frame, image_analysis.description # array, string
+        return image_analysis.frame, image_analysis.detected_objects # array, list
 
     def append_message(self, message, message_role: str, message_content: str):
         message.append({"role": message_role, "content": message_content})
@@ -120,100 +101,99 @@ class OpenaiClient(AiClientBase):
         # Parse the tuple
         return tuple(map(int, cleaned_string.strip("()").split(",")))
 
-    def get_response_by_LLM(self, image_pil, dog_instance, feedback = None):   
+    def initialize_prompt_auto(self, detected_objects):
+        self.msg.clear()
+        self.append_message(self.msg, "user", self.user_prompt_auto(self.curr_state))
+        self.append_message(self.msg, "user", self.construct_image_analysis(detected_objects))
+        self.append_message(self.msg, "user", self.construct_memory(self.memory_list))
+        self.append_message(self.msg, "user", self.response_format_auto())
+    
+    def get_response_by_LLM(self, image_pil, dog_instance):   
         # Check for feedback interruption early in the function
         if dog_instance.check_feedback_and_interruption():
-            dog_instance.round_number += 1
             return None
         
-        if feedback is None:
-            feedback = "None"
+        # if chat is None:
+        #     chat = "None"
 
         # Analyze image
-        image_bboxes_array, image_description_str = self.analyze_image(image_pil)
+        frame_bboxes_array, detected_objects = self.analyze_image(image_pil)
         
         # Initialize messages
-        self.msg = []
-        self.append_message(self.msg, "user", self.user_prompt_auto(self.curr_state))
-        self.append_message(self.msg, "user", self.construct_image_analysis(image_description_str))
-        self.append_message(self.msg, "user", self.construct_history(self.history))
-        self.append_message(self.msg, "user", self.response_format_auto())
+        self.initialize_prompt_auto(detected_objects)
             
-        if self.env["print_history"]:
-            print(self.history)
+        # if self.env["print_memory"]:
+        #     print(self.memory)
         
         # Check for feedback interruption early in the function
         if dog_instance.check_feedback_and_interruption():
-            dog_instance.round_number += 1
             return None
 
         rawAssistant = self.get_ai_response(self.msg)
-        assistant = ResponseMessage.parse(rawAssistant)
+        assistant = ResponseMsg.parse(rawAssistant)
 
         # Check for feedback interruption early in the function
         if dog_instance.check_feedback_and_interruption():
-            dog_instance.round_number += 1
             return None  
 
-        # update data and reset messages
-        self.curr_state = assistant.new_state
-        self.store_image(image_bboxes_array)
-        self.update_log(assistant, feedback, image_description_str)
-        self.update_history_prompt(assistant, feedback, image_description_str)
-        self.msg = []
+        # Update data
+        self.store_image(frame_bboxes_array)
+        self.update_memory_list(detected_objects, self.chat, assistant)
 
         return assistant
+    
+    def initialize_prompt_feedback(self, detected_objects):
+        # Initialize messages
+        if self.is_initial_prompt_feedback:
+            self.append_message(self.msg_feedback, "user", self.user_prompt_feedback(self.curr_state))
+            self.append_message(self.msg_feedback, "user", self.construct_image_analysis(detected_objects))
+            self.append_message(self.msg_feedback, "user", self.construct_memory(self.memory))      
+            self.is_initial_prompt_feedback = False
+
+    def initialize_response_format_feedback(self):  
+        if self.is_initial_response_format_feedback:
+            self.append_message(self.msg_feedback, "user", self.response_format_feedback())
+            self.is_initial_response_format_feedback = False
 
     def feedback_mode_on(self, image_pil):
         # Analyze image
-        image_bboxes_array, image_description_str = self.analyze_image(image_pil)
+        frame_bboxes_array, detected_objects = self.analyze_image(image_pil)
 
         # Initialize messages
-        self.append_message(self.msg_feedback, "user", self.user_prompt_feedback(self.curr_state))
-        self.append_message(self.msg_feedback, "user", self.construct_image_analysis(image_description_str))
-        self.append_message(self.msg_feedback, "user", self.construct_history(self.history))      
-
-        # Save conversation
-        self.log_file.write(f"\n=== Conversation ===\n")
-
-        return image_bboxes_array, image_description_str
+        self.initialize_prompt_feedback(detected_objects)
+        
+        return frame_bboxes_array, detected_objects
 
     def get_response_by_feedback(self, user_input):
-        self.append_message(self.msg_feedback, "user", self.response_format_feedback())
-        self.append_message(self.msg_feedback, "user", user_input)      
+        self.append_message(self.msg_feedback, "user", user_input)
+        self.append_message(self.chat, "user", user_input)
+        self.initialize_response_format_feedback()
 
         rawAssistant = self.get_ai_response(self.msg_feedback)
         self.append_message(self.msg_feedback, "assistant", rawAssistant)
-
-        # Save conversation
-        self.log_file.write(f"User: \n {user_input} \n")
-        self.log_file.write(f"Assistant: \n {rawAssistant} \n")
+        self.append_message(self.chat, "assistant", rawAssistant)
 
         return rawAssistant
         
-    def execute_feedback(self, user_input, image_bboxes_array, image_description_str):     
-        self.append_message(self.msg_feedback, "user", self.response_format_execute_feedback()) 
+    def execute_feedback(self, user_input, frame_bboxes_array, detected_objects):     
         self.append_message(self.msg_feedback, "user", user_input)
-        print(self.msg_feedback)
-        new_state = self.string_to_tuple(self.get_ai_response(self.msg_feedback))
-        print(f"Current state: {self.navi_model.position}")      
-        print(f"New state: {new_state}")
+        self.append_message(self.chat, "user", user_input)
+        self.append_message(self.msg_feedback, "user", self.response_format_execute_feedback()) 
+
+        new_state = utils.string_to_tuple(self.get_ai_response(self.msg_feedback))
         action_to_goal = self.navi_model.navigate_to(self.navi_model.position, new_state, self.mapping.obstacles)
+        assistant = ResponseMsg(self.curr_state, new_state, action_to_goal, "")
 
-        # Put feedback mode label on the image
-        image_pil_fmode = utils.put_text_top_left(image_bboxes_array, text="feedback mode")
+        # Update data
+        image_pil_fmode = utils.put_text_top_left(frame_bboxes_array, text="Feedback mode")
+        self.store_image(image_pil_fmode)
+        self.update_memory_list(detected_objects, self.chat, assistant)
+        self.msg_feedback.clear()
+        self.chat.clear()
+        self.is_initial_prompt_feedback = True
+        self.is_initial_response_format_feedback = True
         
-        # Save conversation
-        self.log_file.write(f"User: \n {user_input} \n")
-
-        # store data and reset messages
-        self.curr_state = new_state
-        # self.store_image(image_pil_fmode)
-        # self.update_log(assistant, user_input, image_description_str)
-        # self.update_history_prompt(assistant, user_input, image_description_str)
-        self.msg_feedback = []
-
-        return action_to_goal
+        return assistant
 
     def stt(self, voice_buffer):
         container = voice_buffer
