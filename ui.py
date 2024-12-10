@@ -93,7 +93,7 @@ class CircleAnimationWidget(QWidget):
         self.update()
 
     def update_fill(self):
-        self.fill_fraction = (self.fill_fraction + 1) % 14
+        self.fill_fraction = (self.fill_fraction + 1) % 20
         self.update()
 
     def paintEvent(self, event):
