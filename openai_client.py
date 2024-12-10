@@ -196,6 +196,8 @@ class OpenaiClient(AiClientBase):
         self.append_message(self.msg_feedback, "user", user_input)
         print(self.msg_feedback)
         new_state = self.string_to_tuple(self.get_ai_response(self.msg_feedback))
+        print(f"Current state: {self.navi_model.position}")      
+        print(f"New state: {new_state}")
         action_to_goal = self.navi_model.navigate_to(self.navi_model.position, new_state, self.mapping.obstacles)
 
         # Put feedback mode label on the image

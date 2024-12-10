@@ -198,7 +198,7 @@ class SendMessageThread(QThread):
                 confirmation_msg = "Alright, I'm going to execute your feedback!"
                 
                 action = self.dog.ai_client.execute_feedback(text, image_bboxes_array, image_description)
-                print(f"🤖 AI interpreted action: {action}")
+                print(f"🤖 Navigation model executed action: {action}")
                 self.message_data.pending_feedback_action = action
 
                 self.add_robot_message_signal.emit(confirmation_msg, None)

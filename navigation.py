@@ -79,10 +79,8 @@ class NaviModel:
                 neighbors.append((next_pos, action))
         return neighbors
 
-    def navigate_to(self, start, target_position, obstacles):
+    def navigate_to(self, start, goal, obstacles):
         """A* pathfinding to target position with obstacle avoidance"""
-        goal_orientation = (target_position[2] + 180) % 360
-        goal = (target_position[0], target_position[1], goal_orientation)
         open_set = [(0, start)]
         came_from = {}
         cost_so_far = {start: 0}
@@ -216,14 +214,14 @@ class PathAnimator:
 class Mapping:
     def __init__(self):
         self.landmarks = {
-            "refrigerator": (4, 4, 180),
-            "kitchen": (0, 4, 180),
-            "tv": (-5, -1, 90),
-            "desk": (-3, -6, 0),
-            "cabinet": (0, -6, 0),
-            "sofa": (4, -3, 270),
-            "banana": (2, 4, 180),
-            "bottle": (4, 0, 270)
+            "refrigerator": (4, 4, 0),
+            "kitchen": (0, 4, 0),
+            "tv": (-5, -1, 270),
+            "desk": (-3, -6, 180),
+            "cabinet": (0, -6, 180),
+            "sofa": (4, -3, 90),
+            "banana": (2, 4, 0),
+            "bottle": (4, 0, 90)
         }
         self.obstacles = {"obstacle": (-1, 0, 0)}
         # self.excluded_points = {(l[0], l[1]) for l in self.landmarks.values()}
@@ -247,16 +245,16 @@ class Mapping:
             if (point[0], point[1]) not in self.excluded_points:
                 self.obstacles[f"border_{idx}"] = (point[0], point[1], 0)
 
-# ### Initialize Mapping
-# mapping = Mapping()
+if __name__ == "__main__":
+    # Initialize Mapping
+    mapping = Mapping()
 
-# ### Run simulation with obstacle avoidance
-# navi_model = NaviModel((0, 0, 180))
-# # target = mapping.landmarks["tv"]
-# target = (-4, -1, 90)
-# path_to_target = navi_model.navigate_to(navi_model.position, target, mapping.obstacles)
+    # Run simulation with obstacle avoidance
+    navi_model = NaviModel((0, 0, 0))
+    target = (2, 3, 0)
+    path_to_target = navi_model.navigate_to(navi_model.position, target, mapping.obstacles)
+    print("Path to target:", path_to_target)
 
-# ### Run animation
-# print(path_to_target)
-# animator = PathAnimator(navi_model.position, target, path_to_target, mapping.landmarks, mapping.obstacles)
-# animator.animate()
+    # Run animation
+    animator = PathAnimator(navi_model.position, target, path_to_target, mapping.landmarks, mapping.obstacles)
+    animator.animate()
