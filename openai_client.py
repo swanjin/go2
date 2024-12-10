@@ -22,7 +22,6 @@ class OpenaiClient(AiClientBase):
         super().__init__(env)
         self.env = env
         self.image_counter = 0
-        self.memory = "None."
         self.msg = []
         self.msg_feedback = []
         self.round_number = 1
@@ -147,7 +146,7 @@ class OpenaiClient(AiClientBase):
         if self.is_initial_prompt_feedback:
             self.append_message(self.msg_feedback, "user", self.user_prompt_feedback(self.curr_state))
             self.append_message(self.msg_feedback, "user", self.construct_image_analysis(detected_objects))
-            self.append_message(self.msg_feedback, "user", self.construct_memory(self.memory))      
+            self.append_message(self.msg_feedback, "user", self.construct_memory(self.memory_list))      
             self.is_initial_prompt_feedback = False
 
     def initialize_response_format_feedback(self):  

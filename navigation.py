@@ -223,7 +223,10 @@ class Mapping:
             "banana": (2, 4, 0),
             "bottle": (4, 0, 90)
         }
-        self.obstacles = {"obstacle": (-1, 0, 0)}
+        self.obstacles = {
+            "obstacle1": (-1, 0, 0),
+            "obstacle2": (-2, 0, 0)
+        }
         # self.excluded_points = {(l[0], l[1]) for l in self.landmarks.values()}
         self.excluded_points = {}
         self.border_points = self.generate_border_points()
