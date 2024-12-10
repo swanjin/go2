@@ -145,9 +145,8 @@ class AiClientBase:
         Action: Follow the guideline in the '### Instructions for Action' section.
         Reason: 
         - Explain your choice of actions in one concise complete sentence.
-        - If you give a high contextual likelihood, tell the reason why the target is likely to be related to the object detected. You don't need to mention the case number. If the stopping hurdle meter for the '{self.env['object1']}' or '{self.env['target']}' is considered in your reasoning, you must mention it. 
+        - Don't mention about case/subcase number and any section name.
         - If you need to mention about whether the '{self.env['target']}' is in the left/middle/right third of the image, just say 'left', 'middle', or 'right' without mentioning the 'third'. 
-        - If you need to say something like 'No other objects detected', just say something by rephrasing the statement 'No other objects that are contextually related to the target detected'.
         - If '{self.env['object1']}' is not detected in the 'Detection' section, you must not mention anything about '{self.env['object1']}'. Even if the reasoing behind your action considers whether '{self.env['object1']}' is detected or not, you must not mention any about '{self.env['object1']}'. Even if '{self.env['object1']}' is detected at previous rounds in the 'Memory' section, you must not mention anything about '{self.env['object1']}' in your reasoning. You can mention about '{self.env['object1']}' in your reasoning only if '{self.env['object1']}' is detected in the 'Detection' section, **not in the 'Memory' section.** 
         """
         )
