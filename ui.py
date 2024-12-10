@@ -529,21 +529,16 @@ class RobotDogUI(QMainWindow):
 
     def update_processing_animation(self):
         self.processing_dots = (self.processing_dots + 1) % 4
-        dots = "." * self.processing_dots
-        self.processing_label.setText(f"{dots.ljust(3)}")
+        dots = "●" * self.processing_dots
+        self.processing_label.setText(f"{dots}")
 
     def start_processing_animation(self, duration=None):
-        print(self, duration)
-        # if duration is not None:
-        #     QTimer.singleShot(duration, lambda: self.start_processing_animation)
-        #     return
-    
         if not hasattr(self, 'processing_label') or self.processing_label is None:
             self.processing_label = QLabel("")
             self.processing_label.setStyleSheet("""
                 QLabel {
-                    color: #1A73E8;
-                    font-size: 28px;
+                    color: white;
+                    font-size: 32px;
                     font-weight: bold;
                     padding: 10px;
                 }
@@ -574,7 +569,7 @@ class RobotDogUI(QMainWindow):
             # self.confirm_widget.hide()
             # self.input_widget.show()
             
-            # 액션 실행
+            # 액션 행
             self.execute_feedback_action(action_to_execute)
             
             # 상태 초기화
@@ -651,31 +646,33 @@ class RobotDogUI(QMainWindow):
     def resume_auto_mode(self):
         self.feedback_mode = False
         self.dog.feedback_complete_event.set()
+        QTimer.singleShot(0, self._scroll_to_bottom)
 
-        QTimer.singleShot(1000, self.start_processing_animation)
         if self.dog.env["interactive"]:
             self.input_widget.hide()
             self.feedback_button.show()
             # self.exit_button.hide()
             # self.execute_button.hide()
-        QTimer.singleShot(0, self._scroll_to_bottom)
 
-        self.show_auto_mode_message()  # Show auto mode message when resuming auto mode
+        QTimer.singleShot(3000, self.start_processing_animation)
+
+        # self.show_auto_mode_message()  # Show auto mode message when resuming auto mode
 
     def add_user_message(self, text):
-        if self.message_data.feedback_mode and self.message_data.awaiting_feedback:
-            self.circle_animation.show()
-            self.circle_animation.start_animation()
-    
         message = ChatMessage(text, is_user=True)
         self.chat_layout.addWidget(message)
         QTimer.singleShot(0, self._scroll_to_bottom)
+        if self.message_data.feedback_mode and self.message_data.awaiting_feedback:
+            self.start_processing_animation()
+            # self.circle_animation.show()
+            # self.circle_animation.start_animation()
         self.message_input.clear()
 
     def add_robot_message(self, text, image=None):
         if self.message_data.feedback_mode:
-            self.circle_animation.stop_animation()
-            self.circle_animation.hide()
+            self.stop_processing_animation()
+            # self.circle_animation.stop_animation()
+            # self.circle_animation.hide()
         
         message = ChatMessage(text, is_user=False, image=image)
         self.chat_layout.addWidget(message)
@@ -732,7 +729,7 @@ class RobotDogUI(QMainWindow):
         """Simulate typing 'feedback mode' and trigger send_message."""
         self.message_input.setText("feedback mode")
         self.send_message()
-
+        self.stop_processing_animation()
         # Introduce a slight delay before setting feedback mode flags
         QTimer.singleShot(100, self.activate_feedback_mode)
 
