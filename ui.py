@@ -134,6 +134,8 @@ class SendMessageThread(QThread):
     add_robot_message_signal = pyqtSignal(str, object)
     play_tts_signal = pyqtSignal(str)
     activate_feedback_mode_signal = pyqtSignal()
+    start_processing_animation_signal = pyqtSignal()
+    # stop_processing_animation_signal = pyqtSignal()
 
     def __init__(self, message_data: MessageData, dog_instance, parent=None):
         super().__init__(parent)
@@ -164,6 +166,8 @@ class SendMessageThread(QThread):
             if "apple" in text.lower():
                 response = f"I'll start searching for apple now."
                 self.add_robot_message_signal.emit(response, None)
+                self.start_processing_animation_signal.emit()
+
                 self.process_target_signal.emit("apple", response)
                 self.input_widget_signal.emit(False)
                 if self.dog.env["interactive"]:
@@ -195,15 +199,15 @@ class SendMessageThread(QThread):
 
             if text.endswith("!"):
                 print("❗ Processing feedback with exclamation mark")              
-                confirmation_msg = "Alright, I'm going to execute your feedback!"
+                # confirmation_msg = "Alright, I'm going to execute your feedback!"
                 
                 assistant = self.dog.ai_client.execute_feedback(text, image_bboxes_array, image_description)
                 print(f"🤖 Navigation model executed action: {assistant.action}")
                 self.message_data.pending_feedback_action = assistant.action
 
-                self.add_robot_message_signal.emit(confirmation_msg, None)
-                if self.dog.env["tts"]:
-                    QTimer.singleShot(300, lambda: self.play_tts_signal.emit(confirmation_msg))
+                # self.add_robot_message_signal.emit(confirmation_msg, None)
+                # if self.dog.env["tts"]:
+                #     QTimer.singleShot(300, lambda: self.play_tts_signal.emit(confirmation_msg))
                 self.confirm_feedback_signal.emit()
                 self.message_data.awaiting_feedback = False
             
@@ -519,19 +523,29 @@ class RobotDogUI(QMainWindow):
         self.send_message_thread.add_robot_message_signal.connect(self.add_robot_message)
         self.send_message_thread.play_tts_signal.connect(self.play_tts)
         self.send_message_thread.activate_feedback_mode_signal.connect(self.activate_feedback_mode)
+        self.send_message_thread.start_processing_animation_signal.connect(self.start_processing_animation)
+        # self.send_message_thread.stop_processing_animation_signal.connect(self.stop_processing_animation)
         self.send_message_thread.start()
 
     def update_processing_animation(self):
         self.processing_dots = (self.processing_dots + 1) % 4
         dots = "." * self.processing_dots
-        self.processing_label.setText(f"Processing{dots.ljust(3)}")
+        self.processing_label.setText(f"{dots.ljust(3)}")
+        self.processing_label.setStyleSheet("""
+            QLabel {
+                color: white;
+                font-size: 28px;
+                font-weight: bold;
+                padding: 10px;
+            }
+        """)
 
     def start_processing_animation(self):
         if not hasattr(self, 'processing_label') or self.processing_label is None:
-            self.processing_label = QLabel("Processing...")
+            self.processing_label = QLabel("...")
             self.processing_label.setStyleSheet("""
                 QLabel {
-                    color: #1A73E8;
+                    color: white;
                     font-size: 28px;
                     font-weight: bold;
                     padding: 10px;
@@ -603,6 +617,8 @@ class RobotDogUI(QMainWindow):
         if self.dog.env["tts"]:
             QTimer.singleShot(300, lambda: self.play_tts(response))
 
+        QTimer.singleShot(1000, lambda: self.start_processing_animation())
+
     def execute_feedback_action(self, action):
         try:
             if not action:
@@ -616,7 +632,7 @@ class RobotDogUI(QMainWindow):
             #     print("Error: Assistant has no action attribute")
             #     return
             
-            # 로봇 동작 실행
+            # 로봇 동작 실행 
             self.dog.activate_sportclient(action)
             
             # 실행 완료 처리
@@ -629,7 +645,7 @@ class RobotDogUI(QMainWindow):
             self.resume_auto_mode()
 
     def complete_feedback(self):
-        resume_msg = "I just executed your feedback. I'm back to automatic search mode now."
+        resume_msg = "I'm going to process your feedback and back to automatic search mode now."
         self.add_robot_message(resume_msg)
         
         if self.dog.env["tts"]:
@@ -649,13 +665,13 @@ class RobotDogUI(QMainWindow):
             # self.execute_button.hide()
         QTimer.singleShot(0, self._scroll_to_bottom)
 
-        self.show_auto_mode_message()  # Show auto mode message when resuming auto mode
+        # self.show_auto_mode_message()  # Show auto mode message when resuming auto mode
 
     def add_user_message(self, text):
-        if self.message_data.feedback_mode and self.message_data.awaiting_feedback:
-            self.circle_animation.show()
-            self.circle_animation.start_animation()
-    
+        # if self.message_data.feedback_mode and self.message_data.awaiting_feedback:
+        #     self.circle_animation.start_animation()
+        #     self.circle_animation.show()
+                
         message = ChatMessage(text, is_user=True)
         self.chat_layout.addWidget(message)
         QTimer.singleShot(0, self._scroll_to_bottom)
@@ -663,8 +679,10 @@ class RobotDogUI(QMainWindow):
 
     def add_robot_message(self, text, image=None):
         if self.message_data.feedback_mode:
-            self.circle_animation.stop_animation()
-            self.circle_animation.hide()
+            self.stop_processing_animation()
+            
+            # self.circle_animation.stop_animation()
+            # self.circle_animation.hide()
         
         message = ChatMessage(text, is_user=False, image=image)
         self.chat_layout.addWidget(message)
@@ -694,7 +712,7 @@ class RobotDogUI(QMainWindow):
         self.stop_processing_animation()
         if self.dog.env["interactive"] or self.dog.env["vo"]:
             self.add_robot_message(status, image)
-            QTimer.singleShot(1000, self.start_processing_animation)
+            QTimer.singleShot(10000, self.start_processing_animation)
 
     def handle_end_search(self, message, delayed_time=66000):
         if self.dog.env["woz"]:
@@ -730,6 +748,7 @@ class RobotDogUI(QMainWindow):
 
     def activate_feedback_mode(self):
         """Activate feedback mode after a delay."""
+        self.stop_processing_animation()
         self.message_data.feedback_mode = True
         self.message_data.awaiting_feedback = True
 
