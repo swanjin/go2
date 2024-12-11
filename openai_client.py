@@ -26,7 +26,7 @@ class OpenaiClient(AiClientBase):
         self.msg_feedback = []
         self.round_number = 1
         self.chat = []
-        self.curr_state = (0,0,270)
+        self.curr_state = self.env['curr_state']
         self.memory_list = []
         self.is_initial_prompt_landmark_or_non_command = True
         self.is_initial_response_format_non_command = True
@@ -279,7 +279,7 @@ class OpenaiClient(AiClientBase):
     
     def is_landmark(self, input): 
         msg = []
-        prompt = "You are Go2, a helpful robot dog assistant who only speaks English. Given the user input, determine if it indicates the user wants you to move by referencing any of the following landmarks: refrigerator, kitchen, TV, desk, cabinet, sofa, banana, bottle. If the user input references any of these, respond with 'true'. Otherwise, respond with 'false'."
+        prompt = "You are Go2, a helpful robot dog assistant who only speaks English. Given the user input, determine if it indicates the user wants you to move by referencing any of the following landmarks: refrigerator, kitchen, TV, desk, cabinet, sofa, banana, bottle, box. If the user input references any of these, respond with 'true'. Otherwise, respond with 'false'."
         self.append_message(msg, "user", prompt)
         self.append_message(msg, "user", input)
 

@@ -149,11 +149,13 @@ class AiClientBase:
         "bottle": (3, -1, 90)
         
         Obstacles:
-        (4,-6),(4,0),(-4,-3),(3,4),(4,-3),(-4,-6),(-4,0),(4,3),(-3,-6),(-4,3),
-        (1,-6),(-4,4),(-2,4),(-1,4),(4,-4),(3,-6),(4,2),(-4,-4),(-5,2),(2,4),
-        (0,4),(-4,-6),(-2,-6),(-1,-6),(4,-5),(4,-2),(-4,-5),(4,-1),(4,1),
-        (-4,-2),(-4,-1),(4,4),(-4,1),(-3,4),(-4,4),(0,-6),(2,-6),(1,4),
-        (-1,1),(-2,1)
+        1. Border lines
+        (-4, 4), (-3, 4), (-2, 4), (-1, 4), (0, 4), (1, 4), (2, 4), (3, 4), (4, 4),
+        (-4, -6), (-3, -6), (-2, -6), (-1, -6), (0, -6), (1, -6), (2, -6), (3, -6), (4, -6),
+        (-4, -5), (-4, -4), (-4, -3), (-4, -2), (-4, -1), (-4, 0), (-4, 1), (-4, 2), (-4, 3),
+        (4, -5), (4, -4), (4, -3), (4, -2), (4, -1), (4, 0), (4, 1), (4, 2), (4, 3)
+        2. Box
+        (-1, 1), (-2, 1)
         """)
 
     def response_format_non_command(self):
@@ -167,8 +169,8 @@ class AiClientBase:
         return (f"""        
         Rules:
         1. Target state within grid bounds, not an obstacle.
-        2. If target state based on a landmark, set orientation to landmark's orientation.
-        3. If target state invalid, find nearest valid spot, same orientation.
+        2. If target state based on a landmark/obstacle, set orientation to its orientation.
+        3. If target state invalid, find nearest valid spot.
         4. If ties in distance, pick randomly.
         
         Response Format: 
@@ -183,6 +185,15 @@ class AiClientBase:
         - orientation is the facing direction in degrees.
 
         Your task is to search for the target object, '{self.env['target']}'. Current state is {curr_state}. You can only see objects in your facing direction and must adjust your orientation to face the target while searching.
+
+        Obstacles:
+        1. Border lines
+        (-4, 4), (-3, 4), (-2, 4), (-1, 4), (0, 4), (1, 4), (2, 4), (3, 4), (4, 4),
+        (-4, -6), (-3, -6), (-2, -6), (-1, -6), (0, -6), (1, -6), (2, -6), (3, -6), (4, -6),
+        (-4, -5), (-4, -4), (-4, -3), (-4, -2), (-4, -1), (-4, 0), (-4, 1), (-4, 2), (-4, 3),
+        (4, -5), (4, -4), (4, -3), (4, -2), (4, -1), (4, 0), (4, 1), (4, 2), (4, 3)
+        2. Box
+        (-1, 1), (-2, 1)
 
         ### Instructions for Action/New state:
         Action dictionary:
