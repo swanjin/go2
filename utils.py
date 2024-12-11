@@ -161,7 +161,6 @@ def OpenCV2PIL(opencv_image):
     pil_image = Image.fromarray(color_coverted)
     return pil_image
 
-
 def string_to_list(action: str):
     """
     Converts a string action into a list of actions.
