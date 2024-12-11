@@ -196,12 +196,12 @@ class SendMessageThread(QThread):
             image_bboxes_array, image_description = self.dog.ai_client.feedback_mode_on(frame)
 
             if self.dog.ai_client.is_instruction_command(text):
-            # if text.endswith("!"):
-                print("❗ Processing instruction or command")              
+                print("❗ Executing instruction or command")              
                 # confirmation_msg = "Alright, I'm going to execute your feedback!"
-                
-                assistant = self.dog.ai_client.execute_feedback(text, image_bboxes_array, image_description)
-                print(f"🤖 Action determined by the navigation model: {assistant.action}")
+
+                assistant = self.dog.ai_client.get_response_landmark_or_non_command(text, image_bboxes_array, image_description)
+                # print(f"🤖 Action determined by navigation model: {assistant.action}")
+
                 self.message_data.pending_feedback_action = assistant.action
 
                 # self.add_robot_message_signal.emit(confirmation_msg, None)
@@ -212,7 +212,7 @@ class SendMessageThread(QThread):
             
             else:
                 print("Getting answer to question from AI client...")  # Debug print
-                answer = self.dog.ai_client.get_response_by_feedback(text)
+                answer = self.dog.ai_client.get_response_non_command(text)
                 print(f"AI answer received: {answer}")  # Debug print
                 self.add_robot_message_signal.emit(answer, None)
                 if self.dog.env["tts"]:
@@ -557,7 +557,7 @@ class RobotDogUI(QMainWindow):
     def confirm_feedback(self):
         """사용자가 해석된 피드백을 승인할 때"""
         if self.message_data.pending_feedback_action:
-            print("Pending feedback action:", self.message_data.pending_feedback_action)  # 디버그 출력
+            # print("Pending feedback action:", self.message_data.pending_feedback_action)  # 디버그 출력
             # response_text = "I'm going to process your feedback."
             # self.add_robot_message(response_text)
             # if self.dog.env["tts"]:

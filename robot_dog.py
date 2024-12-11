@@ -248,7 +248,7 @@ class Dog:
                     print("Giving feedback... (Press Enter when done)")
                     
                     # frame = self.read_frame()
-                    # assistant = self.ai_client.get_response_by_feedback(frame)
+                    # assistant = self.ai_client.get_response_non_command(frame)
                     # if assistant is not None:
                     #     print(f"Printing {assistant.action} from robot_dog.")
                     #     self.activate_sportclient(assistant.action)

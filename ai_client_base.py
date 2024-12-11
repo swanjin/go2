@@ -15,9 +15,8 @@ class AiClientBase:
         self.round_list = []
         self.is_first_response = True
 
-    def user_prompt_auto(self, curr_state):
-        return (
-        f"""
+    def prompt_auto(self, curr_state):
+        return (f"""
         You are Go2, a robot dog assistant. You can only speak English regardless of the language the user uses. Your position and orientation are represented by a state (x, y, orientation), where:
 
         - x and y are grid pixel index representing your position.
@@ -82,7 +81,7 @@ class AiClientBase:
                 - Have you measured the distance accurately against the stopping threshold ('{self.env['hurdle_meter_for_non_target']}')?
             4. Based on these checks, confirm which subcase (2.1, 2.2, or 2.3) applies and proceed with the specified action.
 
-        ### Instructions for New state (x, y, orientation):
+        ### Instructions for New state:
         Position and orientation are represented by a state '(x, y, orientation)', where:
         - x and y represent grid pixel index.
         - orientation represents the facing direction in degrees.
@@ -113,13 +112,24 @@ class AiClientBase:
 
         Verification Step:
         Confirm each x or y coordinate change reflects the intended movement or shift by double-checking against the table above to ensure consistency with the specified orientation.
-        """
-        )
-    
-    def user_prompt_feedback(self, curr_state):
-        # apple is temporary
-        return (
-        f"""
+        """)
+
+    def response_format_auto(self):
+        return (f"""
+        Ensure each response follows the following format precisely. Do not deviate. Before responding, verify that your output exactly matches the structured format.
+
+        Initial state: compute '(x, y, orientation)' before you take any action at this round.
+        New state: Follow the guideline in the '### Instructions for New state' section.
+        Action: Follow the guideline in the '### Instructions for Action' section.
+        Reason: 
+        - Explain your choice of actions in one concise sentence.
+        - Don't mention about case/subcase number and any section name.
+        - If you need to mention about whether the '{self.env['target']}' is in the left/middle/right third of the image, just say 'left', 'middle', or 'right' without mentioning the 'third'. 
+        - If {self.env['object1']} is not detected in the 'Detection' section, you must not mention anything about {self.env['object1']}. Even if the reasoing behind your action considers whether {self.env['object1']} is detected or not, you must not mention any about {self.env['object1']}. Even if {self.env['object1']} is detected at previous rounds in the 'Memory' section, you must not mention anything about {self.env['object1']} in your reasoning. You can mention about {self.env['object1']} in your reasoning only if {self.env['object1']} is detected in the 'Detection' section, **not in the 'Memory' section.** 
+        """)
+
+    def prompt_landmark_or_non_command(self, curr_state):
+        return (f"""
         You are Go2, a robot dog assistant who only speaks English.
 
         State: (x, y, orientation)
@@ -129,38 +139,32 @@ class AiClientBase:
         - Current state: {curr_state}
 
         Landmarks:
-        "refrigerator":(4,4,0),"kitchen":(0,4,0),"TV":(-4,-1,270),
-        "desk":(-3,-6,180),"cabinet":(0,-6,180),"sofa":(4,-2,90),
-        "banana":(2,4,0),"bottle":(4,-1,90), "apple":(-2,-2,270) 
-        """
-        )
-
-    def response_format_auto(self):
-        return (
-        f"""
-        Ensure each response follows the following format precisely. Do not deviate. Before responding, verify that your output exactly matches the structured format.
-
-        Initial state: compute '(x, y, orientation)' before you take any action at this round.
-        New state: Follow the guideline in the '### Instructions for New state (x, y, orientation)' section.
-        Action: Follow the guideline in the '### Instructions for Action' section.
-        Reason: 
-        - Explain your choice of actions in one concise complete sentence.
-        - Don't mention about case/subcase number and any section name.
-        - If you need to mention about whether the '{self.env['target']}' is in the left/middle/right third of the image, just say 'left', 'middle', or 'right' without mentioning the 'third'. 
-        - If {self.env['object1']} is not detected in the 'Detection' section, you must not mention anything about {self.env['object1']}. Even if the reasoing behind your action considers whether {self.env['object1']} is detected or not, you must not mention any about {self.env['object1']}. Even if {self.env['object1']} is detected at previous rounds in the 'Memory' section, you must not mention anything about {self.env['object1']} in your reasoning. You can mention about {self.env['object1']} in your reasoning only if {self.env['object1']} is detected in the 'Detection' section, **not in the 'Memory' section.** 
-        """
-        )
-    
-    def response_format_execute_feedback(self):
-        return (
-        f"""
+        "refrigerator": (3, 3, 0),
+        "kitchen": (0, 3, 0),
+        "tv": (-3, -1, 270),
+        "desk": (-3, -5, 180),
+        "cabinet": (0, -5, 180),
+        "sofa": (3, -2, 90),
+        "banana": (2, 3, 0),
+        "bottle": (3, -1, 90)
+        
         Obstacles:
         (4,-6),(4,0),(-4,-3),(3,4),(4,-3),(-4,-6),(-4,0),(4,3),(-3,-6),(-4,3),
         (1,-6),(-4,4),(-2,4),(-1,4),(4,-4),(3,-6),(4,2),(-4,-4),(-5,2),(2,4),
         (0,4),(-4,-6),(-2,-6),(-1,-6),(4,-5),(4,-2),(-4,-5),(4,-1),(4,1),
         (-4,-2),(-4,-1),(4,4),(-4,1),(-3,4),(-4,4),(0,-6),(2,-6),(1,4),
         (-1,1),(-2,1)
-        
+        """)
+
+    def response_format_non_command(self):
+        return (f"""
+        Rules:
+        - Respond extremely concisely without numbers and cardinal directions for states, obstacles, or landmarks.
+        - Describe landmarks relative to your current state.
+        """)
+
+    def response_format_landmark_command(self):
+        return (f"""        
         Rules:
         1. Target state within grid bounds, not an obstacle.
         2. If target state based on a landmark, set orientation to landmark's orientation.
@@ -169,29 +173,69 @@ class AiClientBase:
         
         Response Format: 
         - Respond only with "(x,y,orientation)" without extra text.
-        """
-        )
+        """)
 
-    def response_format_feedback(self):
-        return (
-        f"""
-        Obstacles:
-        (-1,1), (-2,1)
+    def prompt_general_command(self, curr_state):
+        return (f"""
+        You are Go2, a robot dog assistant. You can only speak English regardless of the language the user uses. Your position and orientation are represented by a state (x, y, orientation), where:
 
-        Rules:
-        - Respond extremely concisely without numbers and cardinal directions for states, obstacles, or landmarks.
-        - Describe landmarks relative to your current state. 
-        """
-        )
+        - x and y are grid pixel index representing your position.
+        - orientation is the facing direction in degrees.
+
+        Your task is to search for the target object, '{self.env['target']}'. Current state is {curr_state}. You can only see objects in your facing direction and must adjust your orientation to face the target while searching.
+
+        ### Instructions for Action/New state:
+        Action dictionary:
+        - 'move forward'
+        - 'move backward'
+        - 'shift right' 
+        - 'shift left'
+        - 'turn right'
+        - 'turn left'
+        - 'stop'
+
+        Choose the precise action name from the action dictionary to search for the '{self.env['target']}'. If the action needs to be executed several times, identify each unique action from the action dictionary and list them several times, separated by commas.
+
+        Orientation determines all directional movements. Use the following orientation mappings:
+        - 0° or 360° (North): Facing the positive Y-axis.
+        - 90° or -270° (East): Facing the positive X-axis.
+        - 180° or -180° (South): Facing the negative Y-axis.
+        - 270° or -90° (West): Facing the negative X-axis.
+
+        Movement & Shift Table by Orientation:
+        The effect of each action on x and y coordinates depends on the orientation as shown:
+
+        | Orientation | move forward | move backward | shift right | shift left |
+        |-------------|--------------|---------------|-------------|------------|
+        | 0° (North)  | (x, y + 1*Move)   | (x, y - 1*Move)    | (x + 1*Shift, y)  | (x - 1*Shift, y) |
+        | 90° (East)  | (x + 1*Move, y)   | (x - 1*Move, y)    | (x, y - 1*Shift)  | (x, y + 1*Shift) |
+        | 180° (South)| (x, y - 1*Move)   | (x, y + 1*Move)    | (x - 1*Shift, y)  | (x + 1*Shift, y) |
+        | 270° (West) | (x - 1*Move, y)   | (x + 1*Move, y)    | (x, y + 1*Shift)  | (x, y - 1*Shift) |
+
+        turn right / turn left (Orientation Changes Only):
+        - turn right: Increases orientation by 90°*Turn.
+        - turn left: Decreases orientation by 90°*Turn.
+        After each turn, normalize the orientation to a range of 0° to 360° (e.g., -90° becomes 270°).
+
+        Verification Step:
+        Confirm each x or y coordinate change reflects the intended movement or shift by double-checking against the table above to ensure consistency with the specified orientation.
+        """)
+
+    def response_format_general_command(self):
+        return (f"""
+        Ensure each response follows the following format precisely. Do not deviate. Before responding, verify that your output exactly matches the structured format.
+
+        Initial state: compute '(x, y, orientation)' before you take any action at this round.
+        New state: Determine new '(x, y, orientation)' based on the chat between user and you and the guideline in the '### Instructions for Action/New state' section .
+        Action: Determine the actions based on the chat between user and you and the guideline in the '### Instructions for Action/New state' section .
+        Reason: Explain your choice of actions in one concise sentence.
+        """)
 
     def set_target(self, target):
         self.target = target
 
     def stt(self, voice_buffer):
         return None
-
-    def get_response_by_feedback(self, feedback):
-        pass
 
     def store_image(self, image_array = None):
         if image_array is None:

@@ -215,15 +215,14 @@ class PathAnimator:
 class Mapping:
     def __init__(self):
         self.landmarks = {
-            "refrigerator": (4, 4, 0),
-            "kitchen": (0, 4, 0),
-            "tv": (-4, -1, 270),
-            "desk": (-3, -6, 180),
-            "cabinet": (0, -6, 180),
-            "sofa": (4, -2, 90),
-            "banana": (2, 4, 0),
-            "bottle": (4, -1, 90),
-            "apple": (-2, -2, 270) # temporary
+            "refrigerator": (3, 3, 0),
+            "kitchen": (0, 3, 0),
+            "tv": (-3, -1, 270),
+            "desk": (-3, -5, 180),
+            "cabinet": (0, -5, 180),
+            "sofa": (3, -2, 90),
+            "banana": (2, 3, 0),
+            "bottle": (3, -1, 90),
         }
         self.obstacles = {
             "obstacle1": (-1, 1, 0),

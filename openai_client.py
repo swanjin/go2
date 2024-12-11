@@ -28,8 +28,8 @@ class OpenaiClient(AiClientBase):
         self.chat = []
         self.curr_state = (0,0,270)
         self.memory_list = []
-        self.is_initial_prompt_feedback = True
-        self.is_initial_response_format_feedback = True
+        self.is_initial_prompt_landmark_or_non_command = True
+        self.is_initial_response_format_non_command = True
 
         self.client = OpenAI(api_key=key)
         self.vision_model = VisionModel(self.env)
@@ -109,7 +109,7 @@ class OpenaiClient(AiClientBase):
 
     def initialize_prompt_auto(self, description):
         self.msg.clear()
-        self.append_message(self.msg, "user", self.user_prompt_auto(self.curr_state))
+        self.append_message(self.msg, "user", self.prompt_auto(self.curr_state))
         self.append_message(self.msg, "user", self.construct_detection_auto(description))
         self.append_message(self.msg, "user", self.construct_memory(self.memory_list))
         self.append_message(self.msg, "user", self.response_format_auto())
@@ -142,30 +142,30 @@ class OpenaiClient(AiClientBase):
 
         return assistant
     
-    def initialize_prompt_feedback(self, detected_objects):
+    def initial_prompt_feedback(self, detected_objects):
         # Initialize messages
-        if self.is_initial_prompt_feedback:
-            self.append_message(self.msg_feedback, "user", self.user_prompt_feedback(self.curr_state))
+        if self.is_initial_prompt_landmark_or_non_command:
+            self.append_message(self.msg_feedback, "user", self.prompt_landmark_or_non_command(self.curr_state))
             self.append_message(self.msg_feedback, "user", self.construct_detection_feedback(detected_objects))
             self.append_message(self.msg_feedback, "user", self.construct_memory(self.memory_list))      
-            self.is_initial_prompt_feedback = False
+            self.is_initial_prompt_landmark_or_non_command = False
 
-    def initialize_response_format_feedback(self):  
-        if self.is_initial_response_format_feedback:
-            self.append_message(self.msg_feedback, "user", self.response_format_feedback())
-            self.is_initial_response_format_feedback = False
+    def initial_response_format_non_command(self):  
+        if self.is_initial_response_format_non_command:
+            self.append_message(self.msg_feedback, "user", self.response_format_non_command())
+            self.is_initial_response_format_non_command = False
 
     def feedback_mode_on(self, image_pil):
         # Analyze image
         frame_bboxes_array, detected_objects, description = self.analyze_image(image_pil)
 
         # Initialize messages
-        self.initialize_prompt_feedback(detected_objects)
+        self.initial_prompt_feedback(detected_objects)
         
         return frame_bboxes_array, detected_objects
 
-    def get_response_by_feedback(self, user_input):
-        self.initialize_response_format_feedback()
+    def get_response_non_command(self, user_input):
+        self.initial_response_format_non_command()
         self.append_message(self.msg_feedback, "user", user_input)
         self.append_message(self.chat, "user", user_input)
 
@@ -175,14 +175,24 @@ class OpenaiClient(AiClientBase):
 
         return rawAssistant
         
-    def execute_feedback(self, user_input, frame_bboxes_array, detected_objects):     
+    def get_response_landmark_or_non_command(self, user_input, frame_bboxes_array, detected_objects):
+        # Append user input to messages
         self.append_message(self.msg_feedback, "user", user_input)
         self.append_message(self.chat, "user", user_input)
-        self.append_message(self.msg_feedback, "user", self.response_format_execute_feedback()) 
 
-        new_state = utils.string_to_tuple(self.get_ai_response(self.msg_feedback))
-        action_to_goal = self.navi_model.navigate_to(self.curr_state, new_state, self.mapping.obstacles)
-        assistant = ResponseMsg(self.curr_state, new_state, action_to_goal, "")
+        # Determine if the feedback is a landmark or general
+        if self.is_landmark(user_input):
+            print("❗ Executing landmark command")
+            self.append_message(self.msg_feedback, "user", self.response_format_landmark_command())
+            new_state = utils.string_to_tuple(self.get_ai_response(self.msg_feedback))
+            action_to_goal = self.navi_model.navigate_to(self.curr_state, new_state, self.mapping.obstacles)
+            assistant = ResponseMsg(self.curr_state, new_state, action_to_goal, "")
+        else:
+            print("❗ Executing general command")
+            self.msg_feedback[0]['content'] = self.prompt_general_command(self.curr_state) # replace user prompt
+            self.append_message(self.msg_feedback, "user", self.response_format_general_command())
+            rawAssistant = self.get_ai_response(self.msg_feedback)
+            assistant = ResponseMsg.parse(rawAssistant)
 
         # Update data
         image_pil_fmode = utils.put_text_top_left(frame_bboxes_array, text="Feedback mode")
@@ -190,9 +200,9 @@ class OpenaiClient(AiClientBase):
         self.update_memory_list(detected_objects, self.chat, assistant)
         self.msg_feedback.clear()
         self.chat.clear()
-        self.is_initial_prompt_feedback = True
-        self.is_initial_response_format_feedback = True
-        
+        self.is_initial_prompt_landmark_or_non_command = True
+        self.is_initial_response_format_non_command = True
+
         return assistant
 
     def stt(self, voice_buffer):
@@ -266,3 +276,17 @@ class OpenaiClient(AiClientBase):
             print(f"Error in is_instruction_command: {e}")
             return False
         return is_command
+    
+    def is_landmark(self, input): 
+        msg = []
+        prompt = "You are Go2, a helpful robot dog assistant who only speaks English. Given the user input, determine if it indicates the user wants you to move by referencing any of the following landmarks: refrigerator, kitchen, TV, desk, cabinet, sofa, banana, bottle. If the user input references any of these, respond with 'true'. Otherwise, respond with 'false'."
+        self.append_message(msg, "user", prompt)
+        self.append_message(msg, "user", input)
+
+        try:
+            rawAssistant = self.get_ai_response(msg)
+            is_landmark = rawAssistant.lower() == "true"
+        except (KeyError, IndexError, AttributeError) as e:
+            print(f"Error in is_instruction_command: {e}")
+            return False
+        return is_landmark
