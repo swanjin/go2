@@ -161,32 +161,42 @@ def OpenCV2PIL(opencv_image):
     pil_image = Image.fromarray(color_coverted)
     return pil_image
 
+
 def string_to_list(action: str):
     """
     Converts a string action into a list of actions.
-    
+
     - If the action is a string representation of a list (e.g., "['turn right']"),
-      it parses and returns the list.
+      it parses and returns the list without extra quotes.
     - If the action is a simple string (e.g., 'turn right'), it returns a list containing that string.
-    
+
     Args:
         action (str): The action string to convert.
-        
+
     Returns:
-        list: A list of action strings.
+        list: A list of action strings without extraneous quotes.
     """
     action = action.strip()
     try:
         # Attempt to parse the string as a Python literal (e.g., list)
         parsed_action = ast.literal_eval(action)
         if isinstance(parsed_action, list):
-            # Ensure all elements are stripped of whitespace
-            return [act.strip() for act in parsed_action]
+            # Remove surrounding quotes from each element if present
+            cleaned_actions = []
+            for act in parsed_action:
+                if isinstance(act, str):
+                    # Strip leading and trailing single or double quotes
+                    act = act.strip('\'"')
+                    cleaned_actions.append(act)
+                else:
+                    # If not a string, keep the element as is
+                    cleaned_actions.append(act)
+            return cleaned_actions
     except (ValueError, SyntaxError):
-        # If parsing fails, treat the input as a single action string
         pass
-    # Return the action as a single-element list
-    return [action]
+    # Split by comma if multiple actions are provided as a single string
+    # and remove any extraneous quotes
+    return [act.strip().strip('\'"') for act in action.split(',')]
 
 def string_to_tuple(input_string):
     # Remove markdown code block formatting if present
