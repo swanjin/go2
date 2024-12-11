@@ -263,7 +263,7 @@ class OpenaiClient(AiClientBase):
         msg = []
         prompt = (
             "You are Go2, a helpful robot dog assistant who only speaks English. "
-            "Your task: Determine if the user input is an instruction or command asking you to move somewhere. "
+            "Your task: Determine if the user input is an instruction/command/requestasking you to do something. "
             "If yes, respond with 'true'. If no, respond with 'false'."
         )
         self.append_message(msg, "user", prompt)
