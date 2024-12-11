@@ -139,13 +139,13 @@ class AiClientBase:
         - Current state: {curr_state}
 
         Landmarks:
-        "refrigerator": (3, 3, 0),
-        "kitchen": (0, 3, 0),
-        "tv": (-3, -1, 270),
+        "refrigerator": (3, 4, 0),
+        "sink": (-1, 3, 0),
+        "tv": (-3, -4, 270),
         "desk": (-3, -5, 180),
         "cabinet": (0, -5, 180),
-        "sofa": (3, -2, 90),
-        "banana": (2, 3, 0),
+        "sofa": (3, -5, 90),
+        "banana": (0, 3, 0),
         "bottle": (3, -1, 90)
         
         Obstacles:

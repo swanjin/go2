@@ -216,12 +216,12 @@ class Mapping:
     def __init__(self):
         self.landmarks = {
             "refrigerator": (3, 3, 0),
-            "kitchen": (0, 3, 0),
-            "tv": (-3, -1, 270),
+            "sink": (-1, 3, 0),
+            "tv": (-3, -4, 270),
             "desk": (-3, -5, 180),
             "cabinet": (0, -5, 180),
-            "sofa": (3, -2, 90),
-            "banana": (2, 3, 0),
+            "sofa": (3, -5, 90),
+            "banana": (0, 3, 0),
             "bottle": (3, -1, 90),
         }
         self.obstacles = {
@@ -255,8 +255,8 @@ if __name__ == "__main__":
 
     # Run simulation with obstacle avoidance
     navi_model = NaviModel()
-    start = (3, 3, 90)
-    target = (3, 3, 0)
+    start = (0, 0, 270)
+    target = (0, 0, 270)
     path_to_target = navi_model.navigate_to(start, target, mapping.obstacles)
     print("Path to target:", path_to_target)
 
