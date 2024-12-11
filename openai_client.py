@@ -26,7 +26,7 @@ class OpenaiClient(AiClientBase):
         self.msg_feedback = []
         self.round_number = 1
         self.chat = []
-        self.curr_state = self.env['curr_state']
+        self.curr_state = utils.string_to_tuple(self.env['curr_state'])
         self.memory_list = []
         self.is_initial_prompt_landmark_or_non_command = True
         self.is_initial_response_format_non_command = True

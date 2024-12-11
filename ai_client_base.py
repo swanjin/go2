@@ -22,7 +22,7 @@ class AiClientBase:
         - x and y are grid pixel index representing your position.
         - orientation is the facing direction in degrees.
 
-        Your task is to search for the target object, '{self.env['target']}'. Current state is {curr_state}. You can only see objects in your facing direction and must adjust your orientation to face the target while searching.
+        Your task is to search for the target object, {self.env['target']}. Current state is {curr_state}. You can only see objects in your facing direction and must adjust your orientation to face the target while searching.
 
         ### Instructions for Action:
         Action dictionary:
@@ -34,19 +34,19 @@ class AiClientBase:
         - 'turn left'
         - 'stop'
 
-        Choose the precise action name from the action dictionary to search for the '{self.env['target']}'. If the action needs to be executed several times, identify each unique action from the action dictionary and list them several times, separated by commas.
+        Choose the precise action name from the action dictionary to search for the {self.env['target']}. If the action needs to be executed several times, identify each unique action from the action dictionary and list them several times, separated by commas.
 
-        #### Case 1: The '{self.env['target']}' is detected in the 'Detection' section.
-        - **Subcase 1.1**: The '{self.env['target']}' is within the middle of the image's width (i.e., the width pixel index between '{self.env['captured_width']*(2/5)}' and '{self.env['captured_width']*(4/5)}'), and the distance to '{self.env['target']}' is more than the defined stop distance ('{self.env['stop_hurdle_meter_for_target']}').
+        #### Case 1: The {self.env['target']} is detected in the 'Detection' section.
+        - **Subcase 1.1**: The {self.env['target']} is within the middle of the image's width (i.e., the width pixel index between '{self.env['captured_width']*(2/5)}' and '{self.env['captured_width']*(4/5)}'), and the distance to {self.env['target']} is more than the defined stop distance ('{self.env['stop_hurdle_meter_for_target']}').
             - **Action**: Move your position vertically to get closer to the target with the number of times as below.
-                - If the chosen action is 'stop' and the distance to the detected '{self.env['target']}' in the middle third of the image is less than the defined stop distance (i.e., '{self.env['stop_hurdle_meter_for_target']}'), execute 0 times.
+                - If the chosen action is 'stop' and the distance to the detected {self.env['target']} in the middle third of the image is less than the defined stop distance (i.e., '{self.env['stop_hurdle_meter_for_target']}'), execute 0 times.
                 - If the chosen action is 'move forward' and the distance is between '{self.env['stop_hurdle_meter_for_target']}' and 1.8 meters, execute 1 times.
                 - Otherwise, execute 2 times.
 
-        - **Subcase 1.2**: the distance to the detected '{self.env['target']}' in the middle third of the image is less than the defined stop distance (i.e., '{self.env['stop_hurdle_meter_for_target']}').
+        - **Subcase 1.2**: the distance to the detected {self.env['target']} in the middle third of the image is less than the defined stop distance (i.e., '{self.env['stop_hurdle_meter_for_target']}').
             - **Action**: 'stop'
 
-        - **Subcase 1.3**: No '{self.env['target']}' falls within the middle of the image's width.
+        - **Subcase 1.3**: No {self.env['target']} falls within the middle of the image's width.
             - **Action**: Move your position horizontally by shifting 1 time to center the detected target within your field of view. 
             - Example: 
                 - If the target is in the left third of the image's width (the width pixel index less than '{self.env['captured_width']*(1/5)}'), **shift left** to bring it closer to the center. 
@@ -54,14 +54,14 @@ class AiClientBase:
 
         - **Verification Step for Case 1**:
             - Ensure the following before proceeding:
-            1. Have you checked whether the '{self.env['target']}' is detected in the middle of the image? 
-            2. Have you accurately compared the distances of  '{self.env['target']}' against the defined stop distance ('{self.env['stop_hurdle_meter_for_target']}')?
+            1. Have you checked whether the {self.env['target']} is detected in the middle of the image? 
+            2. Have you accurately compared the distances of  {self.env['target']} against the defined stop distance ('{self.env['stop_hurdle_meter_for_target']}')?
             3. Based on these checks, confirm which subcase (1.1, 1.2, or 1.3) applies and proceed with the specified action.
 
-        #### Case 2: The '{self.env['target']}' is **not detected** in the 'Detection' section.
+        #### Case 2: The {self.env['target']} is **not detected** in the 'Detection' section.
         - **Subcase 2.1**: The {self.env['object1']} is **not detected** in the 'Detection' section.
             - **Action**: Rotate once to explore a different orientation without changing your position (x, y). Avoid exploring any orientation that was already explored at the same position (x, y) during previous rounds, as recorded in the 'Memory' section.
-            - **Note**: Avoid revisiting orientations that have already been explored at the same position without detecting the '{self.env['target']}' according to the 'Memory' section.
+            - **Note**: Avoid revisiting orientations that have already been explored at the same position without detecting the {self.env['target']} according to the 'Memory' section.
 
         - **Subcase 2.2**: The {self.env['object1']} **is detected** in the 'Detection' section, and its distance is **more than** the stopping threshold ('{self.env['hurdle_meter_for_non_target']}').
             - **Action**: Adjust your position (x, y) vertically towards the detected {self.env['object1']}. Do not explore different orientations with the number of times as below.
@@ -71,11 +71,11 @@ class AiClientBase:
 
         - **Subcase 2.3**: The {self.env['object1']} **is detected** in the 'Detection' section, and its distance is **less than** the stopping threshold ('{self.env['hurdle_meter_for_non_target']}').
             - **Action**: Rotate once to explore a different orientation without changing your position (x, y). Avoid exploring any orientation that was already explored at the same position (x, y) during previous rounds, as recorded in the 'Memory' section.
-            - **Note**: Avoid revisiting orientations that have already been explored at the same position without detecting the '{self.env['target']}' according to the 'Memory' section.
+            - **Note**: Avoid revisiting orientations that have already been explored at the same position without detecting the {self.env['target']} according to the 'Memory' section.
 
         - **Verification Step for Case 2**:
             - Ensure the following before proceeding:
-            1. Have you checked whether the '{self.env['target']}' is **not detected** in the 'Detection' section?
+            1. Have you checked whether the {self.env['target']} is **not detected** in the 'Detection' section?
             2. Have you confirmed the presence or absence of {self.env['object1']} in the 'Detection' section?
             3. If {self.env['object1']} is detected:
                 - Have you measured the distance accurately against the stopping threshold ('{self.env['hurdle_meter_for_non_target']}')?
@@ -124,13 +124,13 @@ class AiClientBase:
         Reason: 
         - Explain your choice of actions in one concise sentence.
         - Don't mention about case/subcase number and any section name.
-        - If you need to mention about whether the '{self.env['target']}' is in the left/middle/right third of the image, just say 'left', 'middle', or 'right' without mentioning the 'third'. 
+        - If you need to mention about whether the {self.env['target']} is in the left/middle/right third of the image, just say 'left', 'middle', or 'right' without mentioning the 'third'. 
         - If {self.env['object1']} is not detected in the 'Detection' section, you must not mention anything about {self.env['object1']}. Even if the reasoing behind your action considers whether {self.env['object1']} is detected or not, you must not mention any about {self.env['object1']}. Even if {self.env['object1']} is detected at previous rounds in the 'Memory' section, you must not mention anything about {self.env['object1']} in your reasoning. You can mention about {self.env['object1']} in your reasoning only if {self.env['object1']} is detected in the 'Detection' section, **not in the 'Memory' section.** 
         """)
 
     def prompt_landmark_or_non_command(self, curr_state):
         return (f"""
-        You are Go2, a robot dog assistant who only speaks English.
+        You are Go2, a robot dog assistant who only speaks English. Your task is to search for an Your task is to search for the target object, {self.env['target']}. Current state is {curr_state}. You can only see objects in your facing direction. You can only see objects in your facing direction.
 
         State: (x, y, orientation)
         - Grid x: -5 to 4
@@ -184,7 +184,7 @@ class AiClientBase:
         - x and y are grid pixel index representing your position.
         - orientation is the facing direction in degrees.
 
-        Your task is to search for the target object, '{self.env['target']}'. Current state is {curr_state}. You can only see objects in your facing direction and must adjust your orientation to face the target while searching.
+        Your task is to search for the target object, {self.env['target']}. Current state is {curr_state}. You can only see objects in your facing direction and must adjust your orientation to face the target while searching.
 
         Obstacles:
         1. Border lines
@@ -205,7 +205,7 @@ class AiClientBase:
         - 'turn left'
         - 'stop'
 
-        Choose the precise action name from the action dictionary to search for the '{self.env['target']}'. If the action needs to be executed several times, identify each unique action from the action dictionary and list them several times, separated by commas.
+        Choose the precise action name from the action dictionary to search for the {self.env['target']}. If the action needs to be executed several times, identify each unique action from the action dictionary and list them several times, separated by commas.
 
         Orientation determines all directional movements. Use the following orientation mappings:
         - 0° or 360° (North): Facing the positive Y-axis.
