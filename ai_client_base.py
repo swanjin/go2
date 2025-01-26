@@ -13,152 +13,240 @@ class AiClientBase:
         self.env = env
         self.image_counter = 0
         self.round_list = []
+        self.is_first_response = True
 
-        #### Use w/ gpt_vsion_test() ####  #      
-        # self.system_prompt = """You are Go2, a robot dog."""
-        self.system_prompt = f"""
-You are Go2, a robot dog whose position and orientation are represented by a tuple `(x, y, orientation)`, where:
+    def prompt_auto(self, curr_state):
+        return (f"""
+        You are Go2, a robot dog assistant. You can only speak English regardless of the language the user uses. Your position and orientation are represented by a state (x, y, orientation), where:
 
-* `x` and `y` represent grid coordinates.
-* `orientation` represents the facing direction in degrees.
+        - x and y are grid pixel index representing your position.
+        - orientation is the facing direction in degrees.
 
-### Instructions for Action:
-Choose the precise action name from the action dictionary to search for the '{self.env['target']}' object based on the guidance below. 
+        Your task is to search for the target object, {self.env['target']}. Current state is {curr_state}. You can only see objects in your facing direction and must adjust your orientation to face the target while searching.
 
-Here is the action dictionary, formatted as 'action name: (x shift, y shift, clockwise rotation)':
-- 'move forward': (0, 1, 0) 
-- 'move backward': (0, -1, 0) 
-- 'shift right': (1, 0, 0) 
-- 'shift left': (-1, 0, 0) 
-- 'turn right': (0, 0, 90) 
-- 'turn left': (0, 0, -90)
+        ### Instructions for Action:
+        Action dictionary:
+        - 'move forward'
+        - 'move backward'
+        - 'shift right' 
+        - 'shift left'
+        - 'turn right'
+        - 'turn left'
+        - 'stop'
 
-- **Case 1**: the '{self.env['target']}' is detected in the '### Image Analysis' section.
-   - If none of the '{self.env['target']}' is within the middle range of x-coordinates, adjust your x-coordinate to center the detected target within your field of view. For example, if the target is in the left third of the image, shift left to bring it closer to the center. On the other hand, if the target is in the right third of the image, shift right to center it.
-   - If the x-coordinate of at least one '{self.env['target']}' is within the middle third of the image (i.e., x-coordinates between '{self.env['captured_width']*(1/3)}' and '{self.env['captured_width']*(2/3)}'), adjust your y-coordinate to move closer to the target.
+        Choose the precise action name from the action dictionary to search for the {self.env['target']}. If the action needs to be executed several times, identify each unique action from the action dictionary and list them several times, separated by commas.
 
-- **Case 2**: the '{self.env['target']}' is not detected in the '### Image Analysis' section.
-   - **Case 2.1**: the '### Conversation' section has a comment "None."
-       a. You should explore different orientations only if the exact comment "No objects detected in the image." is present in the '### Image Analysis' section. Refer to the '### History' section to avoid revisiting orientations that have already been explored without success.
-       b. If '{self.env['object1']}' is detected in the '### Image Analysis' section **with at least one distance less than '{self.env['hurdle_meter_for_non_target']}' meters and the likelihood at the current orientation is over 50%**, then **do not change the y-coordinate. Instead, explore different orientations**. Refer to the '### History' section to avoid revisiting orientations that have already been explored without success.
-       c. If '{self.env['object1']}' is detected in the '### Image Analysis' section and **all of their distances are more than '{self.env['hurdle_meter_for_non_target']}' meters with likelihood > 50%**, then **adjust the y-coordinate in the direction of the detected objects, as movement is now prioritized over orientation**.
-       d. For b. and c., ensure that the action taken aligns exactly with the criteria specified above:
-           - **If at least one proximity is less than '{self.env['hurdle_meter_for_non_target']}' meters and likelihood > 50%, then explore orientations (Case 2.1.b)**.
-           - **If all distances are greater than '{self.env['hurdle_meter_for_non_target']}' meters and likelihood > 50%, then adjust the y-coordinate (Case 2.1.c)**.
-   - **Case 2.2**: the '### Conversation' section has a comment, anything other than "None."
-       - If different actions are involved in the conversation, list each unique action name once, separated by commas, in the order given.
-       - If the conversation contains something related to previous rounds, use the information in the '### History' section. For example, if the user wants you to "Return to the previous position," check the position of the very previous round and adjust your action to get there by comparing with your current position at this round.
-       - If the conversation includes '{self.env['object2']}', use the information in the '### History' section. For example, if the the user wants you to "Go to where the '{self.env['object2']}' is located you saw before," check the position of the previous rounds in which the '{self.env['object2']}' was detected and adjust your action to get there again by comparing with your current position at this round. If you think multiple different actions should be involved to get there, list each unique action name once, separated by commas, in the order given.
+        #### Case 1: The {self.env['target']} is detected in the 'Detection' section.
+        - **Subcase 1.1**: The {self.env['target']} is within the middle of the image's width (i.e., the width pixel index between '{self.env['captured_width']*(2/5)}' and '{self.env['captured_width']*(4/5)}'), and the distance to {self.env['target']} is more than the defined stop distance ('{self.env['stop_hurdle_meter_for_target']}').
+            - **Action**: Move your position vertically to get closer to the target with the number of times as below.
+                - If the chosen action is 'stop' and the distance to the detected {self.env['target']} in the middle third of the image is less than the defined stop distance (i.e., '{self.env['stop_hurdle_meter_for_target']}'), execute 0 times.
+                - If the chosen action is 'move forward' and the distance is between '{self.env['stop_hurdle_meter_for_target']}' and 1.8 meters, execute 1 times.
+                - Otherwise, execute 2 times.
 
-### Instructions for New Position:
-Position and orientation are represented by a tuple '(x, y, orientation)', where:
-- x and y represent grid coordinates.
-- orientation represents the facing direction in degrees.
+        - **Subcase 1.2**: the distance to the detected {self.env['target']} in the middle third of the image is less than the defined stop distance (i.e., '{self.env['stop_hurdle_meter_for_target']}').
+            - **Action**: 'stop'
 
-Orientation determines all directional movements. Use the following orientation mappings:
-- 0° or 360° (North): Facing the positive Y-axis.
-- 90° or -270° (East): Facing the positive X-axis.
-- 180° or -180° (South): Facing the negative Y-axis.
-- 270° or -90° (West): Facing the negative X-axis.
+        - **Subcase 1.3**: No {self.env['target']} falls within the middle of the image's width.
+            - **Action**: Move your position horizontally by shifting 1 time to center the detected target within your field of view. 
+            - Example: 
+                - If the target is in the left third of the image's width (the width pixel index less than '{self.env['captured_width']*(1/5)}'), **shift left** to bring it closer to the center. 
+                - If the target is in the right third of the image's width (the width pixel index greater than '{self.env['captured_width']*(4/5)}'), **shift right** to bring it closer to the center.
 
-Movement & Shift Table by Orientation:
-The effect of each action on x and y coordinates depends on the orientation as shown:
+        - **Verification Step for Case 1**:
+            - Ensure the following before proceeding:
+            1. Have you checked whether the {self.env['target']} is detected in the middle of the image? 
+            2. Have you accurately compared the distances of  {self.env['target']} against the defined stop distance ('{self.env['stop_hurdle_meter_for_target']}')?
+            3. Based on these checks, confirm which subcase (1.1, 1.2, or 1.3) applies and proceed with the specified action.
 
-| Orientation | move forward | move backward | shift right | shift left |
-|-------------|--------------|---------------|-------------|------------|
-| 0° (North)  | (x, y + 1*Move)   | (x, y - 1*Move)    | (x + 1*Shift, y)  | (x - 1*Shift, y) |
-| 90° (East)  | (x + 1*Move, y)   | (x - 1*Move, y)    | (x, y - 1*Shift)  | (x, y + 1*Shift) |
-| 180° (South)| (x, y - 1*Move)   | (x, y + 1*Move)    | (x - 1*Shift, y)  | (x + 1*Shift, y) |
-| 270° (West) | (x - 1*Move, y)   | (x + 1*Move, y)    | (x, y + 1*Shift)  | (x, y - 1*Shift) |
+        #### Case 2: The {self.env['target']} is **not detected** in the 'Detection' section.
+        - **Subcase 2.1**: The {self.env['object1']} is **not detected** in the 'Detection' section.
+            - **Action**: Rotate once to explore a different orientation without changing your position (x, y). Avoid exploring any orientation that was already explored at the same position (x, y) during previous rounds, as recorded in the 'Memory' section.
+            - **Note**: Avoid revisiting orientations that have already been explored at the same position without detecting the {self.env['target']} according to the 'Memory' section.
 
-turn right / turn left (Orientation Changes Only):
-- turn right: Increases orientation by 90°*Turn.
-- turn left: Decreases orientation by 90°*Turn.
-After each turn, normalize the orientation to a range of 0° to 360° (e.g., -90° becomes 270°).
+        - **Subcase 2.2**: The {self.env['object1']} **is detected** in the 'Detection' section, and its distance is **more than** the stopping threshold ('{self.env['hurdle_meter_for_non_target']}').
+            - **Action**: Adjust your position (x, y) vertically towards the detected {self.env['object1']}. Do not explore different orientations with the number of times as below.
+                - If the chosen action is 'move forward' and the distance to {self.env['object1']} is less than '{self.env['hurdle_meter_for_non_target']}', execute 0 times.
+                - If the chosen action is 'move forward' and the distance to {self.env['object1']} is between '{self.env['hurdle_meter_for_non_target']}' and 2.5 meters, execute 1 times.
+                - Otherwise, execute 2 times.
 
-Verification Step:
-Confirm each x or y coordinate change reflects the intended movement or shift by double-checking against the table above to ensure consistency with the specified orientation.
+        - **Subcase 2.3**: The {self.env['object1']} **is detected** in the 'Detection' section, and its distance is **less than** the stopping threshold ('{self.env['hurdle_meter_for_non_target']}').
+            - **Action**: Rotate once to explore a different orientation without changing your position (x, y). Avoid exploring any orientation that was already explored at the same position (x, y) during previous rounds, as recorded in the 'Memory' section.
+            - **Note**: Avoid revisiting orientations that have already been explored at the same position without detecting the {self.env['target']} according to the 'Memory' section.
 
-### Instructions for Move: for deciding the number of steps of 'move forward' or 'move backward'
-- **Case 1**:
-   - If the chosen action is 'move forward' and the distance to at least one of the detected targets in the middle third of the image is less than the defined stop distance (i.e., '{self.env['stop_hurdle_meter_for_target']}'), execute 0.
-   - If the chosen action is 'move forward' and the distance is between '{self.env['stop_hurdle_meter_for_target']}' and 1.70 meters, execute 1. 
-   - If the chosen action is 'move forward' and the distance is between 1.70 meters and 2.3 meters, execute 2. 
-   - Otherwise, execute 3.
+        - **Verification Step for Case 2**:
+            - Ensure the following before proceeding:
+            1. Have you checked whether the {self.env['target']} is **not detected** in the 'Detection' section?
+            2. Have you confirmed the presence or absence of {self.env['object1']} in the 'Detection' section?
+            3. If {self.env['object1']} is detected:
+                - Have you measured the distance accurately against the stopping threshold ('{self.env['hurdle_meter_for_non_target']}')?
+            4. Based on these checks, confirm which subcase (2.1, 2.2, or 2.3) applies and proceed with the specified action.
 
-- **Case 2**:
-   - **Case 2.1**:
-       - If 'move forward' or 'move backward' is in the chosen actions:
-           - If the chosen action is 'move forward' and the distance to '{self.env['object1']}' is between '{self.env['hurdle_meter_for_non_target']}' and 2.0 meters, execute 1.
-           - If the chosen action is 'move forward' and the distance is between 2.0 meters and 2.5 meters, execute 2.
-           - Otherwise, execute 3.
-       - If 'move forward' or 'move backward' is not in the chosen actions, execute 0.
-   - **Case 2.2**: 
-       - If 'move forward' or 'move backward' is in the chosen actions, interpret the conversation between you and the user to only determine the number of move; otherwise, execute 0.
-       - If the conversation includes '{self.env['object2']}', use the information in the '# History' section. For example, if the user wants you to "Go to where the '{self.env['object2']}' is located you saw before," check the position of the previous rounds in which the '{self.env['object2']}' was detected and adjust the number of move to get there again by comparing with your current position at this round.
+        ### Instructions for New state:
+        Position and orientation are represented by a state '(x, y, orientation)', where:
+        - x and y represent grid pixel index.
+        - orientation represents the facing direction in degrees.
 
-### Instructions for Shift: for deciding the number of steps of 'shift right' or 'shift left'
-- **Case 1**:
-   - If the x-coordinate of at least one detected target is within the middle third of the image (i.e., x-coordinates between '{self.env['captured_width']*(1/3)}' and '{self.env['captured_width']*(2/3)}'), execute 0.
-   - If none of the detected targets is within this middle range, execute 1.
-- **Case 2**:
-   - **Case 2.1**: Execute 1.
-   - **Case 2.2**: 
-       - If 'shift right' or 'shift left' is in the chosen actions, interpret  the conversation between you and the user to only determine the number of shift; otherwise, execute 0.
-       - If the conversation includes '{self.env['object2']}', use the information in the '# History' section. For example, if the user wants you to "Go to where the '{self.env['object2']}' is located you saw before," check the position of the previous rounds in which the '{self.env['object2']}' was detected and adjust the number of shift to get there again by comparing with your current position at this round.
+        Orientation determines all directional movements. Use the following orientation mappings:
+        - 0° or 360° (North): Facing the positive Y-axis.
+        - 90° or -270° (East): Facing the positive X-axis.
+        - 180° or -180° (South): Facing the negative Y-axis.
+        - 270° or -90° (West): Facing the negative X-axis.
 
-### Instructions for Turn: for deciding the number of steps of 'turn right' or 'turn left'
-- **Case 2**:
-   - **Case 2.1**: If 'turn right' or 'turn left' is in the chosen actions, execute 1; otherwise, execute 0.
-   - **Case 2.2**: 
-       - If 'turn right' or 'turn left' is in the chosen actions, interpret the conversation between you and the user to only determine the number of turn; otherwise, execute 0.
-       - If the conversation includes '{self.env['object2']}', use the information in the '# History' section. For example, if the user wants you to "Go to where the '{self.env['object2']}' is located you saw before," check the position of the previous rounds in which the '{self.env['object2']}' was detected and adjust the number of turn to get there again by comparing with your current position at this round.
-""" 
+        Movement & Shift Table by Orientation:
+        The effect of each action on x and y pixel index depends on the orientation as shown:
 
-    def get_user_prompt(self):
-#### Use w/ gpt_vsion_test() ####        
-        # return f"""Go2, find {self.target}. Respond with the specified format:
-# Go2)
-# Target: Please assess whether the target is visible in the captured image. If the target object is detected, mark it as 'Visible'. If the target is not detected, mark it as 'Invisible'.
-# Confidence: If visible, provide how much you are sure that the detected object is the target based on the scale 0-100. Please output only the number.
-# Location: If visible, explain its location in the image in one concise short sentence.
-# """
-        return f"""
-        Your target object is '{self.target}'. You start at position (0, 0, 0). Ensure each response follows the following format precisely. Do not deviate. Before responding, verify that your output exactly matches the structured format.
+        | Orientation | move forward | move backward | shift right | shift left |
+        |-------------|--------------|---------------|-------------|------------|
+        | 0° (North)  | (x, y + 1)   | (x, y - 1)    | (x + 1, y)  | (x - 1, y) |
+        | 90° (East)  | (x + 1, y)   | (x - 1, y)    | (x, y - 1)  | (x, y + 1) |
+        | 180° (South)| (x, y - 1)   | (x, y + 1)    | (x - 1, y)  | (x + 1, y) |
+        | 270° (West) | (x - 1, y)   | (x + 1, y)    | (x, y + 1)  | (x, y - 1) |
 
-Current Position: compute '(x, y, orientation)' before you take any action at this round.
-Target Status: If the target is detected in the 'Image Analysis' section, mark 'Visible'; otherwise, 'Invisible.'
-Likelihood: If the target status is 'Visible', set the likelihood as 100. If it is 'Invisible' and there are no detected objects, set 0. If the target status is 'Invisible' but there are some detected objects, assign a score from 0-100 based on how likely the target is contextually correlated with the other detected objects in the image at this round. For example, if the target is '{self.env['target']}' and '{self.env['object1']}' is detected, the likelihood should be 80.
-Action: Follow the guideline in the '### Instructions for Action' section.
-Move: Follow the guideline in the '### Instructions for Move' section.
-Shift: Follow the guideline in the '### Instructions for Shift' section.
-Turn: Follow the guideline in the '### Instructions for Turn' section.
-New Position: Follow the guideline in the '### Instructions for New Position' section.
-Reason: Explain your choice of actions and mentioning which instructions affected your decision without mentioning the case number in one concise sentence.
-"""
-    def get_user_prompt_for_questions(self):
-    #### Use w/ gpt_vsion_test() ####        
-            # return f"""Go2, find {self.target}. Respond with the specified format:
-    # Go2)
-    # Target: Please assess whether the target is visible in the captured image. If the target object is detected, mark it as 'Visible'. If the target is not detected, mark it as 'Invisible'.
-    # Confidence: If visible, provide how much you are sure that the detected object is the target based on the scale 0-100. Please output only the number.
-    # Location: If visible, explain its location in the image in one concise short sentence.
-    # """
-            return f"""
-    You should respond in one concise sentence, ensuring it is short and to the point.
-    """
+        turn right / turn left (Orientation Changes Only):
+        - turn right: Increases orientation by 90°*Turn.
+        - turn left: Decreases orientation by 90°*Turn.
+        After each turn, normalize the orientation to a range of 0° to 360° (e.g., -90° becomes 270°).
+
+        stop: 
+        Position and orientation remain unchanged.
+
+        Verification Step:
+        Confirm each x or y coordinate change reflects the intended movement or shift by double-checking against the table above to ensure consistency with the specified orientation.
+        """)
+
+    def response_format_auto(self):
+        return (f"""
+        Ensure each response follows the following format precisely. Do not deviate. Before responding, verify that your output exactly matches the structured format.
+
+        Initial state: compute '(x, y, orientation)' before you take any action at this round.
+        New state: Follow the guideline in the '### Instructions for New state' section.
+        Action: Follow the guideline in the '### Instructions for Action' section.
+        Reason: 
+        - Explain your choice of actions in one concise sentence.
+        - Don't mention about case/subcase number and any section name.
+        - If you need to mention about whether the {self.env['target']} is in the left/middle/right third of the image, just say 'left', 'middle', or 'right' without mentioning the 'third'. 
+        - If {self.env['object1']} is not detected in the 'Detection' section, you must not mention anything about {self.env['object1']}. Even if the reasoing behind your action considers whether {self.env['object1']} is detected or not, you must not mention any about {self.env['object1']}. Even if {self.env['object1']} is detected at previous rounds in the 'Memory' section, you must not mention anything about {self.env['object1']} in your reasoning. You can mention about {self.env['object1']} in your reasoning only if {self.env['object1']} is detected in the 'Detection' section, **not in the 'Memory' section.** 
+        """)
+
+    def prompt_landmark_or_non_command(self, curr_state):
+        return (f"""
+        You are Go2, a robot dog assistant who only speaks English. Your task is to search for an Your task is to search for the target object, {self.env['target']}. Current state is {curr_state}. You can only see objects in your facing direction. You can only see objects in your facing direction.
+
+        State: (x, y, orientation)
+        - Grid x: -5 to 4
+        - Grid y: -6 to 4
+        - Orientation: 0°=N, 90°=E, 180°=S, 270°=W
+        - Current state: {curr_state}
+
+        Landmarks:
+        "refrigerator": (3, 4, 0),
+        "sink": (-1, 3, 0),
+        "tv": (-3, -4, 270),
+        "desk": (-3, -5, 180),
+        "cabinet": (0, -5, 180),
+        "sofa": (3, -5, 90),
+        "banana": (0, 3, 0),
+        "bottle": (3, -1, 90)
+        
+        Obstacles:
+        1. Border lines
+        (-4, 4), (-3, 4), (-2, 4), (-1, 4), (0, 4), (1, 4), (2, 4), (3, 4), (4, 4),
+        (-4, -6), (-3, -6), (-2, -6), (-1, -6), (0, -6), (1, -6), (2, -6), (3, -6), (4, -6),
+        (-4, -5), (-4, -4), (-4, -3), (-4, -2), (-4, -1), (-4, 0), (-4, 1), (-4, 2), (-4, 3),
+        (4, -5), (4, -4), (4, -3), (4, -2), (4, -1), (4, 0), (4, 1), (4, 2), (4, 3)
+        2. Box
+        (-1, 1), (-2, 1)
+        """)
+
+    def response_format_non_command(self):
+        return (f"""
+        Rules:
+        - Respond extremely concisely without numbers and cardinal directions for states, obstacles, or landmarks.
+        - Describe landmarks relative to your current state.
+        """)
+
+    def response_format_landmark_command(self):
+        return (f"""        
+        Rules:
+        1. Target state within grid bounds, not an obstacle.
+        2. If target state based on a landmark/obstacle, set orientation to its orientation.
+        3. If target state invalid, find nearest valid spot.
+        4. If ties in distance, pick randomly.
+        
+        Response Format: 
+        - Respond only with "(x,y,orientation)" without extra text.
+        """)
+
+    def prompt_general_command(self, curr_state):
+        return (f"""
+        You are Go2, a robot dog assistant. You can only speak English regardless of the language the user uses. Your position and orientation are represented by a state (x, y, orientation), where:
+
+        - x and y are grid pixel index representing your position.
+        - orientation is the facing direction in degrees.
+
+        Your task is to search for the target object, {self.env['target']}. Current state is {curr_state}. You can only see objects in your facing direction and must adjust your orientation to face the target while searching.
+
+        Obstacles:
+        1. Border lines
+        (-4, 4), (-3, 4), (-2, 4), (-1, 4), (0, 4), (1, 4), (2, 4), (3, 4), (4, 4),
+        (-4, -6), (-3, -6), (-2, -6), (-1, -6), (0, -6), (1, -6), (2, -6), (3, -6), (4, -6),
+        (-4, -5), (-4, -4), (-4, -3), (-4, -2), (-4, -1), (-4, 0), (-4, 1), (-4, 2), (-4, 3),
+        (4, -5), (4, -4), (4, -3), (4, -2), (4, -1), (4, 0), (4, 1), (4, 2), (4, 3)
+        2. Box
+        (-1, 1), (-2, 1)
+
+        ### Instructions for Action/New state:
+        Action dictionary:
+        - 'move forward'
+        - 'move backward'
+        - 'shift right' 
+        - 'shift left'
+        - 'turn right'
+        - 'turn left'
+        - 'stop'
+
+        Choose the precise action name from the action dictionary to search for the {self.env['target']}. If the action needs to be executed several times, identify each unique action from the action dictionary and list them several times, separated by commas.
+
+        Orientation determines all directional movements. Use the following orientation mappings:
+        - 0° or 360° (North): Facing the positive Y-axis.
+        - 90° or -270° (East): Facing the positive X-axis.
+        - 180° or -180° (South): Facing the negative Y-axis.
+        - 270° or -90° (West): Facing the negative X-axis.
+
+        Movement & Shift Table by Orientation:
+        The effect of each action on x and y coordinates depends on the orientation as shown:
+
+        | Orientation | move forward | move backward | shift right | shift left |
+        |-------------|--------------|---------------|-------------|------------|
+        | 0° (North)  | (x, y + 1*Move)   | (x, y - 1*Move)    | (x + 1*Shift, y)  | (x - 1*Shift, y) |
+        | 90° (East)  | (x + 1*Move, y)   | (x - 1*Move, y)    | (x, y - 1*Shift)  | (x, y + 1*Shift) |
+        | 180° (South)| (x, y - 1*Move)   | (x, y + 1*Move)    | (x - 1*Shift, y)  | (x + 1*Shift, y) |
+        | 270° (West) | (x - 1*Move, y)   | (x + 1*Move, y)    | (x, y + 1*Shift)  | (x, y - 1*Shift) |
+
+        turn right / turn left (Orientation Changes Only):
+        - turn right: Increases orientation by 90°*Turn.
+        - turn left: Decreases orientation by 90°*Turn.
+        After each turn, normalize the orientation to a range of 0° to 360° (e.g., -90° becomes 270°).
+
+        Verification Step:
+        Confirm each x or y coordinate change reflects the intended movement or shift by double-checking against the table above to ensure consistency with the specified orientation.
+        """)
+
+    def response_format_general_command(self):
+        return (f"""
+        Ensure each response follows the following format precisely. Do not deviate. Before responding, verify that your output exactly matches the structured format.
+
+        Initial state: compute '(x, y, orientation)' before you take any action at this round.
+        New state: Determine new '(x, y, orientation)' based on the chat between user and you and the guideline in the '### Instructions for Action/New state' section .
+        Action: Determine the actions based on the chat between user and you and the guideline in the '### Instructions for Action/New state' section .
+        Reason: Explain your choice of actions in one concise sentence.
+        """)
 
     def set_target(self, target):
         self.target = target
 
     def stt(self, voice_buffer):
         return None
-
-    def get_response_by_image(self, image_pil):
-        pass
-
-    def get_response_by_feedback(self, feedback):
-        pass
 
     def store_image(self, image_array = None):
         if image_array is None:
@@ -168,11 +256,6 @@ Reason: Explain your choice of actions and mentioning which instructions affecte
         else:
             image = utils.OpenCV2PIL(image_array)
  
-        ## add 'assistant' as a parameter into the function
-        # if (self.env["text_insertion"]):
-        #     text = "\n".join([f"Current Position: {assistant.curr_position}", f"Target: {assistant.target}", f"Likelihood: {assistant.likelihood}", f"Action: {assistant.action}", f"New Position: {assistant.new_position}", f"Reason: {assistant.reason}"])
-        #     image = utils.image_text_append(image, self.env["captured_width"], self.env["captured_height"], text)
-        
         # Format the filename based on the number of images stored
         self.image_counter += 1
         filename = f"image{self.image_counter:02d}.jpg"  # Pad with zeros to two digits
@@ -186,73 +269,35 @@ Reason: Explain your choice of actions and mentioning which instructions affecte
         pass
 
 @dataclass
-class ResponseMessage:
-    curr_position: str
-    target: str
-    likelihood: str
+class ResponseMsg:
+    initial_state: tuple
+    new_state: tuple
     action: list
-    move: str
-    shift: str
-    turn: str
-    new_position: str
     reason: str
-
-    @staticmethod
-    def parse_step(x: str):
-        # Remove any quotes and parentheses
-        x = x.strip("'\"()") 
-        # Find all numbers in the string
-        numbers = re.findall(r'\d+', x)
-        if numbers:
-            return int(numbers[0])  # Return first number found
-        print(f"No numeric value found in: {x}")
-        return 0  # Return 0 as default if no number found
-    
-    def parse_action(action: str):
-        import ast
-        action = action.replace(".", "").lower()
-
-        if action.startswith("[") or action.endswith("]"):
-            action = action[2:-2]
-        actions = [act.strip() for act in action.split(',')]
-        return actions
 
     @staticmethod
     def parse(message: str):
         try:
             # Filter out lines that do not contain ':' and strip empty spaces
             parts = [line.split(":", 1)[1].strip() for line in message.split('\n') if ':' in line and len(line.strip()) > 0]
-            if len(parts) != 9:
-                raise ValueError("Message does not contain exactly nine parts")
-            curr_position, target, likelihood, action, move, shift, turn, new_position, reason = parts
+            if len(parts) != 4:
+                raise ValueError("Message does not contain exactly four parts")
+            initial_state, new_state, action, reason = parts
             
-            # parse action
-            action = ResponseMessage.parse_action(action)
-
-            # parse numeric values
-            move = ResponseMessage.parse_step(move)
-            shift = ResponseMessage.parse_step(shift)
-            turn = ResponseMessage.parse_step(turn)
+            # Convert state strings to tuples
+            initial_state = utils.string_to_tuple(initial_state)
+            new_state = utils.string_to_tuple(new_state)
             
-            total_step = move + shift + turn
-            if total_step == 0:
-                action = "stop"
-                
+            # Convert action string to list
+            action = utils.string_to_list(action)
+            
         except Exception as e:
             print(f"Parse failed. Message: {message}\nError: {e}")
             # Return default values when parsing fails
-            return ResponseMessage(
-                curr_position="(0, 0, 0)",
-                target="unknown",
-                likelihood="0",
+            return ResponseMsg(
+                initial_state=(0, 0, 0),
+                new_state=(0, 0, 0),
                 action=["stop"],
-                move="0",
-                shift="0",
-                turn="0",
-                new_position="(0, 0, 0)",
                 reason="Parse error"
             )
-        return ResponseMessage(curr_position, target, likelihood, action, move, shift, turn, new_position, reason)
-    
-    def to_dict(self):
-        return asdict(self)
+        return ResponseMsg(initial_state, new_state, action, reason)

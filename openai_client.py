@@ -9,311 +9,201 @@ import pyaudio
 from openai import OpenAI
 import cv2
 
-from ai_client_base import AiClientBase, ResponseMessage
+from ai_client_base import AiClientBase, ResponseMsg
 from vision import VisionModel
+from navigation import NaviModel, Mapping
 # from round import Round
 import utils
 from round import Round
-
 
 class OpenaiClient(AiClientBase):
     def __init__(self, env, key):
         # Call the parent class's constructor to initialize system_prompt and other attributes
         super().__init__(env)
-        
-        self.client = OpenAI(api_key=key)
         self.env = env
         self.image_counter = 0
-        self.history = "None."
-        self.vision_model = VisionModel(env)
+        self.msg = []
+        self.msg_feedback = []
+        self.round_number = 1
+        self.chat = []
+        self.curr_state = utils.string_to_tuple(self.env['curr_state'])
+        self.memory_list = []
+        self.is_initial_prompt_landmark_or_non_command = True
+        self.is_initial_response_format_non_command = True
 
-        self.openai_prompt_messages = [
-            {"role": "system", "content": self.system_prompt 
-        }]
-        self.openai_prompt_messages_for_text = [
-            {"role": "system", "content": self.system_prompt 
-        }]
-        self.openai_params = {
-            "model": "gpt-4o",
-            "messages": self.openai_prompt_messages,
-            "max_tokens": 200,
-            # "temperature": 0
-        }
-        self.openai_params_for_text = {
-            "model": "gpt-4o",
-            "messages": self.openai_prompt_messages_for_text,
-            "max_tokens": 200,
-            # "temperature": 0
-        }
-        self.openai_goal = {
-            "role": "user",
-            "content": [None, None, ]}
-        self.openai_goal_for_text = {
-            "role": "user",
-            "content": ""
-        }
-        self.openai_prompt_messages.append(self.openai_goal)
-        self.openai_prompt_messages_for_text.append(self.openai_goal_for_text)
-        self.round_list = []
+        self.client = OpenAI(api_key=key)
+        self.vision_model = VisionModel(self.env)
+        self.navi_model = NaviModel()
+        self.mapping = Mapping()
 
         try:
             os.makedirs('test', exist_ok=True)
             self.save_dir = f"test/test_{datetime.datetime.now().strftime('%Y%m%d%H%M%S')}"
             os.mkdir(self.save_dir)
-            self.history_log_file = open(f"{self.save_dir}/history.log", "a+") # append: a+ overwrite: w+
+            self.log_file = open(f"{self.save_dir}/log.log", "a+") # append: a+ overwrite: w+
         except Exception as e:
             print(f"Failed to create directory: {e}")
 
     def set_target(self, target):
         self.target = target
-        # self.openai_goal["content"][0] = self.get_user_prompt() + "\n# History: \n None."
 
-    def save_round(self, assistant, feedback, image_description_text):
-        # Update history.log
-        self.history_log_file.write(f"======= image{len(self.round_list)+1} =======\n")
-        
-        if image_description_text == "No objects detected in the image.":
-            self.history_log_file.write(f"Image Analysis: \n None. \n")
-        else: 
-            self.history_log_file.write(f"Image Analysis: \n{image_description_text} \n")
+    def update_memory_list(self, detected_objects, chat, assistant):
+        round = Round(self.round_number, detected_objects, chat, assistant)
+        self.memory_list.append(round)
 
-        if feedback:
-            self.history_log_file.write(f"Feedback: \n {feedback} \n")
+        self.log_file.write(
+            f"Round {round.round_number}:\n"
+            f"- Detected Objects: {round.detected_objects if round.detected_objects else 'None'}\n"
+            f"- Chat: {round.chat if round.chat else 'None'}\n"
+            f"- Initial State: {round.assistant.initial_state}\n"
+            f"- Action: {round.assistant.action}\n"
+            f"- New State: {round.assistant.new_state}\n"
+            f"- Reason: {round.assistant.reason if round.assistant.reason else 'None'}\n\n"
+        )
 
-        if assistant is None:
-            self.history_log_file.write(f"Response: \n None.")  # This prevents logging False
-        else:
-            self.history_log_file.write(
-                f"Response: \n"
-                f"Likelihood) {assistant.likelihood} \n"
-                f"Action) {assistant.action} \n"
-                f"Move) {assistant.move} \n"
-                f"Shift) {assistant.shift} \n"
-                f"Turn) {assistant.turn} \n\n"
-                f"Reason) {assistant.reason} \n"
-            )
+        self.log_file.flush()
+        self.round_number += 1
+        self.curr_state = round.assistant.new_state
 
-            self.history_log_file.flush()
+    def construct_detection_auto(self, description):
+        return (
+            f"Detection:\n"
+            f"(The image size is {self.env['captured_width']}x{self.env['captured_height']}, "
+            f"with the pixel index (0, 0) located at the top-left corner.)\n"
+            f"{description} \n\n"
+        )
 
-    def vision_model_test(self, image_pil):
+    def construct_detection_feedback(self, detected_objects):
+        return (
+            f"Detection:\n"
+            f"{detected_objects} \n\n"
+        )
+
+    def construct_memory(self, memory):
+        return (
+            f"Memory:\n {memory}\n\n"
+        )
+
+    def analyze_image(self, image_pil):
         image_analysis = self.vision_model.describe_image(image_pil)
-        self.store_image(image_analysis.frame)
-        self.save_round(image_analysis=image_analysis)
+        return image_analysis.frame, image_analysis.detected_objects, image_analysis.description # array, list, list
 
-    def gpt_vision_test(self, image_pil):
-        _, buffer = cv2.imencode(".jpg", image_pil)
-        decoded = base64.b64encode(buffer).decode("utf-8")
-        self.openai_goal["content"][-1] = {"image": decoded}
-        result = self.client.chat.completions.create(**self.openai_params)
-        rawAssistant = result.choices[0].message.content
-        assistant = ResponseMessage.parse(rawAssistant)
+    def append_message(self, message, message_role: str, message_content: str):
+        message.append({"role": message_role, "content": message_content})
 
-        return assistant
-
-    def update_history_prompt(self, assistant, feedback, image_description_text):
-        self.round_list.append(Round(len(self.round_list) + 1, assistant, feedback))
-        round_number = len(self.round_list)
-        
-        self.history = self.history if round_number > 1 else ""
-        
-        # #### Test feedback prompt
-        # if round_number == 1:
-        #     image_description_text = "You detected banana at coordinates (640, 360) with a distance of 5 meters."
+    def get_ai_response(self, message):
+        # print(message)
+        result = self.client.chat.completions.create(
+            model=self.env['ai_model'],
+            messages=message
+        )
+        return result.choices[0].message.content
     
-        self.history += (
-            f"- Round {round_number}: "
-            f"The user provided feedback: {feedback}. "
-            f"From the position {assistant.curr_position}, {image_description_text} "
-            f"The likelihood of target presence at this position was {assistant.likelihood}. "
-            f"You executed the '{assistant.action}' action which led to the updated position of {assistant.new_position}. \n"
-            # f"The rationale behind this action you told me was: '{assistant.reason}' \n"
-        )
-        # self.history += "None."
+    def string_to_tuple(self, input_string):
+        # Remove markdown code block formatting if present
+        cleaned_string = input_string.replace('```', '').strip()
+        # Remove any newlines
+        cleaned_string = cleaned_string.replace('\n', '')
+        # Parse the tuple
+        return tuple(map(int, cleaned_string.strip("()").split(",")))
 
-    def get_response_by_LLM(self, image_pil, dog_instance, feedback = None):
-
-        # Reset to the initial state
-        self.openai_prompt_messages_for_text.clear()
-        self.openai_prompt_messages_for_text.append(
-            {"role": "system", "content": self.system_prompt}
-        )
-        self.openai_goal_for_text = {
-            "role": "user",
-            "content": ""
-        }
-        self.openai_prompt_messages_for_text.append(self.openai_goal_for_text)
-
-        # Start new auto mode
-        image_analysis = self.vision_model.describe_image(image_pil)
-
-        if image_analysis.description == "":
-            image_description_text = "No objects detected in the image."
-        else:
-            image_description_text = image_analysis.description
-
-        # ## Test likelihood for invisible cases
-        # if image_analysis.description == "" and not dog_instance.round_number == 2:
-        #     image_description_text = "No objects detected in the image."
-        # elif image_analysis.description == "" and dog_instance.round_number == 2:
-        #     image_description_text = "You detected refrigerator at coordinates (640, 360) with a distance of 5 meters."
-        # else:
-        #     image_description_text = image_analysis.description
-        
-        # if self.history is None or self.env["use_test_dataset"]:
-        #     self.history = "# History:\n None."
-
-        if feedback is None:
-            feedback = "None"
-
-        # #### test
-        # if dog_instance.round_number == 2:
-        #     image_description_text = "You detected refrigerator at coordinates (665, 236) with a distance of 2.65 meters."
-
-        # input prompt
-        self.openai_goal_for_text["content"] = (
-            f"{self.get_user_prompt()}\n\n"
-            f"### Image analysis:\n (The image size is {self.env['captured_width']}x{self.env['captured_height']}, with the coordinate (0, 0) located at the top-left corner.):\n {image_description_text} \n\n"
-            f"### History:\n {self.history}\n\n"
-            f"### Feedback:\n {feedback}."
-        )
+    def initialize_prompt_auto(self, description):
+        self.msg.clear()
+        self.append_message(self.msg, "user", self.prompt_auto(self.curr_state))
+        self.append_message(self.msg, "user", self.construct_detection_auto(description))
+        self.append_message(self.msg, "user", self.construct_memory(self.memory_list))
+        self.append_message(self.msg, "user", self.response_format_auto())
+    
+    def get_response_by_LLM(self, image_pil, dog_instance):   
         # Check for feedback interruption early in the function
         if dog_instance.check_feedback_and_interruption():
-            dog_instance.round_number += 1
             return None
-
-        if self.env["print_history"]:
-            print(self.history)
+        
+        # Analyze image
+        frame_bboxes_array, detected_objects, description = self.analyze_image(image_pil)
+        
+        # Initialize messages
+        self.initialize_prompt_auto(description)
         
         # Check for feedback interruption early in the function
         if dog_instance.check_feedback_and_interruption():
-            dog_instance.round_number += 1
             return None
 
-        result = self.client.chat.completions.create(**self.openai_params_for_text)
-        rawAssistant = result.choices[0].message.content
-        assistant = ResponseMessage.parse(rawAssistant)
+        rawAssistant = self.get_ai_response(self.msg)
+        assistant = ResponseMsg.parse(rawAssistant)
 
         # Check for feedback interruption early in the function
         if dog_instance.check_feedback_and_interruption():
-            dog_instance.round_number += 1 
             return None  
 
-        if feedback == "None":
-            self.store_image(image_analysis.frame)
-        else:
-            self.store_image()
-
-        # Check for feedback interruption early in the function
-        if dog_instance.check_feedback_and_interruption():
-            dog_instance.round_number += 1 
-            return None  
-
-        self.save_round(assistant, feedback, image_description_text)
-        self.update_history_prompt(assistant, feedback, image_description_text)
-
-        # Reset to the initial state
-        self.openai_prompt_messages_for_text.clear()
-        self.openai_prompt_messages_for_text.append(
-            {"role": "system", "content": self.system_prompt}
-        )
-        self.openai_goal_for_text = {
-            "role": "user",
-            "content": ""
-        }
-        self.openai_prompt_messages_for_text.append(self.openai_goal_for_text)
-
-        return assistant
-
-    def get_response_by_image(self, image_pil):
-        image_analysis = self.vision_model.describe_image(image_pil, False)
-        if image_analysis.frame.shape[1] != self.env["captured_width"] or image_analysis.frame.shape[0] != self.env["captured_height"]:
-            resized_frame = cv2.resize(image_analysis.frame, (self.env["captured_width"], self.env["captured_height"]))
-        else:
-            resized_frame = image_analysis.frame
-
-        _, buffer = cv2.imencode(".jpg", resized_frame)
-        decoded = base64.b64encode(buffer).decode("utf-8")
-        self.openai_goal["content"][0] = self.get_user_prompt() + self.history # for VLM
-        self.openai_goal["content"][-1] = {"image": decoded}
-
-        result = self.client.chat.completions.create(**self.openai_params)
-        rawAssistant = result.choices[0].message.content
-        assistant = ResponseMessage.parse(rawAssistant)
-
-        resized_image_pil = utils.OpenCV2PIL(resized_frame)
-        self.store_image(resized_image_pil)
-        self.save_round(assistant)
+        # Update data
+        self.store_image(frame_bboxes_array)
+        self.update_memory_list(detected_objects, self.chat, assistant)
 
         return assistant
     
+    def initial_prompt_feedback(self, detected_objects):
+        # Initialize messages
+        if self.is_initial_prompt_landmark_or_non_command:
+            self.append_message(self.msg_feedback, "user", self.prompt_landmark_or_non_command(self.curr_state))
+            self.append_message(self.msg_feedback, "user", self.construct_detection_feedback(detected_objects))
+            self.append_message(self.msg_feedback, "user", self.construct_memory(self.memory_list))      
+            self.is_initial_prompt_landmark_or_non_command = False
+
+    def initial_response_format_non_command(self):  
+        if self.is_initial_response_format_non_command:
+            self.append_message(self.msg_feedback, "user", self.response_format_non_command())
+            self.is_initial_response_format_non_command = False
+
     def feedback_mode_on(self, image_pil):
+        # Analyze image
+        frame_bboxes_array, detected_objects, description = self.analyze_image(image_pil)
+
+        # Initialize messages
+        self.initial_prompt_feedback(detected_objects)
         
-        # Reset to the initial state
-        self.openai_prompt_messages_for_text.clear()
-        self.openai_prompt_messages_for_text.append(
-            {"role": "system", "content": self.system_prompt}
-        )
-        self.openai_goal_for_text = {
-            "role": "user",
-            "content": ""
-        }
-        self.openai_prompt_messages_for_text.append(self.openai_goal_for_text)
+        return frame_bboxes_array, detected_objects
 
-        # Start new feedback mode
-        image_analysis = self.vision_model.describe_image(image_pil)
+    def get_response_non_command(self, user_input):
+        self.initial_response_format_non_command()
+        self.append_message(self.msg_feedback, "user", user_input)
+        self.append_message(self.chat, "user", user_input)
 
-        if image_analysis.description == "":
-            image_description_text = "No objects detected in the image."
+        rawAssistant = self.get_ai_response(self.msg_feedback)
+        self.append_message(self.msg_feedback, "assistant", rawAssistant)
+        self.append_message(self.chat, "assistant", rawAssistant)
+
+        return rawAssistant
+        
+    def get_response_landmark_or_non_command(self, user_input, frame_bboxes_array, detected_objects):
+        # Append user input to messages
+        self.append_message(self.msg_feedback, "user", user_input)
+        self.append_message(self.chat, "user", user_input)
+
+        # Determine if the feedback is a landmark or general
+        if self.is_landmark(user_input):
+            print("❗ Executing landmark command")
+            self.append_message(self.msg_feedback, "user", self.response_format_landmark_command())
+            new_state = utils.string_to_tuple(self.get_ai_response(self.msg_feedback))
+            action_to_goal = self.navi_model.navigate_to(self.curr_state, new_state, self.mapping.obstacles)
+            assistant = ResponseMsg(self.curr_state, new_state, action_to_goal, "")
         else:
-            image_description_text = image_analysis.description
-        
-        self.openai_goal_for_text["content"] = (
-            f"### Image analysis:\n (The image size is {self.env['captured_width']}x{self.env['captured_height']}, with the coordinate (0, 0) located at the top-left corner.):\n {image_description_text} \n\n"
-            f"### History:\n {self.history}\n\n"
-            f"### Conversation:\n Refer to the below conversation between you and the user."
-        )
-        self.openai_prompt_messages_for_text.append(self.openai_goal_for_text)
-        
-        if self.env["print_history"]:
-            print(self.history)
+            print("❗ Executing general command")
+            self.msg_feedback[0]['content'] = self.prompt_general_command(self.curr_state) # replace user prompt
+            self.append_message(self.msg_feedback, "user", self.response_format_general_command())
+            rawAssistant = self.get_ai_response(self.msg_feedback)
+            assistant = ResponseMsg.parse(rawAssistant)
 
+        # Update data
+        image_pil_fmode = utils.put_text_top_left(frame_bboxes_array, text="Feedback mode")
+        self.store_image(image_pil_fmode)
+        self.update_memory_list(detected_objects, self.chat, assistant)
+        self.msg_feedback.clear()
+        self.chat.clear()
+        self.is_initial_prompt_landmark_or_non_command = True
+        self.is_initial_response_format_non_command = True
 
-    def get_response_by_feedback(self, text):
-        self.openai_prompt_messages_for_text.append({"role": "user", "content": text})
-        self.openai_prompt_messages_for_text.append({"role": "user", "content": self.get_user_prompt_for_questions()})
-
-        result = self.client.chat.completions.create(**self.openai_params_for_text)
-        response = result.choices[0].message.content
-        self.openai_prompt_messages_for_text.append({"role": "assistant", "content": response})
-
-        return response
-        
-    
-    def feedback_to_action(self, feedback):
-        self.openai_prompt_messages_for_text.append({"role": "user", "content": feedback})
-        self.openai_prompt_messages_for_text.append({"role": "user", "content": self.get_user_prompt_for_questions()})
-        result = self.client.chat.completions.create(**self.openai_params_for_text)
-        confirmation_msg = result.choices[0].message.content
-        self.openai_prompt_messages_for_text.append({"role": "assistant", "content": confirmation_msg})
-        print(confirmation_msg)
-
-        self.openai_prompt_messages_for_text.append({"role": "user", "content": self.get_user_prompt()})
-        
-        result = self.client.chat.completions.create(**self.openai_params_for_text)
-        rawAssistant = result.choices[0].message.content
-        self.openai_prompt_messages_for_text.append({"role": "assistant", "content": rawAssistant})
-        
-        assistant = ResponseMessage.parse(rawAssistant)
-
-        self.store_image()
-        self.save_round(assistant, feedback, None)
-        self.update_history_prompt(assistant, feedback=feedback, image_description_text="No objects detected in the image.")
-
-
-        return confirmation_msg, assistant
-    
-    def clear_gpt_message(self):
-        self.openai_prompt_messages_for_text.clear()
+        return assistant
 
     def stt(self, voice_buffer):
         container = voice_buffer
@@ -367,4 +257,36 @@ class OpenaiClient(AiClientBase):
             os.close(original_stderr)
 
     def close(self):
-        self.history_log_file.close()
+        self.log_file.close()
+
+    def is_instruction_command(self, input): 
+        msg = []
+        prompt = (
+            "You are Go2, a helpful robot dog assistant who only speaks English. "
+            "Your task: Determine if the user input is an request or command asking you to do something. "
+            "If yes, respond with 'true'. If no, respond with 'false'."
+        )
+        self.append_message(msg, "user", prompt)
+        self.append_message(msg, "user", input)
+
+        try:
+            rawAssistant = self.get_ai_response(msg)
+            is_command = rawAssistant.lower() == "true"
+        except (KeyError, IndexError, AttributeError) as e:
+            print(f"Error in is_instruction_command: {e}")
+            return False
+        return is_command
+    
+    def is_landmark(self, input): 
+        msg = []
+        prompt = "You are Go2, a helpful robot dog assistant who only speaks English. Given the user input, determine if it indicates the user wants you to move by referencing any of the following landmarks: refrigerator, kitchen, TV, desk, cabinet, sofa, banana, bottle, box. If the user input references any of these, respond with 'true'. Otherwise, respond with 'false'."
+        self.append_message(msg, "user", prompt)
+        self.append_message(msg, "user", input)
+
+        try:
+            rawAssistant = self.get_ai_response(msg)
+            is_landmark = rawAssistant.lower() == "true"
+        except (KeyError, IndexError, AttributeError) as e:
+            print(f"Error in is_instruction_command: {e}")
+            return False
+        return is_landmark

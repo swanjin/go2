@@ -1,8 +1,9 @@
 from dataclasses import dataclass
+from ai_client_base import ResponseMsg
 
 @dataclass
 class Round:
-    round: int
-    assistant: str
-    feedback: str
-
+    round_number: int
+    detected_objects: list
+    chat: list
+    assistant: ResponseMsg
