@@ -4,6 +4,7 @@ import textwrap
 from PIL import Image, ImageDraw, ImageFont
 import cv2
 import numpy as np
+import ast
 
 def alarm_handler(signum, frame):
     raise TimeoutError
@@ -26,7 +27,7 @@ def timeoutInput(timeout):
             signal.alarm(0)
     return s
 
-def put_text_in_the_middle(image, text, width, height, font_size=40):
+def put_text_middle(image, text, width, height, font_size=40):
     """
     Function to create an image and place the given text in the middle.
 
@@ -60,6 +61,39 @@ def put_text_in_the_middle(image, text, width, height, font_size=40):
     draw.text(position, text, fill="white", font=font)
 
     return image
+
+def put_text_top_left(image, text, font_size=40):
+    """
+    Function to place the given text at the top-left corner of an image.
+
+    Parameters:
+    image (PIL.Image.Image): The image to draw on.
+    text (str): The text to display.
+    font_size (int): The size of the font for the text.
+
+    Returns:
+    PIL.Image.Image: The image with text placed at the top-left corner.
+    """
+    # Convert numpy array to PIL Image 
+    image_pil = Image.fromarray(image)
+
+    # Create a drawing object for the image
+    draw = ImageDraw.Draw(image_pil)
+
+    # Try to load a larger font, fall back to default if necessary
+    try:
+        font = ImageFont.truetype("DejaVuSans-Bold.ttf", font_size)
+    except IOError:
+        font = ImageFont.load_default()
+
+    # Define the position for the top-left corner (with a slight margin for readability)
+    position = (10, 10)  # Adjust as needed for margin
+
+    # Add the text to the image in white
+    draw.text(position, text, fill="white", font=font)
+    image_array = PIL2OpenCV(image_pil)
+
+    return image_array
 
 def combine_images_vertically(self, image1, image2):
     # Get the dimensions of the images
@@ -126,3 +160,47 @@ def OpenCV2PIL(opencv_image):
     color_coverted = cv2.cvtColor(opencv_image, cv2.COLOR_BGR2RGB)
     pil_image = Image.fromarray(color_coverted)
     return pil_image
+
+def string_to_list(action: str):
+    """
+    Converts a string action into a list of actions.
+
+    - If the action is a string representation of a list (e.g., "['turn right']"),
+      it parses and returns the list without extra quotes.
+    - If the action is a simple string (e.g., 'turn right'), it returns a list containing that string.
+
+    Args:
+        action (str): The action string to convert.
+
+    Returns:
+        list: A list of action strings without extraneous quotes.
+    """
+    action = action.strip()
+    try:
+        # Attempt to parse the string as a Python literal (e.g., list)
+        parsed_action = ast.literal_eval(action)
+        if isinstance(parsed_action, list):
+            # Remove surrounding quotes from each element if present
+            cleaned_actions = []
+            for act in parsed_action:
+                if isinstance(act, str):
+                    # Strip leading and trailing single or double quotes
+                    act = act.strip('\'"')
+                    cleaned_actions.append(act)
+                else:
+                    # If not a string, keep the element as is
+                    cleaned_actions.append(act)
+            return cleaned_actions
+    except (ValueError, SyntaxError):
+        pass
+    # Split by comma if multiple actions are provided as a single string
+    # and remove any extraneous quotes
+    return [act.strip().strip('\'"') for act in action.split(',')]
+
+def string_to_tuple(input_string):
+    # Remove markdown code block formatting if present
+    cleaned_string = input_string.replace('```', '').strip()
+    # Remove any newlines
+    cleaned_string = cleaned_string.replace('\n', '')
+    # Parse the tuple
+    return tuple(map(int, cleaned_string.strip("()").split(",")))

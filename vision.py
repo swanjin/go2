@@ -11,15 +11,19 @@ from transformers import pipeline
 from torchvision.ops import nms
 from PIL import Image, ImageDraw
 import numpy as np
-# from lang_sam import LangSAM
 
 import utils
+
+# Conditional import of LangSAM based on env configuration
+def import_langsam():
+    from lang_sam import LangSAM
+    return LangSAM
 
 @dataclass
 class VisionResponse:
     frame: "cv2.typing.MatLike"
-    description: str
-
+    detected_objects: list
+    description: list
 class VisionModel:
     def __init__(self, env, depth_model_checkpoint="Intel/zoedepth-nyu-kitti"):
         """
@@ -30,6 +34,12 @@ class VisionModel:
         """
         self.env = env
         self.image_counter = 0
+
+        # Initialize LangSAM if enabled in env
+        if self.env.get("langsam", False):
+            self.LangSAM = import_langsam()
+        else:
+            self.LangSAM = None
 
         # Define custom candidate labels for object detection
         #self.candidate_labels = ["apple"] # "tv", "potted plant", "coffee machine", "block", "table", "person", "chair", "plant", "bottle", "person"
@@ -43,9 +53,9 @@ class VisionModel:
 
         # image_pil = Image.fromarray(np.uint8(frame)).convert("RGB")
 
-        model = LangSAM()
+        model = self.LangSAM()
         # caption = " ".join(self.candidate_labels)  # Join list into a single string
-        boxes_tensor, logits_tensor, phrases = model.predict_dino(image_pil, self.candidate_labels, box_threshold=0.3, text_threshold=0.25)
+        boxes_tensor, logits_tensor, phrases = model.predict_dino(image_pil, self.candidate_labels, box_threshold=0.4, text_threshold=0.4)
         boxes = boxes_tensor.tolist()
         logits =logits_tensor.tolist()
         return phrases, boxes, logits
@@ -70,7 +80,7 @@ class VisionModel:
             score = prediction["score"]
             label = prediction["label"]
 
-            # Add the box coordinates, score, and label
+            # Add the box pixel index, score, and label
             boxes.append([box["xmin"], box["ymin"], box["xmax"], box["ymax"]])
             scores.append(score)
             labels.append(label)
@@ -102,11 +112,11 @@ class VisionModel:
                 filtered_labels.append(labels[i])
                 filtered_scores.append(scores[i])  # No need to call .cpu().item() since scores[i] is already a float
 
-                # Extract and clamp bounding box coordinates to stay within image bounds
+                # Extract and clamp bounding box pixel index to stay within image bounds
                 x1, y1, x2, y2 = boxes_tensor[i].tolist()
                 x1, y1, x2, y2 = int(x1), int(y1), int(x2), int(y2)
 
-                # Ensure the box coordinates are within valid image dimensions
+                # Ensure the box pixel index are within valid image dimensions
                 x1 = max(0, min(x1, width - 1))
                 y1 = max(0, min(y1, height - 1))
                 x2 = max(0, min(x2, width - 1))
@@ -118,7 +128,10 @@ class VisionModel:
 
     def detect_objects(self, image_pil):
         if self.env["detection_model"] == "langsam":
-            labels, boxes, scores = self.predict_langsam(image_pil)
+            if not self.env.get("langsam", False):
+                print("LangSAM is not enabled in env.yml.")
+                return [], [], []
+            else: labels, boxes, scores = self.predict_langsam(image_pil)
         elif self.env["detection_model"] == "owlv2":
             labels, boxes, scores = self.predict_owlv2(image_pil)
         else:
@@ -130,47 +143,81 @@ class VisionModel:
     def depth_estimation(self, image_pil, boxes):
         image_array = utils.PIL2OpenCV(image_pil)
 
-        # Get depth estimation predictions (this returns a tensor on the GPU if available)
+        # Get depth estimation predictions
         predictions = self.depth_pipe(image_pil)
-
-        # Extract depth map as a GPU tensor
         depth_values_gpu = predictions["predicted_depth"]
 
         # Get dimensions of depth map and frame
-        depth_height, depth_width = depth_values_gpu.shape[-2:]  # Assuming depth tensor is in [batch, height, width] format
+        depth_height, depth_width = depth_values_gpu.shape[-2:]
         frame_height, frame_width = image_array.shape[:2]
 
-        # Calculate scaling factors on the CPU
+        # Calculate scaling factors
         scale_x = depth_width / frame_width
         scale_y = depth_height / frame_height
 
-        average_depths = []
+        center_depths = []
 
-        # Calculate the average depth for each bounding box
+        # Calculate the depth for the center pixel of each bounding box
         for box in boxes:
-            # Scale bounding box to match depth map size (done on CPU for simplicity)
-            x1_depth = int(box[0] * scale_x)
-            y1_depth = int(box[1] * scale_y)
-            x2_depth = int(box[2] * scale_x)
-            y2_depth = int(box[3] * scale_y)
+            # Calculate center coordinates of the bounding box
+            center_x = int(((box[0] + box[2]) / 2) * scale_x)
+            center_y = int(((box[1] + box[3]) / 2) * scale_y)
 
-            # Ensure the indices are within valid range (done on CPU)
-            x1_depth = max(0, min(x1_depth, depth_width - 1))
-            y1_depth = max(0, min(y1_depth, depth_height - 1))
-            x2_depth = max(0, min(x2_depth, depth_width - 1))
-            y2_depth = max(0, min(y2_depth, depth_height - 1))
+            # Ensure the indices are within valid range
+            center_x = max(0, min(center_x, depth_width - 1))
+            center_y = max(0, min(center_y, depth_height - 1))
 
-            # Extract depth values within the bounding box (on GPU)
-            box_depth_values = depth_values_gpu[0, y1_depth:y2_depth, x1_depth:x2_depth]
+            # Get depth value at the center pixel
+            center_depth = depth_values_gpu[0, center_y, center_x].item()
+            center_depths.append(center_depth)
 
-            # Calculate average depth on the GPU
-            if box_depth_values.numel() > 0:
-                average_depth = box_depth_values.mean().item()  # Compute mean on the GPU and retrieve the scalar value
-            else:
-                average_depth = 0
-            average_depths.append(average_depth)
+        return center_depths
+        
+        
+        
+        # image_array = utils.PIL2OpenCV(image_pil)
 
-        return average_depths
+        # # Get depth estimation predictions (this returns a tensor on the GPU if available)
+        # predictions = self.depth_pipe(image_pil)
+
+        # # Extract depth map as a GPU tensor
+        # depth_values_gpu = predictions["predicted_depth"]
+
+        # # Get dimensions of depth map and frame
+        # depth_height, depth_width = depth_values_gpu.shape[-2:]  # Assuming depth tensor is in [batch, height, width] format
+        # frame_height, frame_width = image_array.shape[:2]
+
+        # # Calculate scaling factors on the CPU
+        # scale_x = depth_width / frame_width
+        # scale_y = depth_height / frame_height
+
+        # average_depths = []
+
+        # # Calculate the average depth for each bounding box
+        # for box in boxes:
+        #     # Scale bounding box to match depth map size (done on CPU for simplicity)
+        #     x1_depth = int(box[0] * scale_x)
+        #     y1_depth = int(box[1] * scale_y)
+        #     x2_depth = int(box[2] * scale_x)
+        #     y2_depth = int(box[3] * scale_y)
+
+        #     # Ensure the indices are within valid range (done on CPU)
+        #     x1_depth = max(0, min(x1_depth, depth_width - 1))
+        #     y1_depth = max(0, min(y1_depth, depth_height - 1))
+        #     x2_depth = max(0, min(x2_depth, depth_width - 1))
+        #     y2_depth = max(0, min(y2_depth, depth_height - 1))
+
+        #     # Extract depth values within the bounding box (on GPU)
+        #     box_depth_values = depth_values_gpu[0, y1_depth:y2_depth, x1_depth:x2_depth]
+
+        #     # Calculate average depth on the GPU
+        #     if box_depth_values.numel() > 0:
+        #         average_depth = box_depth_values.mean().item()  # Compute mean on the GPU and retrieve the scalar value
+        #     else:
+        #         average_depth = 0
+        #     average_depths.append(average_depth)
+
+        # return average_depths
 
     def get_label(self, image_pil):
         labels, boxes, scores = self.detect_objects(image_pil)
@@ -183,8 +230,9 @@ class VisionModel:
         labels, boxes, scores = self.detect_objects(image_pil)
         
         # Get depth for each bounding box (already using GPU in depth_estimation)
-        average_depths = self.depth_estimation(image_pil, boxes)
+        center_depths = self.depth_estimation(image_pil, boxes)
 
+        detected_objects = []
         description = []
         depth_threshold = self.env["depth_threshold"]
 
@@ -193,8 +241,8 @@ class VisionModel:
             x1, y1, x2, y2 = boxes[i]
 
             # Adjust depth using environment thresholds (on CPU)
-            avg_depth = average_depths[i] * (
-                eval(self.env["depth_scale_for_under"]) if average_depths[i] <= depth_threshold
+            avg_depth = center_depths[i] * (
+                eval(self.env["depth_scale_for_under"]) if center_depths[i] <= depth_threshold
                 else eval(self.env["depth_scale_for_over"])
             )
 
@@ -203,7 +251,8 @@ class VisionModel:
             center_y = (y1 + y2) / 2
 
             # Generate description for each detected object (on CPU)
-            description.append(f"You detected {label} at coordinates ({center_x:.0f}, {center_y:.0f}) with a distance of {avg_depth:.2f} meters.")
+            detected_objects.append(f"{label}")
+            description.append(f"You detected {label} at pixel index ({center_x:.0f}, {center_y:.0f}) with a distance of {avg_depth:.2f} meters.")
 
         # Draw bounding boxes and labels on the frame if draw_on_frame is True (done on CPU using OpenCV)
         if draw_on_frame:
@@ -215,8 +264,7 @@ class VisionModel:
                 # cv2.putText(frame, f"{labels[i]}: {average_depths[i]:.1f}m", org, font, 0.5, (0, 0, 255), 1)
                 cv2.putText(image_array, f"{labels[i]}: {scores[i]:.1f}", org, font, 0.5, (0, 0, 255), 1)
 
-        # Return VisionResponse with the frame and the combined description
-        return VisionResponse(image_array, "\n".join(description))
+        return VisionResponse(image_array, detected_objects, description)
     
     # def store_image(self, cv2_image = None):
     #     if cv2_image is None:
