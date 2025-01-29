@@ -122,10 +122,10 @@ class AiClientBase:
         New state: Follow the guideline in the '### Instructions for New state' section.
         Action: Follow the guideline in the '### Instructions for Action' section.
         Reason: 
-        - Explain your choice of actions in one concise sentence.
+        - Explain your choice of actions in one concise sentence. If the explanation is the same as the previous round, simply say: 'Same reason as the previous round.'
         - Don't mention about case/subcase number and any section name.
         - If you need to mention about whether the {self.env['target']} is in the left/middle/right third of the image, just say 'left', 'middle', or 'right' without mentioning the 'third'. 
-        - If {self.env['object1']} is not detected in the 'Detection' section, you must not mention anything about {self.env['object1']}. Even if the reasoing behind your action considers whether {self.env['object1']} is detected or not, you must not mention any about {self.env['object1']}. Even if {self.env['object1']} is detected at previous rounds in the 'Memory' section, you must not mention anything about {self.env['object1']} in your reasoning. You can mention about {self.env['object1']} in your reasoning only if {self.env['object1']} is detected in the 'Detection' section, **not in the 'Memory' section.** 
+        - If {self.env['object1']} is not detected in the 'Detection' section, you must not mention anything about {self.env['object1']}. Even if the reasoing behind your action considers whether {self.env['object1']} is detected or not, you must not mention any about {self.env['object1']}. Even if {self.env['object1']} is detected at previous rounds in the 'Memory' section, you must not mention anything about {self.env['object1']} in your reasoning. You can mention about {self.env['object1']} in your reasoning only if {self.env['object1']} is detected in the 'Detection' section, **not in the 'Memory' section.**
         """)
 
     def prompt_landmark_or_non_command(self, curr_state):
@@ -133,29 +133,29 @@ class AiClientBase:
         You are Go2, a robot dog assistant who only speaks English. Your task is to search for an Your task is to search for the target object, {self.env['target']}. Current state is {curr_state}. You can only see objects in your facing direction. You can only see objects in your facing direction.
 
         State: (x, y, orientation)
-        - Grid x: -5 to 4
-        - Grid y: -6 to 4
+        - Grid x: -7 to 7
+        - Grid y: -9 to 7
         - Orientation: 0°=N, 90°=E, 180°=S, 270°=W
         - Current state: {curr_state}
 
         Landmarks:
-        "refrigerator": (3, 4, 0),
-        "sink": (-1, 3, 0),
-        "tv": (-3, -4, 270),
-        "desk": (-3, -5, 180),
-        "cabinet": (0, -5, 180),
-        "sofa": (3, -5, 90),
-        "banana": (0, 3, 0),
-        "bottle": (3, -1, 90)
+        "refrigerator": (5, 6, 0),
+        "sink": (-1, 6, 0),
+        "tv": (-5, -3, 270),
+        "desk": (-5, -6, 180),
+        "cabinet": (0, -6, 180),
+        "sofa": (5, -6, 90),
+        "banana": (0, 6, 0),
+        "bottle": (5, 0, 90),
         
         Obstacles:
         1. Border lines
-        (-4, 4), (-3, 4), (-2, 4), (-1, 4), (0, 4), (1, 4), (2, 4), (3, 4), (4, 4),
-        (-4, -6), (-3, -6), (-2, -6), (-1, -6), (0, -6), (1, -6), (2, -6), (3, -6), (4, -6),
-        (-4, -5), (-4, -4), (-4, -3), (-4, -2), (-4, -1), (-4, 0), (-4, 1), (-4, 2), (-4, 3),
-        (4, -5), (4, -4), (4, -3), (4, -2), (4, -1), (4, 0), (4, 1), (4, 2), (4, 3)
+        (-7, 7), (-6, 7), (-5, 7), (-4, 7), (-3, 7), (-2, 7), (-1, 7), (0, 7), (1, 7), (2, 7), (3, 7), (4, 7), (5, 7), (6, 7), (7, 7),
+        (-7, -9), (-6, -9), (-5, -9), (-4, -9), (-3, -9), (-2, -9), (-1, -9), (0, -9), (1, -9), (2, -9), (3, -9), (4, -9), (5, -9), (6, -9), (7, -9),
+        (-7, -8), (-7, -7), (-7, -6), (-7, -5), (-7, -4), (-7, -3), (-7, -2), (-7, -1), (-7, 0), (-7, 1), (-7, 2), (-7, 3), (-7, 4), (-7, 5), (-7, 6),
+        (7, -8), (7, -7), (7, -6), (7, -5), (7, -4), (7, -3), (7, -2), (7, -1), (7, 0), (7, 1), (7, 2), (7, 3), (7, 4), (7, 5), (7, 6)
         2. Box
-        (-1, 1), (-2, 1)
+        (-7, 1), (-6, 1), (-5, 1)
         """)
 
     def response_format_non_command(self):
@@ -188,10 +188,10 @@ class AiClientBase:
 
         Obstacles:
         1. Border lines
-        (-4, 4), (-3, 4), (-2, 4), (-1, 4), (0, 4), (1, 4), (2, 4), (3, 4), (4, 4),
-        (-4, -6), (-3, -6), (-2, -6), (-1, -6), (0, -6), (1, -6), (2, -6), (3, -6), (4, -6),
-        (-4, -5), (-4, -4), (-4, -3), (-4, -2), (-4, -1), (-4, 0), (-4, 1), (-4, 2), (-4, 3),
-        (4, -5), (4, -4), (4, -3), (4, -2), (4, -1), (4, 0), (4, 1), (4, 2), (4, 3)
+        (-7, 7), (-6, 7), (-5, 7), (-4, 7), (-3, 7), (-2, 7), (-1, 7), (0, 7), (1, 7), (2, 7), (3, 7), (4, 7), (5, 7), (6, 7), (7, 7),
+        (-7, -9), (-6, -9), (-5, -9), (-4, -9), (-3, -9), (-2, -9), (-1, -9), (0, -9), (1, -9), (2, -9), (3, -9), (4, -9), (5, -9), (6, -9), (7, -9),
+        (-7, -8), (-7, -7), (-7, -6), (-7, -5), (-7, -4), (-7, -3), (-7, -2), (-7, -1), (-7, 0), (-7, 1), (-7, 2), (-7, 3), (-7, 4), (-7, 5), (-7, 6),
+        (7, -8), (7, -7), (7, -6), (7, -5), (7, -4), (7, -3), (7, -2), (7, -1), (7, 0), (7, 1), (7, 2), (7, 3), (7, 4), (7, 5), (7, 6)
         2. Box
         (-1, 1), (-2, 1)
 

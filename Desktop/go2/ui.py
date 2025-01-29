@@ -117,7 +117,7 @@ class SendMessageThread(QThread):
             else:
                 clarify_msg = Messages.ERROR_NO_TARGET
                 self.add_robot_message_signal.emit(clarify_msg, None)
-                
+                    
         elif text.lower() == "feedback mode":
             print("Activating feedback mode")  # Debug print
             self.dog.feedback_complete_event.clear()

@@ -124,7 +124,7 @@ class PathAnimator:
         self.path = path
         self.landmarks = landmarks
         self.obstacles = obstacles
-        self.grid_size = 7
+        self.grid_size = 10
         self.fig, self.ax = plt.subplots(figsize=(8, 8))
         self.robot_marker = None
         self.path_points = [(start[0], start[1])]
@@ -215,18 +215,19 @@ class PathAnimator:
 class Mapping:
     def __init__(self):
         self.landmarks = {
-            "refrigerator": (3, 3, 0),
-            "sink": (-1, 3, 0),
-            "tv": (-3, -4, 270),
-            "desk": (-3, -5, 180),
-            "cabinet": (0, -5, 180),
-            "sofa": (3, -5, 90),
-            "banana": (0, 3, 0),
-            "bottle": (3, -1, 90),
+            "refrigerator": (5, 6, 0),
+            "sink": (-1, 6, 0),
+            "tv": (-5, -3, 270),
+            "desk": (-5, -6, 180),
+            "cabinet": (0, -6, 180),
+            "sofa": (5, -6, 90),
+            "banana": (0, 6, 0),
+            "bottle": (5, 0, 90),
         }
         self.obstacles = {
-            "obstacle1": (-1, 1, 0),
-            "obstacle2": (-2, 1, 0)
+            "obstacle1": (-7, 2, 0),
+            "obstacle2": (-6, 2, 0),
+            "obstacle3": (-5, 2, 0)
         }
         # self.excluded_points = {(l[0], l[1]) for l in self.landmarks.values()}
         self.excluded_points = {}
@@ -235,12 +236,12 @@ class Mapping:
 
     def generate_border_points(self):
         border_points = []
-        for i in range(-4, 5):
+        for i in range(-8, 8):
             border_points.extend([
-                (i, 4),    # top border
-                (i, -6),   # bottom border
-                (-4, i-1), # left border
-                (4, i-1)   # right border
+                (i, 8),    # top border
+                (i, -8),   # bottom border
+                (-8, i), # left border
+                (8, i)   # right border
             ])
         return border_points
 
@@ -255,8 +256,8 @@ if __name__ == "__main__":
 
     # Run simulation with obstacle avoidance
     navi_model = NaviModel()
-    start = (0, 0, 270)
-    target = (0, 0, 270)
+    start = (0, 0, 180)
+    target = (0, 0, 180)
     path_to_target = navi_model.navigate_to(start, target, mapping.obstacles)
     print("Path to target:", path_to_target)
 
