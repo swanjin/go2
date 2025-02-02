@@ -21,7 +21,6 @@ class OpenaiClient(AiClientBase):
         # Call the parent class's constructor to initialize system_prompt and other attributes
         super().__init__(env)
         self.env = env
-        self.image_counter = 0
         self.msg = []
         self.msg_feedback = []
         self.round_number = 1
@@ -84,9 +83,66 @@ class OpenaiClient(AiClientBase):
             f"Memory:\n {memory}\n\n"
         )
 
+    def detectable_area(self, x_range, y_range, z_value):
+        points_inside = [(x, y, z_value) for x in x_range for y in y_range]
+        return points_inside
+    
     def analyze_image(self, image_pil):
         image_analysis = self.vision_model.describe_image(image_pil)
-        return image_analysis.frame, image_analysis.detected_objects, image_analysis.description # array, list, list
+        
+        self.check_and_update_analysis(
+            image_analysis, 
+            self.detectable_area(range(-2,3), range(0,5), 0), 
+            self.env['object1']
+        )
+        
+        self.check_and_update_analysis(
+            image_analysis, 
+            self.detectable_area(range(-2,4), range(2,6), 90), 
+            self.env['object2']
+        )
+        
+        self.check_and_update_analysis(
+            image_analysis, 
+            self.detectable_area(range(2,5), range(2,6), 180), 
+            self.env['object3']
+        )
+
+        return image_analysis.frame, image_analysis.detected_objects, image_analysis.distances, image_analysis.description
+
+    def check_and_update_analysis(self, image_analysis, detectable_area, object_name):
+        if self.curr_state in detectable_area and object_name not in image_analysis.detected_objects:
+            distance = self.calculate_distance(object_name)
+            description = f"You detected {object_name} with a distance of {distance} meters."
+            image_analysis.detected_objects.append(object_name)
+            image_analysis.distances.append(distance)
+            image_analysis.description.append(description)
+
+    def calculate_distance(self, object_name):
+        if object_name == self.env['object1']:
+            curr_y = self.curr_state[1]
+            if curr_y in [0, 1]:
+                return "4"  # 2 steps
+            elif curr_y in [2, 3]:
+                return "3"  # 2 steps
+            else:  # curr_y == 4
+                return "2"  # 1 step
+        elif object_name == self.env['object2']:
+            curr_x = self.curr_state[0]
+            if curr_x in [-2, -1]:
+                return "4"  # 2 steps
+            elif curr_x in [0, 1, 2]:
+                return "3"  # 2 steps
+            else:  # curr_x == 3
+                return "2"  # 1 step
+        elif object_name == self.env['object3']:
+            curr_y = self.curr_state[1]
+            if curr_y in [4, 5]:
+                return "4"  # 2 steps
+            elif curr_y in [3]:
+                return "3"  # 2 steps
+            else:  # curr_y == 2
+                return "2"  # 1 step
 
     def append_message(self, message, message_role: str, message_content: str):
         message.append({"role": message_role, "content": message_content})
@@ -95,7 +151,8 @@ class OpenaiClient(AiClientBase):
         # print(message)
         result = self.client.chat.completions.create(
             model=self.env['ai_model'],
-            messages=message
+            messages=message,
+            temperature=self.env['temperature']
         )
         return result.choices[0].message.content
     
@@ -114,13 +171,44 @@ class OpenaiClient(AiClientBase):
         self.append_message(self.msg, "user", self.construct_memory(self.memory_list))
         self.append_message(self.msg, "user", self.response_format_auto())
     
+    def check_action_same_as_previous_round(self, action, reason):
+        if self.memory_list and self.memory_list[-1].assistant.action == action:
+            reason = "Similar reason as the previous round."
+        return reason
+
+            # Correct the new state
+    def correct_next_position(self, current, actions):
+        for action in actions:
+            next_pos = NaviModel.get_next_position(current, action)
+            current = next_pos
+        return current
+    
+    def correct_landmark_action(self, action, distance):
+        # Ensure distance is a list of floats
+        if distance:
+            try:
+                distance_value = float(distance[0])
+            except (ValueError, TypeError) as e:
+                print(f"Error converting distance to float: {e}")
+                return action  # Return the original action if conversion fails
+
+            hurdle_meter = float(self.env.get('hurdle_meter_for_non_target', 0))
+
+            if distance_value < hurdle_meter:
+                action = ['turn right']
+            elif distance_value >= hurdle_meter and distance_value < (hurdle_meter + 1):
+                action = ['move forward']
+            else:
+                action = ['move forward', 'move forward']
+        return action
+    
     def get_response_by_LLM(self, image_pil, dog_instance):   
         # Check for feedback interruption early in the function
         if dog_instance.check_feedback_and_interruption():
             return None
         
         # Analyze image
-        frame_bboxes_array, detected_objects, description = self.analyze_image(image_pil)
+        frame_bboxes_array, detected_objects, distances, description = self.analyze_image(image_pil)
         
         # Initialize messages
         self.initialize_prompt_auto(description)
@@ -131,6 +219,11 @@ class OpenaiClient(AiClientBase):
 
         rawAssistant = self.get_ai_response(self.msg)
         assistant = ResponseMsg.parse(rawAssistant)
+
+        # Post-processing assistant
+        assistant.action = self.correct_landmark_action(assistant.action, distances)
+        assistant.new_state = self.correct_next_position(self.curr_state, assistant.action)
+        assistant.reason = self.check_action_same_as_previous_round(assistant.action, assistant.reason)
 
         # Check for feedback interruption early in the function
         if dog_instance.check_feedback_and_interruption():
@@ -175,7 +268,7 @@ class OpenaiClient(AiClientBase):
 
         return rawAssistant
         
-    def get_response_landmark_or_non_command(self, user_input, frame_bboxes_array, detected_objects):
+    def get_response_landmark_or_general_command(self, user_input, frame_bboxes_array, detected_objects):
         # Append user input to messages
         self.append_message(self.msg_feedback, "user", user_input)
         self.append_message(self.chat, "user", user_input)
@@ -263,8 +356,8 @@ class OpenaiClient(AiClientBase):
         msg = []
         prompt = (
             "You are Go2, a helpful robot dog assistant who only speaks English. "
-            "Your task: Determine if the user input is an request or command asking you to do something. "
-            "If yes, respond with 'true'. If no, respond with 'false'."
+            "Your task: Determine if the user input is an request or command asking you to do something. If yes, respond with 'true'. If no, respond with 'false'. "
+            "If the user input includes ? mark, respond with 'false'."
         )
         self.append_message(msg, "user", prompt)
         self.append_message(msg, "user", input)

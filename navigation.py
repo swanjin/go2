@@ -1,7 +1,8 @@
 import heapq
 import matplotlib.pyplot as plt
-from matplotlib.patches import Polygon
+from matplotlib.patches import Polygon, Rectangle
 from matplotlib.animation import FuncAnimation
+from navi_config import NaviConfig
 
 class NaviModel:
     @staticmethod
@@ -124,8 +125,8 @@ class PathAnimator:
         self.path = path
         self.landmarks = landmarks
         self.obstacles = obstacles
-        self.grid_size = 7
-        self.fig, self.ax = plt.subplots(figsize=(8, 8))
+        self.grid_size = 10
+        self.fig, self.ax = plt.subplots(figsize=(10, 10))
         self.robot_marker = None
         self.path_points = [(start[0], start[1])]
         self.path_lines = []
@@ -138,6 +139,18 @@ class PathAnimator:
         self.ax.grid(True, color='lightgray', linestyle='-', alpha=0.3)
         self.ax.axhline(y=0, color='black', linewidth=0.5)
         self.ax.axvline(x=0, color='black', linewidth=0.5)
+
+        # Add a light yellow rectangle for the specified area
+        banana_area = Rectangle((-2, 0), 4, 4, color='yellow', alpha=0.5, label='⬆️ banana detectable area')
+        self.ax.add_patch(banana_area)
+
+        # Add a light gray rectangle for the specified area
+        refrigerator_area = Rectangle((-2, 2), 5, 3, color='gray', alpha=0.5, label='➡️ refrigerator detectable area')
+        self.ax.add_patch(refrigerator_area)
+
+        # Add a light blue rectangle for the specified area
+        bottle_area = Rectangle((2, 2), 2, 3, color='lightblue', alpha=0.5, label='⬇️ bottle detectable area')
+        self.ax.add_patch(bottle_area)
 
         for name, (x, y, _) in self.landmarks.items():
             self.ax.plot(x, y, 'ro')
@@ -153,7 +166,7 @@ class PathAnimator:
 
         self.ax.plot(self.start[0], self.start[1], 'go', label='Start')
         self.ax.plot(self.goal[0], self.goal[1], 'bo', label='Goal')
-        self.ax.legend()
+        self.ax.legend(loc='upper right')
 
     def update(self, frame):
         current_position = list(self.start)
@@ -214,33 +227,21 @@ class PathAnimator:
 
 class Mapping:
     def __init__(self):
-        self.landmarks = {
-            "refrigerator": (3, 3, 0),
-            "sink": (-1, 3, 0),
-            "tv": (-3, -4, 270),
-            "desk": (-3, -5, 180),
-            "cabinet": (0, -5, 180),
-            "sofa": (3, -5, 90),
-            "banana": (0, 3, 0),
-            "bottle": (3, -1, 90),
-        }
-        self.obstacles = {
-            "obstacle1": (-1, 1, 0),
-            "obstacle2": (-2, 1, 0)
-        }
+        self.landmarks = NaviConfig.landmarks
+        self.obstacles = NaviConfig.obstacles
         # self.excluded_points = {(l[0], l[1]) for l in self.landmarks.values()}
         self.excluded_points = {}
-        self.border_points = self.generate_border_points()
+        self.border_points = self.generate_border_points(NaviConfig.border_size)
         self.add_border_obstacles()
 
-    def generate_border_points(self):
+    def generate_border_points(self, border_size):
         border_points = []
-        for i in range(-4, 5):
+        for i in range(-border_size, border_size):
             border_points.extend([
-                (i, 4),    # top border
-                (i, -6),   # bottom border
-                (-4, i-1), # left border
-                (4, i-1)   # right border
+                (i, border_size),    # top border
+                (i, -border_size),   # bottom border
+                (-border_size, i), # left border
+                (border_size, i)   # right border
             ])
         return border_points
 
@@ -255,8 +256,8 @@ if __name__ == "__main__":
 
     # Run simulation with obstacle avoidance
     navi_model = NaviModel()
-    start = (0, 0, 270)
-    target = (0, 0, 270)
+    start = (0, 0, 180)
+    target = (0, 0, 180)
     path_to_target = navi_model.navigate_to(start, target, mapping.obstacles)
     print("Path to target:", path_to_target)
 

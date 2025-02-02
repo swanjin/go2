@@ -23,7 +23,9 @@ def import_langsam():
 class VisionResponse:
     frame: "cv2.typing.MatLike"
     detected_objects: list
+    distances: list
     description: list
+
 class VisionModel:
     def __init__(self, env, depth_model_checkpoint="Intel/zoedepth-nyu-kitti"):
         """
@@ -233,6 +235,7 @@ class VisionModel:
         center_depths = self.depth_estimation(image_pil, boxes)
 
         detected_objects = []
+        distances = []
         description = []
         depth_threshold = self.env["depth_threshold"]
 
@@ -245,14 +248,15 @@ class VisionModel:
                 eval(self.env["depth_scale_for_under"]) if center_depths[i] <= depth_threshold
                 else eval(self.env["depth_scale_for_over"])
             )
-
+            rounded_depth = round(avg_depth, 1)
             # Calculate the center of the bounding box (on CPU, simple arithmetic)
             center_x = (x1 + x2) / 2
             center_y = (y1 + y2) / 2
 
             # Generate description for each detected object (on CPU)
             detected_objects.append(f"{label}")
-            description.append(f"You detected {label} at pixel index ({center_x:.0f}, {center_y:.0f}) with a distance of {avg_depth:.2f} meters.")
+            distances.append(rounded_depth)
+            description.append(f"You detected {label} at pixel index ({center_x:.0f}, {center_y:.0f}) with a distance of {rounded_depth} meters.")
 
         # Draw bounding boxes and labels on the frame if draw_on_frame is True (done on CPU using OpenCV)
         if draw_on_frame:
@@ -264,7 +268,7 @@ class VisionModel:
                 # cv2.putText(frame, f"{labels[i]}: {average_depths[i]:.1f}m", org, font, 0.5, (0, 0, 255), 1)
                 cv2.putText(image_array, f"{labels[i]}: {scores[i]:.1f}", org, font, 0.5, (0, 0, 255), 1)
 
-        return VisionResponse(image_array, detected_objects, description)
+        return VisionResponse(image_array, detected_objects, distances, description)
     
     # def store_image(self, cv2_image = None):
     #     if cv2_image is None:
