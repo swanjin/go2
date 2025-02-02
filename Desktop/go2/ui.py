@@ -6,6 +6,7 @@ from PyQt6.QtGui import QImage, QPixmap, QFont, QColor, QPalette, QPainter, QPen
 from PIL import Image
 import numpy as np
 import math
+from itertools import groupby
 
 import sys
 import cv2
@@ -135,7 +136,7 @@ class SendMessageThread(QThread):
 
             if self.dog.ai_client.is_instruction_command(text):
                 print("❗ Executing instruction or command")            
-                assistant = self.dog.ai_client.get_response_landmark_or_non_command(text, image_bboxes_array, image_description)
+                assistant = self.dog.ai_client.get_response_landmark_or_general_command(text, image_bboxes_array, image_description)
                 self.message_data.pending_feedback_action = assistant.action
                 self.confirm_feedback_signal.emit()
                 self.message_data.awaiting_feedback = False
@@ -514,10 +515,20 @@ class SearchThread(QThread):
         super().__init__()
         self.dog = dog_instance
 
-    def format_actions(self, actions):
-        if isinstance(actions, list):
-            return ' and then '.join(map(str, actions))
-        return str(actions)
+    def format_actions(self,actions):
+        if not actions:  # Handle empty list case
+            return ""
+
+        formatted_actions = []
+        
+        for action, group in groupby(actions):
+            count = len(list(group))
+            if count > 1:
+                formatted_actions.append(f"{action} {count} times")
+            else:
+                formatted_actions.append(action)
+
+        return " and ".join(formatted_actions)
 
     def run(self):
         original_get_response = self.dog.ai_client.get_response_by_LLM
