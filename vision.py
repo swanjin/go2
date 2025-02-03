@@ -57,7 +57,7 @@ class VisionModel:
 
         model = self.LangSAM()
         # caption = " ".join(self.candidate_labels)  # Join list into a single string
-        boxes_tensor, logits_tensor, phrases = model.predict_dino(image_pil, self.candidate_labels, box_threshold=0.4, text_threshold=0.4)
+        boxes_tensor, logits_tensor, phrases = model.predict_dino(image_pil, self.candidate_labels, box_threshold=self.env["box_threshold"], text_threshold=self.env["text_threshold"])
         boxes = boxes_tensor.tolist()
         logits =logits_tensor.tolist()
         return phrases, boxes, logits
@@ -256,7 +256,12 @@ class VisionModel:
             # Generate description for each detected object (on CPU)
             detected_objects.append(f"{label}")
             distances.append(rounded_depth)
-            description.append(f"You detected {label} at pixel index ({center_x:.0f}, {center_y:.0f}) with a distance of {rounded_depth} meters.")
+            if center_x < self.env["captured_width"] * self.env["left_frame"]:
+                description.append(f"You detected {label} on the left side of the frame with a distance of {rounded_depth} meters.")
+            elif center_x > self.env["captured_width"] * self.env["right_frame"]:
+                description.append(f"You detected {label} on the right side of the frame with a distance of {rounded_depth} meters.")
+            else:
+                description.append(f"You detected {label} in the middle of the frame with a distance of {rounded_depth} meters.")
 
         # Draw bounding boxes and labels on the frame if draw_on_frame is True (done on CPU using OpenCV)
         if draw_on_frame:

@@ -12,6 +12,8 @@ import cv2
 from ai_client_base import AiClientBase, ResponseMsg
 from vision import VisionModel
 from navigation import NaviModel, Mapping
+from navi_config import NaviConfig
+
 # from round import Round
 import utils
 from round import Round
@@ -30,6 +32,22 @@ class OpenaiClient(AiClientBase):
         self.is_initial_prompt_landmark_or_non_command = True
         self.is_initial_response_format_non_command = True
 
+        # Specify detectable areas
+        self.banana_detect_area = self.detectable_area(range(NaviConfig.banana_bottom_left[0], NaviConfig.banana_bottom_left[0]+NaviConfig.banana_width+1), range(NaviConfig.banana_bottom_left[1], NaviConfig.banana_bottom_left[1]+NaviConfig.banana_height+1), 0)    
+        self.refrigerator_detect_area = self.detectable_area(range(NaviConfig.refrigerator_bottom_left[0], NaviConfig.refrigerator_bottom_left[0]+NaviConfig.refrigerator_width+1), range(NaviConfig.refrigerator_bottom_left[1], NaviConfig.refrigerator_bottom_left[1]+NaviConfig.refrigerator_height+1), 90)
+        self.bottle_detect_area = self.detectable_area(range(NaviConfig.bottle_bottom_left[0], NaviConfig.bottle_bottom_left[0]+NaviConfig.bottle_width+1), range(NaviConfig.bottle_bottom_left[1], NaviConfig.bottle_bottom_left[1]+NaviConfig.bottle_height+1), 180)
+        self.apple_shift_area = self.detectable_area(range(NaviConfig.apple_shift_bottom_left[0], NaviConfig.apple_shift_bottom_left[0]+NaviConfig.apple_shift_width+1), range(NaviConfig.apple_shift_bottom_left[1], NaviConfig.apple_shift_bottom_left[1]+NaviConfig.apple_shift_height+1), 270)
+        self.apple_forward_area = self.detectable_area(range(NaviConfig.apple_forward_bottom_left[0], NaviConfig.apple_forward_bottom_left[0]+NaviConfig.apple_forward_width+1), range(NaviConfig.apple_forward_bottom_left[1], NaviConfig.apple_forward_bottom_left[1]+NaviConfig.apple_forward_height+1), 270)
+        
+        # Combine all detectable areas into a single set to remove duplicates
+        self.all_detectable_areas = list(set(
+            self.banana_detect_area +
+            self.refrigerator_detect_area +
+            self.bottle_detect_area +
+            self.apple_shift_area +
+            self.apple_forward_area
+        ))
+
         self.client = OpenAI(api_key=key)
         self.vision_model = VisionModel(self.env)
         self.navi_model = NaviModel()
@@ -46,13 +64,15 @@ class OpenaiClient(AiClientBase):
     def set_target(self, target):
         self.target = target
 
-    def update_memory_list(self, detected_objects, chat, assistant):
-        round = Round(self.round_number, detected_objects, chat, assistant)
+    def update_memory_list(self, detected_objects, distances, description, chat, assistant):
+        round = Round(self.round_number, detected_objects, distances, chat, assistant)
         self.memory_list.append(round)
 
         self.log_file.write(
             f"Round {round.round_number}:\n"
             f"- Detected Objects: {round.detected_objects if round.detected_objects else 'None'}\n"
+            f"- Distances: {round.distances if round.distances else 'None'}\n"
+            f"- Description: {description if description else 'None'}\n"
             f"- Chat: {round.chat if round.chat else 'None'}\n"
             f"- Initial State: {round.assistant.initial_state}\n"
             f"- Action: {round.assistant.action}\n"
@@ -92,20 +112,32 @@ class OpenaiClient(AiClientBase):
         
         self.check_and_update_analysis(
             image_analysis, 
-            self.detectable_area(range(-2,3), range(0,5), 0), 
+            self.banana_detect_area, 
             self.env['object1']
         )
         
         self.check_and_update_analysis(
             image_analysis, 
-            self.detectable_area(range(-2,4), range(2,6), 90), 
+            self.refrigerator_detect_area, 
             self.env['object2']
         )
         
         self.check_and_update_analysis(
             image_analysis, 
-            self.detectable_area(range(2,5), range(2,6), 180), 
+            self.bottle_detect_area, 
             self.env['object3']
+        )
+
+        self.check_and_update_analysis(
+            image_analysis, 
+            self.apple_shift_area, 
+            self.env['target']
+        )
+
+        self.check_and_update_analysis(
+            image_analysis, 
+            self.apple_forward_area, 
+            self.env['target']
         )
 
         return image_analysis.frame, image_analysis.detected_objects, image_analysis.distances, image_analysis.description
@@ -113,7 +145,10 @@ class OpenaiClient(AiClientBase):
     def check_and_update_analysis(self, image_analysis, detectable_area, object_name):
         if self.curr_state in detectable_area and object_name not in image_analysis.detected_objects:
             distance = self.calculate_distance(object_name)
-            description = f"You detected {object_name} with a distance of {distance} meters."
+            if self.curr_state in self.apple_shift_area:
+                description = f"You detected {object_name} on the right side of the frame with a distance of {distance} meters."
+            else:
+                description = f"You detected {object_name} with a distance of {distance} steps."
             image_analysis.detected_objects.append(object_name)
             image_analysis.distances.append(distance)
             image_analysis.description.append(description)
@@ -122,27 +157,35 @@ class OpenaiClient(AiClientBase):
         if object_name == self.env['object1']:
             curr_y = self.curr_state[1]
             if curr_y in [0, 1]:
-                return "4"  # 2 steps
+                return '4'  # 2 steps
             elif curr_y in [2, 3]:
-                return "3"  # 2 steps
+                return '3'  # 2 steps
             else:  # curr_y == 4
-                return "2"  # 1 step
+                return '2'  # 1 step
         elif object_name == self.env['object2']:
             curr_x = self.curr_state[0]
             if curr_x in [-2, -1]:
-                return "4"  # 2 steps
-            elif curr_x in [0, 1, 2]:
-                return "3"  # 2 steps
+                return '4'  # 2 steps
+            elif curr_x in [0, 1]:
+                return '3'  # 2 steps
             else:  # curr_x == 3
-                return "2"  # 1 step
+                return '2'  # 1 step
         elif object_name == self.env['object3']:
             curr_y = self.curr_state[1]
             if curr_y in [4, 5]:
-                return "4"  # 2 steps
+                return '4'  # 2 steps
             elif curr_y in [3]:
-                return "3"  # 2 steps
+                return '3'  # 2 steps
             else:  # curr_y == 2
-                return "2"  # 1 step
+                return '2'  # 1 step
+        elif object_name == self.env['target']:
+            curr_x = self.curr_state[0] 
+            if curr_x in [3, 4]:
+                return '4'  # 2 steps
+            elif curr_x in [1, 2]:
+                return '3'  # 2 steps
+            else:  # curr_x in [-1, 0]
+                return '2'  # 1 step    
 
     def append_message(self, message, message_role: str, message_content: str):
         message.append({"role": message_role, "content": message_content})
@@ -176,30 +219,48 @@ class OpenaiClient(AiClientBase):
             reason = "Similar reason as the previous round."
         return reason
 
-            # Correct the new state
     def correct_next_position(self, current, actions):
         for action in actions:
             next_pos = NaviModel.get_next_position(current, action)
             current = next_pos
         return current
     
-    def correct_landmark_action(self, action, distance):
-        # Ensure distance is a list of floats
-        if distance:
-            try:
-                distance_value = float(distance[0])
-            except (ValueError, TypeError) as e:
-                print(f"Error converting distance to float: {e}")
-                return action  # Return the original action if conversion fails
+    def correct_action(self, action, detected_objects, distances, description):
+        if not distances:
+            return action
 
-            hurdle_meter = float(self.env.get('hurdle_meter_for_non_target', 0))
+        try:
+            if self.curr_state in self.banana_detect_area:
+                distance_value = float(distances[detected_objects.index(self.env['object1'])])
+            elif self.curr_state in self.refrigerator_detect_area:
+                distance_value = float(distances[detected_objects.index(self.env['object2'])])
+            elif self.curr_state in self.bottle_detect_area:
+                distance_value = float(distances[detected_objects.index(self.env['object3'])])
+            elif self.curr_state in self.apple_shift_area:
+                distance_value = float(distances[detected_objects.index(self.env['target'])])
+            elif self.curr_state in self.apple_forward_area:
+                distance_value = float(distances[detected_objects.index(self.env['target'])])
 
-            if distance_value < hurdle_meter:
-                action = ['turn right']
-            elif distance_value >= hurdle_meter and distance_value < (hurdle_meter + 1):
+        except (ValueError, TypeError, IndexError) as e:
+            print(f"Error converting distance to float: {e}")
+            return action
+
+        if self.curr_state in self.apple_shift_area:
+            action = ['shift right'] # 처음 apple_shift_area에 위치했는데, action을 shift right 안 하면 reason이 교정된 shift right 헹동이랑 match 안되는 버그 있음
+        elif self.curr_state in self.apple_forward_area and 'left' in description[detected_objects.index(self.env['target'])]:
+            action = ['shift left']
+        elif self.curr_state in self.apple_forward_area and 'right' in description[detected_objects.index(self.env['target'])]:
+            action = ['shift right']
+        else:
+            stop_hurdle = float(self.env.get('stop_target', 0)) if self.env['target'] in detected_objects else float(self.env.get('stop_landmark', 0))
+
+            if distance_value < stop_hurdle:
+                action = ['stop'] if self.env['target'] in detected_objects else ['turn right']
+            elif distance_value < (stop_hurdle + float(self.env['threshold_range'])):
                 action = ['move forward']
             else:
                 action = ['move forward', 'move forward']
+
         return action
     
     def get_response_by_LLM(self, image_pil, dog_instance):   
@@ -221,7 +282,9 @@ class OpenaiClient(AiClientBase):
         assistant = ResponseMsg.parse(rawAssistant)
 
         # Post-processing assistant
-        assistant.action = self.correct_landmark_action(assistant.action, distances)
+        if self.curr_state in self.all_detectable_areas:
+            assistant.action = self.correct_action(assistant.action, detected_objects, distances, description)
+
         assistant.new_state = self.correct_next_position(self.curr_state, assistant.action)
         assistant.reason = self.check_action_same_as_previous_round(assistant.action, assistant.reason)
 
@@ -231,7 +294,7 @@ class OpenaiClient(AiClientBase):
 
         # Update data
         self.store_image(frame_bboxes_array)
-        self.update_memory_list(detected_objects, self.chat, assistant)
+        self.update_memory_list(detected_objects, distances, description, self.chat, assistant)
 
         return assistant
     
@@ -250,12 +313,12 @@ class OpenaiClient(AiClientBase):
 
     def feedback_mode_on(self, image_pil):
         # Analyze image
-        frame_bboxes_array, detected_objects, description = self.analyze_image(image_pil)
+        frame_bboxes_array, detected_objects, distances, description = self.analyze_image(image_pil)
 
         # Initialize messages
         self.initial_prompt_feedback(detected_objects)
         
-        return frame_bboxes_array, detected_objects
+        return frame_bboxes_array, detected_objects, distances, description
 
     def get_response_non_command(self, user_input):
         self.initial_response_format_non_command()
@@ -268,7 +331,7 @@ class OpenaiClient(AiClientBase):
 
         return rawAssistant
         
-    def get_response_landmark_or_general_command(self, user_input, frame_bboxes_array, detected_objects):
+    def get_response_landmark_or_general_command(self, user_input, frame_bboxes_array, detected_objects, distances, description):
         # Append user input to messages
         self.append_message(self.msg_feedback, "user", user_input)
         self.append_message(self.chat, "user", user_input)
@@ -290,7 +353,7 @@ class OpenaiClient(AiClientBase):
         # Update data
         image_pil_fmode = utils.put_text_top_left(frame_bboxes_array, text="Feedback mode")
         self.store_image(image_pil_fmode)
-        self.update_memory_list(detected_objects, self.chat, assistant)
+        self.update_memory_list(detected_objects, distances, description, self.chat, assistant)
         self.msg_feedback.clear()
         self.chat.clear()
         self.is_initial_prompt_landmark_or_non_command = True

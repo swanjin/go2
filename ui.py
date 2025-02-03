@@ -132,11 +132,11 @@ class SendMessageThread(QThread):
             print(f"Feedback text: '{text}'")  # Debug print
             frame = self.dog.read_frame()
             print(f"Frame received: {frame is not None}")  # Debug print
-            image_bboxes_array, image_description = self.dog.ai_client.feedback_mode_on(frame)
+            image_bboxes_array, image_detected_objects, image_distances, image_description = self.dog.ai_client.feedback_mode_on(frame)
 
             if self.dog.ai_client.is_instruction_command(text):
                 print("❗ Executing instruction or command")            
-                assistant = self.dog.ai_client.get_response_landmark_or_general_command(text, image_bboxes_array, image_description)
+                assistant = self.dog.ai_client.get_response_landmark_or_general_command(text, image_bboxes_array, image_description, image_distances, image_detected_objects)
                 self.message_data.pending_feedback_action = assistant.action
                 self.confirm_feedback_signal.emit()
                 self.message_data.awaiting_feedback = False

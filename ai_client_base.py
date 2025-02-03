@@ -94,55 +94,60 @@ class AiClientBase:
         """)
 
     def prompt_auto(self, curr_state):
+        stop_target = self.env.get('stop_target')
+        threshold_range = self.env.get('threshold_range')
+
+        if stop_target is None or threshold_range is None:
+            raise ValueError("Environment variables 'stop_target' and 'threshold_range' must be set.")
+
         return (f"""
         {self.initial_prompt(curr_state)}
 
         ### Instructions for Action:
         {self.get_action_dictionary()}
 
-        #### Case 1: The {self.env['target']} is detected in the 'Detection' section.
-        - **Subcase 1.1**: The {self.env['target']} is within the middle of the image's width (i.e., the width pixel index between '{self.env['captured_width']*(2/5)}' and '{self.env['captured_width']*(4/5)}'), and the distance to {self.env['target']} is more than the defined stop distance ('{self.env['stop_hurdle_meter_for_target']}').
+        #### Case 1: The target object {self.env['target']} is detected in the 'Detection' section.
+        - **Subcase 1.1**: The {self.env['target']} is in the middle of the frame, and the distance to the {self.env['target']} is greater than '{stop_target}'.
             - **Action**: Move your position vertically to get closer to the target with the number of times as below.
-                - If the chosen action is 'stop' and the distance to the detected {self.env['target']} in the middle third of the image is less than the defined stop distance (i.e., '{self.env['stop_hurdle_meter_for_target']}'), execute 0 times.
-                - If the chosen action is 'move forward' and the distance is between '{self.env['stop_hurdle_meter_for_target']}' and '{(self.env['stop_hurdle_meter_for_target']+1)}' meters, execute 1 times.
+                - If the chosen action is 'move forward' and the distance to the target is within ({stop_target}, {stop_target + threshold_range}) meters, execute 1 times.
                 - Otherwise, execute 2 times.
 
-        - **Subcase 1.2**: the distance to the detected {self.env['target']} in the middle third of the image is less than the defined stop distance (i.e., '{self.env['stop_hurdle_meter_for_target']}').
-            - **Action**: 'stop'
+        - **Subcase 1.2**: The {self.env['target']} is in the middle of the frame, and the distance to the {self.env['target']} is less than '{stop_target}'.
+            - **Action**: 'stop'.
 
-        - **Subcase 1.3**: No {self.env['target']} falls within the middle of the image's width.
-            - **Action**: Move your position horizontally by shifting 1 time to center the detected target within your field of view. 
-            - Example: 
-                - If the target is in the left third of the image's width (the width pixel index less than '{self.env['captured_width']*(1/5)}'), **shift left** to bring it closer to the center. 
-                - If the target is in the right third of the image's width (the width pixel index greater than '{self.env['captured_width']*(4/5)}'), **shift right** to bring it closer to the center.
+        - **Subcase 1.3**: The {self.env['target']} is on the left side of the frame.
+            - **Action**: 'shift left'.
+
+        - **Subcase 1.4**: The {self.env['target']} is on the right side of the frame.
+            - **Action**: 'shift right'.
 
         - **Verification Step for Case 1**:
             - Ensure the following before proceeding:
-            1. Have you checked whether the {self.env['target']} is detected in the middle of the image? 
-            2. Have you accurately compared the distances of  {self.env['target']} against the defined stop distance ('{self.env['stop_hurdle_meter_for_target']}')?
-            3. Based on these checks, confirm which subcase (1.1, 1.2, or 1.3) applies and proceed with the specified action.
+            1. Have you checked whether the {self.env['target']} is detected in the middle of the frame?
+            2. Have you accurately compared the distances of  {self.env['target']} against the defined stop distance ('{stop_target}')?
+            3. Have you checked whether the {self.env['target']} is on the left side of the frame?
+            4. Have you checked whether the {self.env['target']} is on the right side of the frame?
+            5. Based on these checks, confirm which subcase (1.1, 1.2, 1.3, or 1.4) applies and proceed with the specified action.
 
         #### Case 2: The {self.env['target']} is **not detected** in the 'Detection' section.
         - **Subcase 2.1**: Neither {self.env['object1']} nor {self.env['object2']} nor {self.env['object3']} is detected in the 'Detection' section.
-            - **Action**: Rotate once to explore a different orientation without changing your position (x, y). Avoid exploring any orientation that was already explored at the same position (x, y) during previous rounds, as recorded in the 'Memory' section.
-            - **Note**: Avoid revisiting orientations that have already been explored at the same position without detecting the {self.env['target']} according to the 'Memory' section.
+            - **Action**: Rotate once to explore a different orientation without changing your position (x, y). Avoid action that would update your state (x, y, orientation) as the same state that you have already visited according to the 'Memory' section.
 
-        - **Subcase 2.2**: Either {self.env['object1']} or {self.env['object2']} or {self.env['object3']} is detected in the 'Detection' section, and its distance is **more than** the stopping threshold ('{self.env['hurdle_meter_for_non_target']}').
+        - **Subcase 2.2**: Either {self.env['object1']} or {self.env['object2']} or {self.env['object3']} is detected in the 'Detection' section, and its distance is **more than** the stopping threshold ('{self.env['stop_landmark']}').
             - **Action**: Move forward once or twice.
             - Strictly follow the following rules: 
-                - If the distance to the detected object is between '{self.env['hurdle_meter_for_non_target']}' and '{(self.env['hurdle_meter_for_non_target']+1)}' meters, move forward **once**. 
-                - If the distance to the detected object is greater than '{(self.env['hurdle_meter_for_non_target']+1)}' meters, move forward **twice**.
+                - If the distance to the detected object is between '{self.env['stop_landmark']}' and '{(self.env['stop_landmark']+self.env['threshold_range'])}' meters, move forward **once**. 
+                - If the distance to the detected object is greater than '{(self.env['stop_landmark']+self.env['threshold_range'])}' meters, move forward **twice**.
 
-        - **Subcase 2.3**: Either {self.env['object1']} or {self.env['object2']} or {self.env['object3']} is detected in the 'Detection' section, and its distance is **less than** the stopping threshold ('{self.env['hurdle_meter_for_non_target']}').
-            - **Action**: Rotate once to explore a different orientation without changing your position (x, y). Avoid exploring any orientation that was already explored at the same position (x, y) during previous rounds, as recorded in the 'Memory' section.
-            - **Note**: Avoid revisiting orientations that have already been explored at the same position without detecting the {self.env['target']} according to the 'Memory' section.
+        - **Subcase 2.3**: Either {self.env['object1']} or {self.env['object2']} or {self.env['object3']} is detected in the 'Detection' section, and its distance is **less than** the stopping threshold ('{self.env['stop_landmark']}').
+            - **Action**: Rotate once to explore a different orientation without changing your position (x, y). Avoid action that would update your state (x, y, orientation) as the same state that you have already visited according to the 'Memory' section.
         
         - **Verification Step for Case 2**:
             - Ensure the following before proceeding:
             1. Have you checked whether the {self.env['target']} is **not detected** in the 'Detection' section?
             2. Have you confirmed the presence or absence of {self.env['object1']} or {self.env['object2']} or {self.env['object3']} in the 'Detection' section?
             3. If either {self.env['object1']} or {self.env['object2']} or {self.env['object3']} is detected:
-                - Have you measured the distance accurately against the stopping threshold ('{self.env['hurdle_meter_for_non_target']}')?
+                - Have you measured the distance accurately against the stopping threshold ('{self.env['stop_landmark']}')?
             4. Based on these checks, confirm which subcase (2.1, 2.2, or 2.3) applies and proceed with the specified action.
 
         ### Instructions for New state:
@@ -159,7 +164,7 @@ class AiClientBase:
         - **Action**: action1, action2, ...
         - **Reason**: 
           - Explain your choice of actions in one concise sentence by pinpointing the everyday association between the detected objects and the {self.env['target']} as a contextual reasoning.
-          - Do not mention case/subcase numbers or section names.
+          - Do not mention case numbers, subcase numbers, section names or distances.
           - If referring to the {self.env['target']} position in the image, use 'left', 'middle', or 'right' without mentioning 'third'.
           - If neither {self.env['object1']}, {self.env['object2']}, nor {self.env['object3']} is detected, do not mention them in your reasoning.
         """)
@@ -193,8 +198,10 @@ class AiClientBase:
     def response_format_non_command(self): # non-command: what can you see?
         return (f"""
         Rules:
-        - Respond extremely concisely without numbers and cardinal directions for states, obstacles, or landmarks.
-        - Describe landmarks relative to your current state.
+        - If the user asks a question, one sentence should provide a concise answer to the user's question.
+        - If the user command is not explicit enough, one sentence should guide the user to explicitly specify the actions and the number of times each action should be executed.
+        - Do not mention numbers and cardinal directions for states, obstacles, or landmarks. 
+        - Describe landmarks relative to your current state only if the user asks for it.
         """)
 
     def prompt_general_command(self, curr_state):
@@ -208,12 +215,13 @@ class AiClientBase:
 
     def response_format_general_command(self): # general command: move forward 3 times/ turn around
         return (f"""
-        Ensure each response follows the following format precisely. Do not deviate. Before responding, verify that your output exactly matches the structured format.
+        Ensure each response follows the following format precisely. Do not deviate. Before responding, verify that your output exactly matches the structured format. 
 
-        Initial state: compute '(x, y, orientation)' before you take any action at this round.
-        New state: Determine new '(x, y, orientation)' based on the chat between user and you and the guideline in the '### Instructions for Action/New state' section .
-        Action: Determine the actions based on the chat between user and you and the guideline in the '### Instructions for Action/New state' section .
-        Reason: Explain your choice of actions in one concise sentence.
+        - **Initial State**: (x, y, orientation)
+        - **New State**: (x, y, orientation)
+        - **Action**: action1, action2, ... (If the user requests a precise command requiring multiple actions to be executed several times, identify each unique action from the action dictionary and list them accordingly, repeating them as needed and separating them with commas.)
+        - **Reason**: 
+          - Explain your choice of actions in one concise sentence.
         """)
 
     def set_target(self, target):

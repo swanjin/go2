@@ -125,8 +125,8 @@ class PathAnimator:
         self.path = path
         self.landmarks = landmarks
         self.obstacles = obstacles
-        self.grid_size = 10
-        self.fig, self.ax = plt.subplots(figsize=(10, 10))
+        self.grid_size = NaviConfig.grid_size
+        self.fig, self.ax = plt.subplots(figsize=(self.grid_size, self.grid_size))
         self.robot_marker = None
         self.path_points = [(start[0], start[1])]
         self.path_lines = []
@@ -140,17 +140,17 @@ class PathAnimator:
         self.ax.axhline(y=0, color='black', linewidth=0.5)
         self.ax.axvline(x=0, color='black', linewidth=0.5)
 
-        # Add a light yellow rectangle for the specified area
-        banana_area = Rectangle((-2, 0), 4, 4, color='yellow', alpha=0.5, label='⬆️ banana detectable area')
+        banana_area = Rectangle(NaviConfig.banana_bottom_left, NaviConfig.banana_width, NaviConfig.banana_height, color='yellow', alpha=0.5, label='⬆️ banana detectable area')
+        refrigerator_area = Rectangle(NaviConfig.refrigerator_bottom_left, NaviConfig.refrigerator_width, NaviConfig.refrigerator_height, color='lightgray', alpha=0.5, label='➡️ refrigerator detectable area')
+        bottle_area = Rectangle(NaviConfig.bottle_bottom_left, NaviConfig.bottle_width, NaviConfig.bottle_height, color='blue', alpha=0.5, label='⬇️ bottle detectable area')
+        apple_shift_area = Rectangle(NaviConfig.apple_shift_bottom_left, NaviConfig.apple_shift_width, NaviConfig.apple_shift_height, color='green', alpha=0.5, label='⬅️ apple shift detectable area')
+        apple_forward_area = Rectangle(NaviConfig.apple_forward_bottom_left, NaviConfig.apple_forward_width, NaviConfig.apple_forward_height, color='coral', alpha=0.5, label='⬅️ apple forward detectable area')
+
         self.ax.add_patch(banana_area)
-
-        # Add a light gray rectangle for the specified area
-        refrigerator_area = Rectangle((-2, 2), 5, 3, color='gray', alpha=0.5, label='➡️ refrigerator detectable area')
         self.ax.add_patch(refrigerator_area)
-
-        # Add a light blue rectangle for the specified area
-        bottle_area = Rectangle((2, 2), 2, 3, color='lightblue', alpha=0.5, label='⬇️ bottle detectable area')
         self.ax.add_patch(bottle_area)
+        self.ax.add_patch(apple_shift_area)
+        self.ax.add_patch(apple_forward_area)
 
         for name, (x, y, _) in self.landmarks.items():
             self.ax.plot(x, y, 'ro')
@@ -166,7 +166,7 @@ class PathAnimator:
 
         self.ax.plot(self.start[0], self.start[1], 'go', label='Start')
         self.ax.plot(self.goal[0], self.goal[1], 'bo', label='Goal')
-        self.ax.legend(loc='upper right')
+        self.ax.legend(loc='upper left')
 
     def update(self, frame):
         current_position = list(self.start)
@@ -236,12 +236,12 @@ class Mapping:
 
     def generate_border_points(self, border_size):
         border_points = []
-        for i in range(-border_size, border_size):
+        for i in range(-border_size, border_size + 1):
             border_points.extend([
-                (i, border_size),    # top border
-                (i, -border_size),   # bottom border
-                (-border_size, i), # left border
-                (border_size, i)   # right border
+                (i, border_size + 1),    # top border
+                (i, -border_size - 1),   # bottom border
+                (-border_size, i),       # left border
+                (border_size, i)         # right border
             ])
         return border_points
 
@@ -256,8 +256,8 @@ if __name__ == "__main__":
 
     # Run simulation with obstacle avoidance
     navi_model = NaviModel()
-    start = (0, 0, 180)
-    target = (0, 0, 180)
+    start = (-1, 4, 270)
+    target = (3, 5, 0)
     path_to_target = navi_model.navigate_to(start, target, mapping.obstacles)
     print("Path to target:", path_to_target)
 
