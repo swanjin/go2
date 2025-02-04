@@ -180,12 +180,12 @@ class OpenaiClient(AiClientBase):
                 return '2'  # 1 step
         elif object_name == self.env['target']:
             curr_x = self.curr_state[0] 
-            if curr_x in [3, 4]:
-                return '4'  # 2 steps
-            elif curr_x in [1, 2]:
-                return '3'  # 2 steps
-            else:  # curr_x in [-1, 0]
-                return '2'  # 1 step    
+            if curr_x in [2, 3, 4]:
+                return '2.5'  # 2 steps
+            elif curr_x in [0, 1]:
+                return '1.5'  # 1 steps
+            else:  # curr_x in [-1]
+                return '0.5'  # stop   
 
     def append_message(self, message, message_role: str, message_content: str):
         message.append({"role": message_role, "content": message_content})

@@ -256,8 +256,8 @@ if __name__ == "__main__":
 
     # Run simulation with obstacle avoidance
     navi_model = NaviModel()
-    start = (0, 0, 0)
-    target = (-2, 6, 0)
+    start = (0, 0, 180)
+    target = (0, 0, 180)
     path_to_target = navi_model.navigate_to(start, target, mapping.obstacles)
     print("Path to target:", path_to_target)
 

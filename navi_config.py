@@ -33,5 +33,5 @@ class NaviConfig:
     apple_shift_width = 2
     apple_shift_height = 2
     apple_forward_bottom_left = (-2, 3)
-    apple_forward_width = 5
+    apple_forward_width = 6
     apple_forward_height = 2
