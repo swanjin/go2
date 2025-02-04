@@ -81,16 +81,16 @@ class AiClientBase:
     
     def get_obstacles(self):
         border_lines = ", ".join([f"({x}, {y})" for x, y in self.border_points])
-        # Fetch the elements from NaviConfig.obstacles using keys
-        obstacle_1 = NaviConfig.obstacles["obstacle1"]
-        obstacle_2 = NaviConfig.obstacles["obstacle2"]
-        obstacle_3 = NaviConfig.obstacles["obstacle3"]
+        
+        # Dynamically fetch all obstacles from NaviConfig
+        obstacles = ", ".join([f"({coords[0]}, {coords[1]})" for coords in NaviConfig.obstacles.values()])
+        
         return (f"""
         Obstacles:
         1. Border lines
         {border_lines}
         2. Box
-        ({obstacle_1[0]}, {obstacle_1[1]}), ({obstacle_2[0]}, {obstacle_2[1]}), ({obstacle_3[0]}, {obstacle_3[1]})
+        {obstacles}
         """)
 
     def prompt_auto(self, curr_state):
@@ -199,7 +199,6 @@ class AiClientBase:
         return (f"""
         Rules:
         - If the user asks a question, one sentence should provide a concise answer to the user's question.
-        - If the user command is not explicit enough, one sentence should guide the user to explicitly specify the actions and the number of times each action should be executed.
         - Do not mention numbers and cardinal directions for states, obstacles, or landmarks. 
         - Describe landmarks relative to your current state only if the user asks for it.
         """)

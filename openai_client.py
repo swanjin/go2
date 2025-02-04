@@ -435,7 +435,13 @@ class OpenaiClient(AiClientBase):
     
     def is_landmark(self, input): 
         msg = []
-        prompt = "You are Go2, a helpful robot dog assistant who only speaks English. Given the user input, determine if it indicates the user wants you to move by referencing any of the following landmarks: refrigerator, kitchen, TV, desk, cabinet, sofa, banana, bottle, box. If the user input references any of these, respond with 'true'. Otherwise, respond with 'false'."
+        # Dynamically retrieve landmarks from NaviConfig
+        landmarks_list = ", ".join(NaviConfig.landmarks.keys())
+        prompt = (
+            "You are Go2, a helpful robot dog assistant who only speaks English. "
+            "Given the user input, determine if it indicates the user wants you to move by referencing box obstacles or any of the following landmarks: "
+            f"{landmarks_list}. If the user input references any of these, respond with 'true'. Otherwise, respond with 'false'."
+        )
         self.append_message(msg, "user", prompt)
         self.append_message(msg, "user", input)
 

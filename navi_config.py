@@ -1,6 +1,6 @@
 class NaviConfig:
     landmarks = {
-        "coffee machine": (-2, 6, 0),
+        "coffee machine": (-2, 5, 0),
         "refrigerator": (4, 5, 0),
         "sink": (0, 6, 0),
         "tv": (-5, -1, 270),
