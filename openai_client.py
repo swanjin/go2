@@ -148,7 +148,7 @@ class OpenaiClient(AiClientBase):
             if self.curr_state in self.apple_shift_area:
                 description = f"You detected {object_name} on the right side of the frame with a distance of {distance} meters."
             else:
-                description = f"You detected {object_name} with a distance of {distance} steps."
+                description = f"You detected {object_name} with a distance of {distance} meters."
             image_analysis.detected_objects.append(object_name)
             image_analysis.distances.append(distance)
             image_analysis.description.append(description)
@@ -168,17 +168,17 @@ class OpenaiClient(AiClientBase):
                 return '4'  # 2 steps
             elif curr_x in [0, 1]:
                 return '3'  # 2 steps
-            else:  # curr_x == 3
+            else:  # curr_x == 2
                 return '2'  # 1 step
         elif object_name == self.env['object3']:
             curr_y = self.curr_state[1]
-            if curr_y in [4, 5]:
+            if curr_y in [5, 6]:
                 return '4'  # 2 steps
-            elif curr_y in [3]:
+            elif curr_y in [3, 4]:
                 return '3'  # 2 steps
             else:  # curr_y == 2
                 return '2'  # 1 step
-        elif object_name == self.env['target']:
+        elif object_name == self.env['target']: # for both of apple shift and forward detectable area
             curr_x = self.curr_state[0] 
             if curr_x in [2, 3, 4]:
                 return '2.5'  # 2 steps

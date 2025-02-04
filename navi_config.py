@@ -20,6 +20,7 @@ class NaviConfig:
         "obstacle5": (-3, 2, 0),
         "obstacle6": (-2, 2, 0),
     }
+    # Manually update 'calculate_distance' in openai_client.py
     banana_bottom_left = (-1, 0)
     banana_width = 3
     banana_height = 4
