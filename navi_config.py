@@ -1,6 +1,7 @@
 class NaviConfig:
     landmarks = {
-        "refrigerator": (3, 5, 0),
+        "coffee machine": (-2, 6, 0),
+        "refrigerator": (4, 5, 0),
         "sink": (0, 6, 0),
         "tv": (-5, -1, 270),
         "desk": (-5, -6, 180),
@@ -27,7 +28,7 @@ class NaviConfig:
     refrigerator_height = 4
     bottle_bottom_left = (2, 2)
     bottle_width = 2
-    bottle_height = 3
+    bottle_height = 4
     apple_shift_bottom_left = (2, 1)
     apple_shift_width = 2
     apple_shift_height = 2
