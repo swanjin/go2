@@ -5,7 +5,7 @@ class Messages:
     # Feedback related messages
     FEEDBACK_MODE_ACTIVATED = "Feedback mode activated. Please provide your feedback."
     FEEDBACK_PROCESSING = "I'm going to process your feedback."
-    FEEDBACK_REJECT = "Okay, I won't execute that action. What would you like me to do instead?"
+    FEEDBACK_REJECT = "It seems my suggested actions don't align with your needs. Could you clarify your expectations or suggest adjustments?"
     FEEDBACK_COMPLETE = "I just processed your feedback. I'm back to automatic search mode now."
     
     # Search related messages

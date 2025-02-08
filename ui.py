@@ -1,6 +1,6 @@
 from PyQt6.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout, 
                            QHBoxLayout, QPushButton, QLabel, QTextEdit, QLineEdit,
-                           QScrollArea, QFrame)
+                           QScrollArea, QFrame, QMessageBox)
 from PyQt6.QtCore import Qt, QThread, pyqtSignal, QSize, QTimer
 from PyQt6.QtGui import QImage, QPixmap, QFont, QColor, QPalette, QPainter, QPen
 from PIL import Image
@@ -250,20 +250,118 @@ class RobotDogUI(QMainWindow):
 
     def confirm_feedback(self):
         if self.message_data.pending_feedback_action:
+            print("Pending feedback action found.")
             action_to_execute = self.message_data.pending_feedback_action
+            if not action_to_execute:
+                action_description = ""
+            elif len(action_to_execute) == 1:
+                action_description = action_to_execute[0]
+            else:
+                action_description = " and ".join(action_to_execute)
+
+            # 로딩 애니메이션 숨기기
+            self.hide_loading()
+
+            # 로봇 메시지로 확인 메시지 표시
+            self.add_robot_message(f"I understand you want me to {action_description}. Do you want to execute the following action?")
+
+            # Yes 버튼 생성
+            yes_button = QPushButton("Yes")
+            yes_button.setStyleSheet("""
+                QPushButton {
+                    background-color: #1A73E8;
+                    color: white;
+                    border-radius: 10px;
+                    padding: 5px 10px;
+                    font-size: 14px;
+                    font-weight: bold;
+                }
+                QPushButton:hover {
+                    background-color: #1557AA;
+                }
+            """)
+            yes_button.clicked.connect(lambda: self.handle_user_response(True, action_to_execute))
+
+            # No 버튼 생성
+            no_button = QPushButton("No")
+            no_button.setStyleSheet("""
+                QPushButton {
+                    background-color: #1A73E8;
+                    color: white;
+                    border-radius: 10px;
+                    padding: 5px 10px;
+                    font-size: 14px;
+                    font-weight: bold;
+                }
+                QPushButton:hover {
+                    background-color: #1557AA;
+                }
+            """)
+            no_button.clicked.connect(lambda: self.handle_user_response(False, action_to_execute))
+
+            # 버튼을 레이아웃에 추가
+            button_layout = QHBoxLayout()
+            button_layout.addWidget(yes_button)
+            button_layout.addWidget(no_button)
+
+            # 버튼을 포함한 위젯을 채팅 레이아웃에 추가
+            button_widget = QWidget()
+            button_widget.setLayout(button_layout)
+            self.chat_layout.addWidget(button_widget)
+            QTimer.singleShot(0, self._scroll_to_bottom)
+
+            # 버튼 위젯을 추적하기 위해 저장
+            self.current_button_widget = button_widget
+        else:
+            print("No pending feedback action.")
+
+    def handle_user_response(self, user_response, action_to_execute):
+        # 사용자의 선택을 메시지로 추가
+        if user_response:
+            self.add_user_message("Yes")
+            self.show_loading()
             self.execute_feedback_action(action_to_execute)
             self.message_data.pending_feedback_action = None
             self.awaiting_feedback = False
+        else:
+            self.add_user_message("No")
+            self.add_robot_message("Please provide more details or clarify your feedback.")
+            self.show_loading()
+            self.message_data.awaiting_feedback = True
 
-    def reject_feedback(self):
-        self.add_robot_message(Messages.FEEDBACK_REJECT)
-        self.dog.ai_client.openai_params_for_text["messages"] = self.dog.ai_client.openai_params_for_text["messages"][:-1]
-        self.dog.ai_client.openai_params_for_text["messages"].append({"role": "assistant", "content": Messages.FEEDBACK_REJECT})
+        # 버튼을 포함한 위젯만 제거
+        if hasattr(self, 'current_button_widget'):
+            self.current_button_widget.deleteLater()
+            del self.current_button_widget
+
+    # def confirm_feedback(self):
+    #     if self.message_data.pending_feedback_action:
+    #         print("Pending feedback action found.")
+    #         action_to_execute = self.message_data.pending_feedback_action
+    #         action_description = f"Action: {action_to_execute}"
+
+    #         user_response = self.show_confirmation_dialog(action_description)
+    #         print(f"User response: {user_response}")
+
+    #         if user_response == QMessageBox.StandardButton.Yes:
+    #             self.execute_feedback_action(action_to_execute)
+    #             self.message_data.pending_feedback_action = None
+    #             self.awaiting_feedback = False
+    #         else:
+    #             self.add_robot_message("Please provide more details or clarify your feedback.")
+    #             self.message_data.awaiting_feedback = True
+    #     else:
+    #         print("No pending feedback action.")
+
+    # def reject_feedback(self):
+    #     self.add_robot_message(Messages.FEEDBACK_REJECT)
+    #     self.dog.ai_client.openai_params_for_text["messages"] = self.dog.ai_client.openai_params_for_text["messages"][:-1]
+    #     self.dog.ai_client.openai_params_for_text["messages"].append({"role": "assistant", "content": Messages.FEEDBACK_REJECT})
         
-        self.confirm_widget.hide()
-        self.input_widget.show()
-        self.message_data.pending_feedback_action = None
-        self.awaiting_feedback = True
+    #     self.confirm_widget.hide()
+    #     self.input_widget.show()
+    #     self.message_data.pending_feedback_action = None
+    #     self.awaiting_feedback = True
 
     def process_target(self, text, response):
         print()
@@ -483,6 +581,15 @@ class RobotDogUI(QMainWindow):
         """로딩을 숨기고 로봇 메시지를 표시합니다."""
         self.hide_loading()
         self.add_robot_message(text, image)
+
+    def show_confirmation_dialog(self, action_description):
+        """Show a confirmation dialog for the action."""
+        msg_box = QMessageBox(self)
+        msg_box.setIcon(QMessageBox.Icon.Question)
+        msg_box.setWindowTitle("Confirm Action")
+        msg_box.setText(f"Do you want to execute the following action?\n\n{action_description}")
+        msg_box.setStandardButtons(QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No)
+        return msg_box.exec()
 
 class CameraThread(QThread):
     frame_update = pyqtSignal(QImage)
