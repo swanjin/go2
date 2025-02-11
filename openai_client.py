@@ -419,8 +419,21 @@ class OpenaiClient(AiClientBase):
         msg = []
         prompt = (
             "You are Go2, a helpful robot dog assistant who only speaks English. "
-            "Your task: Determine if the user input is an request or command asking you to do something. If yes, respond with 'true'. If no, respond with 'false'. "
-            "If the user input includes ? mark, respond with 'false'."
+            "Your task: Determine if the user input is requesting you to perform any action or movement. "
+            "Respond with 'true' if:\n"
+            "- The user wants you to move somewhere\n"
+            "- The user wants you to perform any physical action\n"
+            "- The user gives any kind of instruction or command\n"
+            "Respond with 'false' if:\n"
+            "- The user is asking a question\n"
+            "- The user is making a statement\n"
+            "- The user is just providing information\n"
+            "Examples:\n"
+            "- 'go to the apple' -> true\n"
+            "- 'can you turn around' -> true\n"
+            "- 'move forward' -> true\n"
+            "- 'can you see the apple?' -> false\n"
+            "- 'what is in front of you?' -> false"
         )
         self.append_message(msg, "user", prompt)
         self.append_message(msg, "user", input)
@@ -432,6 +445,35 @@ class OpenaiClient(AiClientBase):
             print(f"Error in is_instruction_command: {e}")
             return False
         return is_command
+    
+    def is_yes(self, input):
+        msg = []
+        prompt = (
+            "You are Go2, a helpful robot dog assistant who only speaks English. "
+            "Your task: Determine if the user's response indicates agreement or confirmation. "
+            "Respond with 'true' if the input expresses:\n"
+            "- Agreement (e.g., 'yes', 'okay', 'sure', 'go ahead', 'do it', 'that's right')\n"
+            "- Confirmation (e.g., 'that's what I want', 'exactly', 'perfect')\n"
+            "- Positive acknowledgment (e.g., 'sounds good', 'that works')\n"
+            "Respond with 'false' if the input expresses:\n"
+            "- Disagreement (e.g., 'no', 'wait', 'stop', 'not quite')\n"
+            "- Uncertainty (e.g., 'I'm not sure', 'let me think')\n"
+            "- Different instructions or questions\n"
+            "Examples:\n"
+            "- 'that's exactly what I want' -> true\n"
+            "- 'go ahead' -> true\n"
+            "- 'not what I meant' -> false\n"
+            "- 'let me explain again' -> false"
+        )
+        self.append_message(msg, "user", prompt)
+        self.append_message(msg, "user", input)
+
+        try:
+            rawAssistant = self.get_ai_response(msg)
+            return rawAssistant.lower() == "true"
+        except (KeyError, IndexError, AttributeError) as e:
+            print(f"Error in is_yes: {e}")
+            return False
     
     def is_landmark(self, input): 
         msg = []
@@ -449,6 +491,35 @@ class OpenaiClient(AiClientBase):
             rawAssistant = self.get_ai_response(msg)
             is_landmark = rawAssistant.lower() == "true"
         except (KeyError, IndexError, AttributeError) as e:
-            print(f"Error in is_instruction_command: {e}")
+            print(f"Error in is_landmark: {e}")
             return False
         return is_landmark
+    
+    def is_no_command(self, input):
+        msg = []
+        prompt = (
+            "You are Go2, a helpful robot dog assistant who only speaks English. "
+            "Your task: Determine if the user's response is a simple negation without any new instruction. "
+            "\nRespond with 'true' if the input:\n"
+            "- Only expresses disagreement (e.g., 'no', 'nope', 'wrong')\n"
+            "- Indicates rejection without new instruction (e.g., 'that's not right', 'I don't want that')\n"
+            "- Shows disapproval without alternative (e.g., 'that's incorrect', 'not what I meant')\n"
+            "\nRespond with 'false' if the input:\n"
+            "- Contains any new instruction (e.g., 'no, go to the apple instead')\n"
+            "- Provides alternative action (e.g., 'no, you should turn right')\n"
+            "- Includes specific correction (e.g., 'no, I meant the other direction')\n"
+            "\nExamples:\n"
+            "- 'no' -> true\n"
+            "- 'that's not what I want' -> true\n"
+            "- 'no, go to the apple' -> false\n"
+            "- 'no, you should turn left instead' -> false"
+        )
+        self.append_message(msg, "user", prompt)
+        self.append_message(msg, "user", input)
+
+        try:
+            rawAssistant = self.get_ai_response(msg)
+            return rawAssistant.lower() == "true"
+        except (KeyError, IndexError, AttributeError) as e:
+            print(f"Error in is_no_command: {e}")
+            return False

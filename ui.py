@@ -71,6 +71,7 @@ class MessageData:
     target_set: bool = False
     conversation_started: bool = False
     pending_feedback_action: any = None
+    confirming_action: bool = False
 
 class SendMessageThread(QThread):
     process_target_signal = pyqtSignal(str, str)
@@ -80,6 +81,8 @@ class SendMessageThread(QThread):
     add_user_message_signal = pyqtSignal(str)
     add_robot_message_signal = pyqtSignal(str, object)
     activate_feedback_mode_signal = pyqtSignal()
+    execute_feedback_action_signal = pyqtSignal(list)
+    show_loading_signal = pyqtSignal()  # 로딩 시그널 추가
 
     def __init__(self, message_data: MessageData, dog_instance, parent=None):
         super().__init__(parent)
@@ -87,6 +90,47 @@ class SendMessageThread(QThread):
         self.dog = dog_instance
 
     def run(self):
+        if not self.message_data.conversation_started:
+            return
+        
+        text = self.message_data.text.strip()
+        if not text:
+            return
+        
+        # 먼저 사용자 메시지를 표시
+        self.add_user_message_signal.emit(text)
+        
+        # 컨펌 상태일 때의 처리
+        if self.message_data.confirming_action and self.message_data.pending_feedback_action:
+            if self.dog.ai_client.is_yes(text):
+                print("✅ Yes 응답 받음 - 액션 실행 시작")
+                self.show_loading_signal.emit()  # 로딩 표시
+                self.execute_feedback_action_signal.emit(self.message_data.pending_feedback_action)
+                self.message_data.pending_feedback_action = None
+                self.message_data.confirming_action = False
+            else:
+                print("❌ No 응답 받음")
+                if self.dog.ai_client.is_no_command(text):
+                    print("❌ 단순 거절 - 상세 설명 요청")
+                    self.show_loading_signal.emit()  # 로딩 표시
+                    self.add_robot_message_signal.emit("Please provide more details or clarify your feedback.", None)
+                    self.message_data.confirming_action = False
+                else:
+                    print("🔄 새로운 명령 감지 - 액션 생성 중")
+                    self.show_loading_signal.emit()  # 로딩 표시
+                    frame = self.dog.read_frame()
+                    image_bboxes_array, image_detected_objects, image_distances, image_description = self.dog.ai_client.feedback_mode_on(frame)
+                    assistant = self.dog.ai_client.get_response_landmark_or_general_command(
+                        text, 
+                        image_bboxes_array, 
+                        image_description, 
+                        image_distances, 
+                        image_detected_objects
+                    )
+                    self.message_data.pending_feedback_action = assistant.action
+                    self.confirm_feedback_signal.emit()
+            return
+        
         print("\n=== send_message called ===")  # Debug print
         if not self.message_data.conversation_started:
             print("Conversation not started")  # Debug print
@@ -137,9 +181,9 @@ class SendMessageThread(QThread):
             if self.dog.ai_client.is_instruction_command(text):
                 print("❗ Executing instruction or command")            
                 assistant = self.dog.ai_client.get_response_landmark_or_general_command(text, image_bboxes_array, image_description, image_distances, image_detected_objects)
+                print(f"📋 생성된 액션: {assistant.action}")
                 self.message_data.pending_feedback_action = assistant.action
                 self.confirm_feedback_signal.emit()
-                self.message_data.awaiting_feedback = False
             
             else:
                 print("Getting answer to question from AI client...")  # Debug print
@@ -152,6 +196,8 @@ class SendMessageThread(QThread):
             self.dog.feedback = text
 
 class RobotDogUI(QMainWindow):
+    # 클래스 레벨에서 시그널 정의
+    confirm_feedback_signal = pyqtSignal()
     
     def __init__(self, dog_instance):
         super().__init__()
@@ -159,7 +205,11 @@ class RobotDogUI(QMainWindow):
         self.message_data = MessageData()
         self.search_started = False
         self.loading_message = None
-        self.loading_timer = None  # 로딩 타이머 추적을 위한 변수 추가
+        self.loading_timer = None
+        
+        # 시그널 연결
+        self.confirm_feedback_signal.connect(self.confirm_feedback)
+        
         self.initUI()
         
     def initUI(self):
@@ -232,6 +282,42 @@ class RobotDogUI(QMainWindow):
     def send_message(self):
         self.message_data.text = self.message_input.text()
         
+        # 피드백 확인 중인 경우 특별 처리
+        if self.message_data.confirming_action and self.message_data.pending_feedback_action:
+            # 스레드를 통해 메시지 처리
+            self.send_message_thread = SendMessageThread(self.message_data, self.dog)
+            self.send_message_thread.add_user_message_signal.connect(self.add_user_message)
+            self.send_message_thread.add_robot_message_signal.connect(self.add_robot_message_with_loading)
+            self.send_message_thread.confirm_feedback_signal.connect(self.confirm_feedback)
+            self.send_message_thread.execute_feedback_action_signal.connect(self.execute_feedback_action)
+            self.send_message_thread.show_loading_signal.connect(self.show_loading)  # 추가된 연결
+            self.send_message_thread.start()
+            
+            self.message_input.clear()
+            return
+        
+        # 기존 피드백 모드에서의 처리
+        elif self.message_data.feedback_mode and self.message_data.awaiting_feedback:
+            # 먼저 사용자 메시지를 표시
+            self.add_user_message(self.message_data.text)
+            
+            if self.message_data.text.lower() != "feedback mode":
+                self.show_loading()
+            
+            self.send_message_thread = SendMessageThread(self.message_data, self.dog)
+            self.send_message_thread.process_target_signal.connect(self.process_target)
+            self.send_message_thread.input_widget_signal.connect(self.input_widget.setVisible)
+            self.send_message_thread.feedback_button_signal.connect(self.feedback_button.setVisible)
+            self.send_message_thread.confirm_feedback_signal.connect(self.confirm_feedback)
+            self.send_message_thread.add_robot_message_signal.connect(self.add_robot_message_with_loading)
+            self.send_message_thread.activate_feedback_mode_signal.connect(self.activate_feedback_mode)
+            self.send_message_thread.execute_feedback_action_signal.connect(self.execute_feedback_action)
+            self.send_message_thread.start()
+            
+            self.message_input.clear()
+            return
+        
+        # 기존 send_message 로직 계속 진행
         # 1. 먼저 사용자 메시지를 표시
         self.add_user_message(self.message_data.text)
         
@@ -246,6 +332,7 @@ class RobotDogUI(QMainWindow):
         self.send_message_thread.confirm_feedback_signal.connect(self.confirm_feedback)
         self.send_message_thread.add_robot_message_signal.connect(self.add_robot_message_with_loading)
         self.send_message_thread.activate_feedback_mode_signal.connect(self.activate_feedback_mode)
+        self.send_message_thread.execute_feedback_action_signal.connect(self.execute_feedback_action)
         self.send_message_thread.start()
 
     def confirm_feedback(self):
@@ -261,107 +348,24 @@ class RobotDogUI(QMainWindow):
 
             # 로딩 애니메이션 숨기기
             self.hide_loading()
+            print(f"피드백 액션: {action_to_execute}")
 
-            # 로봇 메시지로 확인 메시지 표시
-            self.add_robot_message(f"I understand you want me to {action_description}. Do you want to execute the following action?")
+            # 로봇 메시지로 확인 메시지 표시 (더 명확한 메시지로 수정)
+            self.add_robot_message(
+                f"I understand you want me to {action_description}. "
+                "Should I proceed with this action?"
+            )
 
-            # Yes 버튼 생성
-            yes_button = QPushButton("Yes")
-            yes_button.setStyleSheet("""
-                QPushButton {
-                    background-color: #1A73E8;
-                    color: white;
-                    border-radius: 10px;
-                    padding: 5px 10px;
-                    font-size: 14px;
-                    font-weight: bold;
-                }
-                QPushButton:hover {
-                    background-color: #1557AA;
-                }
-            """)
-            yes_button.clicked.connect(lambda: self.handle_user_response(True, action_to_execute))
+            # 피드백 대기 상태 유지
+            self.message_data.awaiting_feedback = True
+            
+            # 응답 처리를 위한 플래그 설정
+            self.message_data.confirming_action = True
 
-            # No 버튼 생성
-            no_button = QPushButton("No")
-            no_button.setStyleSheet("""
-                QPushButton {
-                    background-color: #1A73E8;
-                    color: white;
-                    border-radius: 10px;
-                    padding: 5px 10px;
-                    font-size: 14px;
-                    font-weight: bold;
-                }
-                QPushButton:hover {
-                    background-color: #1557AA;
-                }
-            """)
-            no_button.clicked.connect(lambda: self.handle_user_response(False, action_to_execute))
-
-            # 버튼을 레이아웃에 추가
-            button_layout = QHBoxLayout()
-            button_layout.addWidget(yes_button)
-            button_layout.addWidget(no_button)
-
-            # 버튼을 포함한 위젯을 채팅 레이아웃에 추가
-            button_widget = QWidget()
-            button_widget.setLayout(button_layout)
-            self.chat_layout.addWidget(button_widget)
-            QTimer.singleShot(0, self._scroll_to_bottom)
-
-            # 버튼 위젯을 추적하기 위해 저장
-            self.current_button_widget = button_widget
+            # 입력 필드에 포커스
+            self.message_input.setFocus()
         else:
             print("No pending feedback action.")
-
-    def handle_user_response(self, user_response, action_to_execute):
-        # 사용자의 선택을 메시지로 추가
-        if user_response:
-            self.add_user_message("Yes")
-            self.show_loading()
-            self.execute_feedback_action(action_to_execute)
-            self.message_data.pending_feedback_action = None
-            self.awaiting_feedback = False
-        else:
-            self.add_user_message("No")
-            self.add_robot_message("Please provide more details or clarify your feedback.")
-            self.show_loading()
-            self.message_data.awaiting_feedback = True
-
-        # 버튼을 포함한 위젯만 제거
-        if hasattr(self, 'current_button_widget'):
-            self.current_button_widget.deleteLater()
-            del self.current_button_widget
-
-    # def confirm_feedback(self):
-    #     if self.message_data.pending_feedback_action:
-    #         print("Pending feedback action found.")
-    #         action_to_execute = self.message_data.pending_feedback_action
-    #         action_description = f"Action: {action_to_execute}"
-
-    #         user_response = self.show_confirmation_dialog(action_description)
-    #         print(f"User response: {user_response}")
-
-    #         if user_response == QMessageBox.StandardButton.Yes:
-    #             self.execute_feedback_action(action_to_execute)
-    #             self.message_data.pending_feedback_action = None
-    #             self.awaiting_feedback = False
-    #         else:
-    #             self.add_robot_message("Please provide more details or clarify your feedback.")
-    #             self.message_data.awaiting_feedback = True
-    #     else:
-    #         print("No pending feedback action.")
-
-    # def reject_feedback(self):
-    #     self.add_robot_message(Messages.FEEDBACK_REJECT)
-    #     self.dog.ai_client.openai_params_for_text["messages"] = self.dog.ai_client.openai_params_for_text["messages"][:-1]
-    #     self.dog.ai_client.openai_params_for_text["messages"].append({"role": "assistant", "content": Messages.FEEDBACK_REJECT})
-        
-    #     self.confirm_widget.hide()
-    #     self.input_widget.show()
-    #     self.message_data.pending_feedback_action = None
-    #     self.awaiting_feedback = True
 
     def process_target(self, text, response):
         print()
@@ -496,6 +500,7 @@ class RobotDogUI(QMainWindow):
         self.send_message_thread.confirm_feedback_signal.connect(self.confirm_feedback)
         self.send_message_thread.add_robot_message_signal.connect(self.add_robot_message_with_loading)
         self.send_message_thread.activate_feedback_mode_signal.connect(self.activate_feedback_mode)
+        self.send_message_thread.execute_feedback_action_signal.connect(self.execute_feedback_action)
         self.send_message_thread.start()
         
         QTimer.singleShot(100, self.activate_feedback_mode)
