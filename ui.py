@@ -339,12 +339,19 @@ class RobotDogUI(QMainWindow):
         if self.message_data.pending_feedback_action:
             print("Pending feedback action found.")
             action_to_execute = self.message_data.pending_feedback_action
+            
+            # 액션 설명 포맷팅 로직 수정
             if not action_to_execute:
                 action_description = ""
-            elif len(action_to_execute) == 1:
-                action_description = action_to_execute[0]
             else:
-                action_description = " and ".join(action_to_execute)
+                formatted_actions = []
+                for action, group in groupby(action_to_execute):
+                    count = len(list(group))
+                    if count > 1:
+                        formatted_actions.append(f"{action} {count} times")
+                    else:
+                        formatted_actions.append(action)
+                action_description = " and ".join(formatted_actions)
 
             # 로딩 애니메이션 숨기기
             self.hide_loading()
