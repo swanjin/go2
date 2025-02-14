@@ -347,10 +347,8 @@ class RobotDogUI(QMainWindow):
                 formatted_actions = []
                 for action, group in groupby(action_to_execute):
                     count = len(list(group))
-                    if count > 1:
-                        formatted_actions.append(f"{action} {count} times")
-                    else:
-                        formatted_actions.append(action)
+                    formatted_actions.append(f"{action} {count} times")
+
                 action_description = " and ".join(formatted_actions)
 
             # 로딩 애니메이션 숨기기
@@ -465,7 +463,7 @@ class RobotDogUI(QMainWindow):
             self.loading_timer.setSingleShot(True)
             self.loading_timer.start(1000)
 
-    def handle_end_search(self, message, delayed_time=66000):
+    def handle_end_search(self, message, delayed_time=72000):
         # 검색이 끝나면 로딩 애니메이션 제거
         self.hide_loading()
         if self.dog.env["woz"]:

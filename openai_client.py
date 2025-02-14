@@ -174,9 +174,9 @@ class OpenaiClient(AiClientBase):
             curr_y = self.curr_state[1]
             if curr_y in [5, 6]:
                 return '4'  # 2 steps
-            elif curr_y in [3, 4]:
+            elif curr_y in [4]:
                 return '3'  # 2 steps
-            else:  # curr_y == 2
+            else:  # curr_y == 2, 3
                 return '2'  # 1 step
         elif object_name == self.env['target']: # for both of apple shift and forward detectable area
             curr_x = self.curr_state[0] 
