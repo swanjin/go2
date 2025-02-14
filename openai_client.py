@@ -422,16 +422,21 @@ class OpenaiClient(AiClientBase):
             "Your task: Determine if the user input is requesting you to perform any action or movement. "
             "Respond with 'true' if:\n"
             "- The user wants you to move somewhere\n"
+            "- The user give you a direction\n"
+            "- The user give you a landmark\n"
             "- The user wants you to perform any physical action\n"
             "- The user gives any kind of instruction or command\n"
             "Respond with 'false' if:\n"
-            "- The user is asking a question\n"
+            "- The user is asking a question NOT about the action or direction\n"
             "- The user is making a statement\n"
             "- The user is just providing information\n"
             "Examples:\n"
             "- 'go to the apple' -> true\n"
             "- 'can you turn around' -> true\n"
             "- 'move forward' -> true\n"
+            "- 'the apple (or target) is behind you' -> true\n"
+            "- 'get close to the refrigerator (or other landmark)' -> true\n"
+            "- 'go straight as far as you can' -> true\n"
             "- 'can you see the apple?' -> false\n"
             "- 'what is in front of you?' -> false"
         )
@@ -461,7 +466,7 @@ class OpenaiClient(AiClientBase):
             "- Different instructions or questions\n"
             "Examples:\n"
             "- 'that's exactly what I want' -> true\n"
-            "- 'go ahead' -> true\n"
+            "- 'yes, go ahead' -> true\n"
             "- 'not what I meant' -> false\n"
             "- 'let me explain again' -> false"
         )
@@ -474,7 +479,7 @@ class OpenaiClient(AiClientBase):
         except (KeyError, IndexError, AttributeError) as e:
             print(f"Error in is_yes: {e}")
             return False
-    
+        
     def is_landmark(self, input): 
         msg = []
         # Dynamically retrieve landmarks from NaviConfig
