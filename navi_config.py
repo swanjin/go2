@@ -21,9 +21,9 @@ class NaviConfig:
         "obstacle6": (-2, 2, 0),
     }
     # Manually update 'calculate_distance' in openai_client.py
-    banana_bottom_left = (-1, 0)
+    banana_bottom_left = (-1, -2)
     banana_width = 3
-    banana_height = 4
+    banana_height = 6
     refrigerator_bottom_left = (-2, 3)
     refrigerator_width = 4
     refrigerator_height = 4
@@ -33,6 +33,9 @@ class NaviConfig:
     apple_shift_bottom_left = (2, 1)
     apple_shift_width = 2
     apple_shift_height = 2
-    apple_forward_bottom_left = (-2, 3)
-    apple_forward_width = 6
+    apple_forward_bottom_left = (-1, 3)
+    apple_forward_width = 5
     apple_forward_height = 2
+    bottle2_bottom_left = (-3, -2)
+    bottle2_width = 3
+    bottle2_height = 2

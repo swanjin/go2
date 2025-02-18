@@ -145,12 +145,14 @@ class PathAnimator:
         bottle_area = Rectangle(NaviConfig.bottle_bottom_left, NaviConfig.bottle_width, NaviConfig.bottle_height, color='blue', alpha=0.5, label='⬇️ bottle detectable area')
         apple_shift_area = Rectangle(NaviConfig.apple_shift_bottom_left, NaviConfig.apple_shift_width, NaviConfig.apple_shift_height, color='green', alpha=0.5, label='⬅️ apple shift detectable area')
         apple_forward_area = Rectangle(NaviConfig.apple_forward_bottom_left, NaviConfig.apple_forward_width, NaviConfig.apple_forward_height, color='coral', alpha=0.5, label='⬅️ apple forward detectable area')
+        bottle2_area = Rectangle(NaviConfig.bottle2_bottom_left, NaviConfig.bottle2_width, NaviConfig.bottle2_height, color='purple', alpha=0.5, label='➡️ bottle2 detectable area')
 
         self.ax.add_patch(banana_area)
         self.ax.add_patch(refrigerator_area)
         self.ax.add_patch(bottle_area)
         self.ax.add_patch(apple_shift_area)
         self.ax.add_patch(apple_forward_area)
+        self.ax.add_patch(bottle2_area)
 
         for name, (x, y, _) in self.landmarks.items():
             self.ax.plot(x, y, 'ro')

@@ -38,6 +38,7 @@ class OpenaiClient(AiClientBase):
         self.bottle_detect_area = self.detectable_area(range(NaviConfig.bottle_bottom_left[0], NaviConfig.bottle_bottom_left[0]+NaviConfig.bottle_width+1), range(NaviConfig.bottle_bottom_left[1], NaviConfig.bottle_bottom_left[1]+NaviConfig.bottle_height+1), 180)
         self.apple_shift_area = self.detectable_area(range(NaviConfig.apple_shift_bottom_left[0], NaviConfig.apple_shift_bottom_left[0]+NaviConfig.apple_shift_width+1), range(NaviConfig.apple_shift_bottom_left[1], NaviConfig.apple_shift_bottom_left[1]+NaviConfig.apple_shift_height+1), 270)
         self.apple_forward_area = self.detectable_area(range(NaviConfig.apple_forward_bottom_left[0], NaviConfig.apple_forward_bottom_left[0]+NaviConfig.apple_forward_width+1), range(NaviConfig.apple_forward_bottom_left[1], NaviConfig.apple_forward_bottom_left[1]+NaviConfig.apple_forward_height+1), 270)
+        self.bottle2_detect_area = self.detectable_area(range(NaviConfig.bottle2_bottom_left[0], NaviConfig.bottle2_bottom_left[0]+NaviConfig.bottle2_width+1), range(NaviConfig.bottle2_bottom_left[1], NaviConfig.bottle2_bottom_left[1]+NaviConfig.bottle2_height+1), 90)
         
         # Combine all detectable areas into a single set to remove duplicates
         self.all_detectable_areas = list(set(
@@ -45,7 +46,8 @@ class OpenaiClient(AiClientBase):
             self.refrigerator_detect_area +
             self.bottle_detect_area +
             self.apple_shift_area +
-            self.apple_forward_area
+            self.apple_forward_area +
+            self.bottle2_detect_area
         ))
 
         self.client = OpenAI(api_key=key)
@@ -140,12 +142,18 @@ class OpenaiClient(AiClientBase):
             self.env['target']
         )
 
+        self.check_and_update_analysis(
+            image_analysis, 
+            self.bottle2_detect_area, 
+            self.env['object3']
+        )
+
         return image_analysis.frame, image_analysis.detected_objects, image_analysis.distances, image_analysis.description
 
     def check_and_update_analysis(self, image_analysis, detectable_area, object_name):
         if self.curr_state in detectable_area and object_name not in image_analysis.detected_objects:
             distance = self.calculate_distance(object_name)
-            if self.curr_state in self.apple_shift_area:
+            if self.curr_state in self.apple_shift_area: 
                 description = f"You detected {object_name} on the right side of the frame with a distance of {distance} meters."
             else:
                 description = f"You detected {object_name} with a distance of {distance} meters."
@@ -156,11 +164,11 @@ class OpenaiClient(AiClientBase):
     def calculate_distance(self, object_name):
         if object_name == self.env['object1']:
             curr_y = self.curr_state[1]
-            if curr_y in [0, 1]:
+            if curr_y in [-2, -1, 0]:
                 return '4'  # 2 steps
-            elif curr_y in [2, 3]:
+            elif curr_y in [1, 2]:
                 return '3'  # 2 steps
-            else:  # curr_y == 4
+            else:  # curr_y == 3, 4
                 return '2'  # 1 step
         elif object_name == self.env['object2']:
             curr_x = self.curr_state[0]
@@ -178,7 +186,7 @@ class OpenaiClient(AiClientBase):
                 return '3'  # 2 steps
             else:  # curr_y == 2, 3
                 return '2'  # 1 step
-        elif object_name == self.env['target']: # for both of apple shift and forward detectable area
+        elif object_name == self.env['target']: # for apple forward detectable area
             curr_x = self.curr_state[0] 
             if curr_x in [2, 3, 4]:
                 return '2.5'  # 2 steps
@@ -186,6 +194,12 @@ class OpenaiClient(AiClientBase):
                 return '1.5'  # 1 steps
             else:  # curr_x in [-1]
                 return '0.5'  # stop   
+        elif object_name == self.env['object3']:
+            curr_x = self.curr_state[0]
+            if curr_x in [-3, -2]:
+                return '4'  # 2 steps
+            else:  # curr_x == -1, 0
+                return '2'  # 1 step
 
     def append_message(self, message, message_role: str, message_content: str):
         message.append({"role": message_role, "content": message_content})
@@ -240,6 +254,8 @@ class OpenaiClient(AiClientBase):
                 distance_value = float(distances[detected_objects.index(self.env['target'])])
             elif self.curr_state in self.apple_forward_area:
                 distance_value = float(distances[detected_objects.index(self.env['target'])])
+            elif self.curr_state in self.bottle2_detect_area:
+                distance_value = float(distances[detected_objects.index(self.env['object3'])])
 
         except (ValueError, TypeError, IndexError) as e:
             print(f"Error converting distance to float: {e}")
