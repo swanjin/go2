@@ -13,6 +13,7 @@ import cv2
 from dataclasses import dataclass
 from ui_config import Colors, Sizes, Styles
 from messages import Messages
+from navi_config import NaviConfig
 
 class ChatMessage(QFrame):
     def __init__(self, text="", is_user=False, image=None, is_loading=False, parent=None):
@@ -339,7 +340,7 @@ class RobotDogUI(QMainWindow):
         if self.message_data.pending_feedback_action:
             print("Pending feedback action found.")
             action_to_execute = self.message_data.pending_feedback_action
-            
+
             # 액션 설명 포맷팅 로직 수정
             if not action_to_execute:
                 action_description = ""
@@ -355,11 +356,28 @@ class RobotDogUI(QMainWindow):
             self.hide_loading()
             print(f"피드백 액션: {action_to_execute}")
 
+            is_landmark_action = self.dog.ai_client.is_landmark_action
+            is_landmark_state = self.dog.ai_client.is_landmark_state
+            for name, coords in NaviConfig.landmarks.items():
+                if coords == is_landmark_state:
+                    landmark_name = name
+
             # 로봇 메시지로 확인 메시지 표시 (더 명확한 메시지로 수정)
-            self.add_robot_message(
-                f"I understand you want me to {action_description}. "
-                "Should I proceed with this action?"
-            )
+            print(f"Is landmark action_ui: {is_landmark_action}")
+            print(f"Is landmark state_ui: {landmark_name}")
+
+            try:
+                if is_landmark_action:
+                    self.add_robot_message(
+                        f"Yes, I can go to the {landmark_name}. Should I try?"
+                    )
+                else:
+                    self.add_robot_message(
+                        f"I understand you want me to {action_description}. "
+                        "Should I proceed with this action?"
+                    )
+            except Exception as e:
+                print(f"Error in confirm_feedback: {e}")
 
             # 피드백 대기 상태 유지
             self.message_data.awaiting_feedback = True

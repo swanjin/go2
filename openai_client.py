@@ -31,6 +31,8 @@ class OpenaiClient(AiClientBase):
         self.memory_list = []
         self.is_initial_prompt_landmark_or_non_command = True
         self.is_initial_response_format_non_command = True
+        self.is_landmark_action = False
+        self.is_landmark_state = None
 
         # Specify detectable areas
         self.banana_detect_area = self.detectable_area(range(NaviConfig.banana_bottom_left[0], NaviConfig.banana_bottom_left[0]+NaviConfig.banana_width+1), range(NaviConfig.banana_bottom_left[1], NaviConfig.banana_bottom_left[1]+NaviConfig.banana_height+1), 0)    
@@ -359,6 +361,10 @@ class OpenaiClient(AiClientBase):
             new_state = utils.string_to_tuple(self.get_ai_response(self.msg_feedback))
             action_to_goal = self.navi_model.navigate_to(self.curr_state, new_state, self.mapping.obstacles)
             assistant = ResponseMsg(self.curr_state, new_state, action_to_goal, "")
+            self.is_landmark_action = True
+            self.is_landmark_state = new_state
+            print(f"Is landmark action: {self.is_landmark_action}")
+            print(f"Is landmark state: {self.is_landmark_state}")
         else:
             print("❗ Executing general command")
             self.msg_feedback[0]['content'] = self.prompt_general_command(self.curr_state) # replace user prompt
