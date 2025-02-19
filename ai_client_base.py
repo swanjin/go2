@@ -130,23 +130,23 @@ class AiClientBase:
             5. Based on these checks, confirm which subcase (1.1, 1.2, 1.3, or 1.4) applies and proceed with the specified action.
 
         #### Case 2: The {self.env['target']} is **not detected** in the 'Detection' section.
-        - **Subcase 2.1**: Neither {self.env['object1']} nor {self.env['object2']} nor {self.env['object3']} is detected in the 'Detection' section.
+        - **Subcase 2.1**: Neither {self.env['object1']}, {self.env['object2']}, {self.env['object3']}, nor {self.env['object4']} is detected in the 'Detection' section.
             - **Action**: Rotate once to explore a different orientation without changing your position (x, y). Avoid action that would update your state (x, y, orientation) as the same state that you have already visited according to the 'Memory' section.
 
-        - **Subcase 2.2**: Either {self.env['object1']} or {self.env['object2']} or {self.env['object3']} is detected in the 'Detection' section, and its distance is **more than** the stopping threshold ('{self.env['stop_landmark']}').
+        - **Subcase 2.2**: Either {self.env['object1']}, {self.env['object2']}, {self.env['object3']} or {self.env['object4']} is detected in the 'Detection' section, and its distance is **more than** the stopping threshold ('{self.env['stop_landmark']}').
             - **Action**: Move forward once or twice.
             - Strictly follow the following rules: 
                 - If the distance to the detected object is between '{self.env['stop_landmark']}' and '{(self.env['stop_landmark']+self.env['threshold_range'])}' meters, move forward **once**. 
                 - If the distance to the detected object is greater than '{(self.env['stop_landmark']+self.env['threshold_range'])}' meters, move forward **twice**.
 
-        - **Subcase 2.3**: Either {self.env['object1']} or {self.env['object2']} or {self.env['object3']} is detected in the 'Detection' section, and its distance is **less than** the stopping threshold ('{self.env['stop_landmark']}').
+        - **Subcase 2.3**: Either {self.env['object1']}, {self.env['object2']}, {self.env['object3']}, or {self.env['object4']} is detected in the 'Detection' section, and its distance is **less than** the stopping threshold ('{self.env['stop_landmark']}').
             - **Action**: Rotate once to explore a different orientation without changing your position (x, y). Avoid action that would update your state (x, y, orientation) as the same state that you have already visited according to the 'Memory' section.
         
         - **Verification Step for Case 2**:
             - Ensure the following before proceeding:
             1. Have you checked whether the {self.env['target']} is **not detected** in the 'Detection' section?
-            2. Have you confirmed the presence or absence of {self.env['object1']} or {self.env['object2']} or {self.env['object3']} in the 'Detection' section?
-            3. If either {self.env['object1']} or {self.env['object2']} or {self.env['object3']} is detected:
+            2. Have you confirmed the presence or absence of {self.env['object1']}, {self.env['object2']}, {self.env['object3']}, or {self.env['object4']} in the 'Detection' section?
+            3. If either {self.env['object1']}, {self.env['object2']}, {self.env['object3']}, or {self.env['object4']} is detected:
                 - Have you measured the distance accurately against the stopping threshold ('{self.env['stop_landmark']}')?
             4. Based on these checks, confirm which subcase (2.1, 2.2, or 2.3) applies and proceed with the specified action.
 
@@ -163,10 +163,14 @@ class AiClientBase:
         - **New State**: (x, y, orientation)
         - **Action**: action1, action2, ...
         - **Reason**: 
-          - Explain your choice of actions in one concise sentence by pinpointing the everyday association between the detected objects and the {self.env['target']} as a contextual reasoning.
+          - If neither {self.env['object1']}, {self.env['object2']}, {self.env['object3']}, nor {self.env['object4']} is detected, never metion any of them but include a sentece which has a similar meaning to 'No meaningful objects realted to the target are detected, so I am rotating to explore a different orientation.' in your reasoning.
+          - If {self.env['object1']} or {self.env['object2']} is found, think about whether this space is a kitchen, living room, or office space and metion it and make an everyday contextual association with the {self.env['target']}.
+          - If {self.env['object3']} is found, associate it with the {self.env['target']} as something to eat or drink.
+          - If {self.env['object4']} is found, think about whether this space is a 'kitchen', 'open living room', or 'office space' and metion it.
+          - Explain your reasoning in one concise sentence.
           - Do not mention case numbers, subcase numbers, section names or distances.
           - If referring to the {self.env['target']} position in the image, use 'left', 'middle', or 'right' without mentioning 'third'.
-          - If neither {self.env['object1']}, {self.env['object2']}, nor {self.env['object3']} is detected, do not mention them in your reasoning.
+
         """)
 
     def prompt_landmark_or_non_command(self, curr_state):

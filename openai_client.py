@@ -38,7 +38,7 @@ class OpenaiClient(AiClientBase):
         self.bottle_detect_area = self.detectable_area(range(NaviConfig.bottle_bottom_left[0], NaviConfig.bottle_bottom_left[0]+NaviConfig.bottle_width+1), range(NaviConfig.bottle_bottom_left[1], NaviConfig.bottle_bottom_left[1]+NaviConfig.bottle_height+1), 180)
         self.apple_shift_area = self.detectable_area(range(NaviConfig.apple_shift_bottom_left[0], NaviConfig.apple_shift_bottom_left[0]+NaviConfig.apple_shift_width+1), range(NaviConfig.apple_shift_bottom_left[1], NaviConfig.apple_shift_bottom_left[1]+NaviConfig.apple_shift_height+1), 270)
         self.apple_forward_area = self.detectable_area(range(NaviConfig.apple_forward_bottom_left[0], NaviConfig.apple_forward_bottom_left[0]+NaviConfig.apple_forward_width+1), range(NaviConfig.apple_forward_bottom_left[1], NaviConfig.apple_forward_bottom_left[1]+NaviConfig.apple_forward_height+1), 270)
-        self.bottle2_detect_area = self.detectable_area(range(NaviConfig.bottle2_bottom_left[0], NaviConfig.bottle2_bottom_left[0]+NaviConfig.bottle2_width+1), range(NaviConfig.bottle2_bottom_left[1], NaviConfig.bottle2_bottom_left[1]+NaviConfig.bottle2_height+1), 90)
+        self.sofa_detect_area = self.detectable_area(range(NaviConfig.sofa_bottom_left[0], NaviConfig.sofa_bottom_left[0]+NaviConfig.sofa_width+1), range(NaviConfig.sofa_bottom_left[1], NaviConfig.sofa_bottom_left[1]+NaviConfig.sofa_height+1), 90)
         
         # Combine all detectable areas into a single set to remove duplicates
         self.all_detectable_areas = list(set(
@@ -47,7 +47,7 @@ class OpenaiClient(AiClientBase):
             self.bottle_detect_area +
             self.apple_shift_area +
             self.apple_forward_area +
-            self.bottle2_detect_area
+            self.sofa_detect_area
         ))
 
         self.client = OpenAI(api_key=key)
@@ -144,8 +144,8 @@ class OpenaiClient(AiClientBase):
 
         self.check_and_update_analysis(
             image_analysis, 
-            self.bottle2_detect_area, 
-            self.env['object3']
+            self.sofa_detect_area, 
+            self.env['object4']
         )
 
         return image_analysis.frame, image_analysis.detected_objects, image_analysis.distances, image_analysis.description
@@ -174,11 +174,9 @@ class OpenaiClient(AiClientBase):
             curr_x = self.curr_state[0]
             if curr_x in [-2, -1]:
                 return '4'  # 2 steps
-            elif curr_x in [0, 1]:
-                return '3'  # 2 steps
-            else:  # curr_x == 2
+            else:  # curr_x == 0, 1
                 return '2'  # 1 step
-        elif object_name == self.env['object3']:
+        elif object_name == self.env['object3']: # for bottle forward detectable area
             curr_y = self.curr_state[1]
             if curr_y in [5, 6]:
                 return '4'  # 2 steps
@@ -193,12 +191,12 @@ class OpenaiClient(AiClientBase):
             elif curr_x in [0, 1]:
                 return '1.5'  # 1 steps
             else:  # curr_x in [-1]
-                return '0.5'  # stop   
-        elif object_name == self.env['object3']:
+                return '0.5'  # stop
+        elif object_name == self.env['object4']: # for sofa forward detectable area
             curr_x = self.curr_state[0]
             if curr_x in [-3, -2]:
                 return '4'  # 2 steps
-            else:  # curr_x == -1, 0
+            else:  # curr_x == -1
                 return '2'  # 1 step
 
     def append_message(self, message, message_role: str, message_content: str):
@@ -229,8 +227,10 @@ class OpenaiClient(AiClientBase):
         self.append_message(self.msg, "user", self.response_format_auto())
     
     def check_action_same_as_previous_round(self, action, reason):
-        if self.memory_list and self.memory_list[-1].assistant.action == action:
-            reason = "Similar reason as the previous round."
+        if self.memory_list:
+            prev_action = self.memory_list[-1].assistant.action
+            if prev_action == action or (prev_action in [['move forward'], ['move forward', 'move forward']] and action in [['move forward'], ['move forward', 'move forward']]):
+                reason = "Similar reason as the previous round."
         return reason
 
     def correct_next_position(self, current, actions):
@@ -254,8 +254,8 @@ class OpenaiClient(AiClientBase):
                 distance_value = float(distances[detected_objects.index(self.env['target'])])
             elif self.curr_state in self.apple_forward_area:
                 distance_value = float(distances[detected_objects.index(self.env['target'])])
-            elif self.curr_state in self.bottle2_detect_area:
-                distance_value = float(distances[detected_objects.index(self.env['object3'])])
+            elif self.curr_state in self.sofa_detect_area:
+                distance_value = float(distances[detected_objects.index(self.env['object4'])])
 
         except (ValueError, TypeError, IndexError) as e:
             print(f"Error converting distance to float: {e}")
