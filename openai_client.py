@@ -5,6 +5,9 @@ import datetime
 import wave
 import io
 import pyaudio
+from pydub import AudioSegment
+from pydub.effects import speedup
+from pydub.playback import play
 
 from openai import OpenAI
 import cv2
@@ -403,33 +406,27 @@ class OpenaiClient(AiClientBase):
         else:
             text = self.parse_action_tts(text)
 
-        # Open `/dev/null` and redirect `stderr` to it at the OS level
+        # Open `/dev/null` and redirect stderr temporarily
         devnull = os.open(os.devnull, os.O_WRONLY)
-        original_stderr = os.dup(2)  # Save original `stderr` file descriptor
-        os.dup2(devnull, 2)          # Redirect `stderr` to `/dev/null`
+        original_stderr = os.dup(2)
+        os.dup2(devnull, 2)
 
         try:
             with self.client.with_streaming_response.audio.speech.create(
-            model="tts-1",
-            voice="alloy",
-            input = text,
-            response_format= "wav"
+                model="tts-1",
+                voice="alloy",
+                input=text,
+                response_format="wav"
             ) as response:
                 container = io.BytesIO(response.read())
-                with wave.open(container) as wf:
-                    p = pyaudio.PyAudio()
-                    stream = p.open(format=p.get_format_from_width(wf.getsampwidth()),
-                                    channels=wf.getnchannels(),
-                                    rate=wf.getframerate(),
-                                    output=True)
+                # Load the entire audio using pydub
+                audio_segment = AudioSegment.from_file(container, format="wav")
+                
+                # 속도
+                faster_segment = speedup(audio_segment, playback_speed=1.2)
 
-                    while len(data := wf.readframes(CHUNK)): 
-                        stream.write(data)
-                    stream.close()
-                    p.terminate()
-
+                play(faster_segment)
         finally:
-            # Restore original `stderr` and close `/dev/null`
             os.dup2(original_stderr, 2)
             os.close(devnull)
             os.close(original_stderr)
