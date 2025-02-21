@@ -5,9 +5,6 @@ import datetime
 import wave
 import io
 import pyaudio
-from pydub import AudioSegment
-from pydub.effects import speedup
-from pydub.playback import play
 
 from openai import OpenAI
 import cv2
@@ -34,8 +31,6 @@ class OpenaiClient(AiClientBase):
         self.memory_list = []
         self.is_initial_prompt_landmark_or_non_command = True
         self.is_initial_response_format_non_command = True
-        self.is_landmark_action = False
-        self.is_landmark_state = None
 
         # Specify detectable areas
         self.banana_detect_area = self.detectable_area(range(NaviConfig.banana_bottom_left[0], NaviConfig.banana_bottom_left[0]+NaviConfig.banana_width+1), range(NaviConfig.banana_bottom_left[1], NaviConfig.banana_bottom_left[1]+NaviConfig.banana_height+1), 0)    
@@ -43,7 +38,7 @@ class OpenaiClient(AiClientBase):
         self.bottle_detect_area = self.detectable_area(range(NaviConfig.bottle_bottom_left[0], NaviConfig.bottle_bottom_left[0]+NaviConfig.bottle_width+1), range(NaviConfig.bottle_bottom_left[1], NaviConfig.bottle_bottom_left[1]+NaviConfig.bottle_height+1), 180)
         self.apple_shift_area = self.detectable_area(range(NaviConfig.apple_shift_bottom_left[0], NaviConfig.apple_shift_bottom_left[0]+NaviConfig.apple_shift_width+1), range(NaviConfig.apple_shift_bottom_left[1], NaviConfig.apple_shift_bottom_left[1]+NaviConfig.apple_shift_height+1), 270)
         self.apple_forward_area = self.detectable_area(range(NaviConfig.apple_forward_bottom_left[0], NaviConfig.apple_forward_bottom_left[0]+NaviConfig.apple_forward_width+1), range(NaviConfig.apple_forward_bottom_left[1], NaviConfig.apple_forward_bottom_left[1]+NaviConfig.apple_forward_height+1), 270)
-        self.sofa_detect_area = self.detectable_area(range(NaviConfig.sofa_bottom_left[0], NaviConfig.sofa_bottom_left[0]+NaviConfig.sofa_width+1), range(NaviConfig.sofa_bottom_left[1], NaviConfig.sofa_bottom_left[1]+NaviConfig.sofa_height+1), 90)
+        self.bottle2_detect_area = self.detectable_area(range(NaviConfig.bottle2_bottom_left[0], NaviConfig.bottle2_bottom_left[0]+NaviConfig.bottle2_width+1), range(NaviConfig.bottle2_bottom_left[1], NaviConfig.bottle2_bottom_left[1]+NaviConfig.bottle2_height+1), 90)
         
         # Combine all detectable areas into a single set to remove duplicates
         self.all_detectable_areas = list(set(
@@ -52,7 +47,7 @@ class OpenaiClient(AiClientBase):
             self.bottle_detect_area +
             self.apple_shift_area +
             self.apple_forward_area +
-            self.sofa_detect_area
+            self.bottle2_detect_area
         ))
 
         self.client = OpenAI(api_key=key)
@@ -149,8 +144,8 @@ class OpenaiClient(AiClientBase):
 
         self.check_and_update_analysis(
             image_analysis, 
-            self.sofa_detect_area, 
-            self.env['object4']
+            self.bottle2_detect_area, 
+            self.env['object3']
         )
 
         return image_analysis.frame, image_analysis.detected_objects, image_analysis.distances, image_analysis.description
@@ -179,9 +174,11 @@ class OpenaiClient(AiClientBase):
             curr_x = self.curr_state[0]
             if curr_x in [-2, -1]:
                 return '4'  # 2 steps
-            else:  # curr_x == 0, 1
+            elif curr_x in [0, 1]:
+                return '3'  # 2 steps
+            else:  # curr_x == 2
                 return '2'  # 1 step
-        elif object_name == self.env['object3']: # for bottle forward detectable area
+        elif object_name == self.env['object3']:
             curr_y = self.curr_state[1]
             if curr_y in [5, 6]:
                 return '4'  # 2 steps
@@ -196,12 +193,12 @@ class OpenaiClient(AiClientBase):
             elif curr_x in [0, 1]:
                 return '1.5'  # 1 steps
             else:  # curr_x in [-1]
-                return '0.5'  # stop
-        elif object_name == self.env['object4']: # for sofa forward detectable area
+                return '0.5'  # stop   
+        elif object_name == self.env['object3']:
             curr_x = self.curr_state[0]
             if curr_x in [-3, -2]:
                 return '4'  # 2 steps
-            else:  # curr_x == -1
+            else:  # curr_x == -1, 0
                 return '2'  # 1 step
 
     def append_message(self, message, message_role: str, message_content: str):
@@ -232,10 +229,8 @@ class OpenaiClient(AiClientBase):
         self.append_message(self.msg, "user", self.response_format_auto())
     
     def check_action_same_as_previous_round(self, action, reason):
-        if self.memory_list:
-            prev_action = self.memory_list[-1].assistant.action
-            if prev_action == action or (prev_action in [['move forward'], ['move forward', 'move forward']] and action in [['move forward'], ['move forward', 'move forward']]):
-                reason = "Similar reason as the previous round."
+        if self.memory_list and self.memory_list[-1].assistant.action == action:
+            reason = "Similar reason as the previous round."
         return reason
 
     def correct_next_position(self, current, actions):
@@ -259,8 +254,8 @@ class OpenaiClient(AiClientBase):
                 distance_value = float(distances[detected_objects.index(self.env['target'])])
             elif self.curr_state in self.apple_forward_area:
                 distance_value = float(distances[detected_objects.index(self.env['target'])])
-            elif self.curr_state in self.sofa_detect_area:
-                distance_value = float(distances[detected_objects.index(self.env['object4'])])
+            elif self.curr_state in self.bottle2_detect_area:
+                distance_value = float(distances[detected_objects.index(self.env['object3'])])
 
         except (ValueError, TypeError, IndexError) as e:
             print(f"Error converting distance to float: {e}")
@@ -364,10 +359,6 @@ class OpenaiClient(AiClientBase):
             new_state = utils.string_to_tuple(self.get_ai_response(self.msg_feedback))
             action_to_goal = self.navi_model.navigate_to(self.curr_state, new_state, self.mapping.obstacles)
             assistant = ResponseMsg(self.curr_state, new_state, action_to_goal, "")
-            self.is_landmark_action = True
-            self.is_landmark_state = new_state
-            print(f"Is landmark action: {self.is_landmark_action}")
-            print(f"Is landmark state: {self.is_landmark_state}")
         else:
             print("❗ Executing general command")
             self.msg_feedback[0]['content'] = self.prompt_general_command(self.curr_state) # replace user prompt
@@ -406,27 +397,33 @@ class OpenaiClient(AiClientBase):
         else:
             text = self.parse_action_tts(text)
 
-        # Open `/dev/null` and redirect stderr temporarily
+        # Open `/dev/null` and redirect `stderr` to it at the OS level
         devnull = os.open(os.devnull, os.O_WRONLY)
-        original_stderr = os.dup(2)
-        os.dup2(devnull, 2)
+        original_stderr = os.dup(2)  # Save original `stderr` file descriptor
+        os.dup2(devnull, 2)          # Redirect `stderr` to `/dev/null`
 
         try:
             with self.client.with_streaming_response.audio.speech.create(
-                model="tts-1",
-                voice="alloy",
-                input=text,
-                response_format="wav"
+            model="tts-1",
+            voice="alloy",
+            input = text,
+            response_format= "wav"
             ) as response:
                 container = io.BytesIO(response.read())
-                # Load the entire audio using pydub
-                audio_segment = AudioSegment.from_file(container, format="wav")
-                
-                # 속도
-                faster_segment = speedup(audio_segment, playback_speed=1.2)
+                with wave.open(container) as wf:
+                    p = pyaudio.PyAudio()
+                    stream = p.open(format=p.get_format_from_width(wf.getsampwidth()),
+                                    channels=wf.getnchannels(),
+                                    rate=wf.getframerate(),
+                                    output=True)
 
-                play(faster_segment)
+                    while len(data := wf.readframes(CHUNK)): 
+                        stream.write(data)
+                    stream.close()
+                    p.terminate()
+
         finally:
+            # Restore original `stderr` and close `/dev/null`
             os.dup2(original_stderr, 2)
             os.close(devnull)
             os.close(original_stderr)

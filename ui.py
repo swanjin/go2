@@ -475,6 +475,15 @@ class RobotDogUI(QMainWindow):
         self.chat_layout.addWidget(message)
         QTimer.singleShot(0, self._scroll_to_bottom)
 
+        # Skip TTS for specific messages
+        if text == Messages.WELCOME:
+            return
+
+        # Skip TTS for specific messages
+        if text == Messages.SEARCH_START.format("apple"):
+            QTimer.singleShot(1000, self.show_loading)
+            return
+
         # TTS 스레드를 실행
         if not self.message_data.feedback_mode:
             self.tts_thread = TTSWorker(text, self.dog)

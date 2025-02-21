@@ -177,11 +177,6 @@ class Dog:
             return True  # Indicates that the current task should be skipped
         return False  # No interruption, proceed with the current task   
 
-    def format_actions(self, actions):
-        if isinstance(actions, list):
-            return 'and then '.join(map(str, actions))
-        return str(actions)
-
     def queryGPT_by_LLM(self):
         if self.env["woz"]:
             self.env["max_round"] = 1
@@ -205,14 +200,12 @@ class Dog:
                 if self.check_feedback_and_interruption():
                     continue
                 
-                formatted_action = self.format_actions(assistant.action)
-                combined_message = f"I'm going to {formatted_action}. {assistant.reason}."
                 if self.env["interactive"] or self.env["vo"]:
                     pass
                 
                 self.activate_sportclient(assistant.action)
 
-                if formatted_action == 'stop':
+                if assistant.action == 'stop':
                     end_message = "I found the apple, so I'm stopping here. You can now end the chat."
 
             print(f"Round {self.ai_client.round_number} completed.\n")
