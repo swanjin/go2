@@ -547,3 +547,35 @@ class OpenaiClient(AiClientBase):
         except (KeyError, IndexError, AttributeError) as e:
             print(f"Error in is_no_command: {e}")
             return False
+
+    def get_landmark_name(self, input):
+        msg = []
+        # NaviConfig에서 랜드마크 목록 가져오기
+        landmarks_list = ", ".join(NaviConfig.landmarks.keys())
+        
+        prompt = (
+            "You are Go2, a helpful robot dog assistant who only speaks English. "
+            f"Given the following landmarks: {landmarks_list}\n"
+            "Determine which landmark the user is referring to in their input. "
+            "Return EXACTLY one of the landmark names from the list above, or 'none' if no match is found.\n"
+            "Examples:\n"
+            "- 'can you go to the coffee machine?' -> coffee machine\n"
+            "- 'move to the coffee maker' -> coffee machine\n"
+            "- 'head towards the fridge' -> refrigerator\n"
+            "- 'go to the sofa' -> sofa\n"
+            "- 'move to the table' -> none"
+        )
+        
+        self.append_message(msg, "user", prompt)
+        self.append_message(msg, "user", input)
+        
+        try:
+            response = self.get_ai_response(msg).lower()
+            # response가 landmarks 중 하나와 일치하면 그 landmark 반환
+            for landmark in NaviConfig.landmarks.keys():
+                if landmark.lower() == response:
+                    return landmark
+            return None
+        except Exception as e:
+            print(f"Error in get_landmark_name: {e}")
+            return None

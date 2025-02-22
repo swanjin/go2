@@ -290,11 +290,22 @@ class RobotDogUI(QMainWindow):
 
     def start_conversation(self):
         self.start_button.deleteLater()
-        self.input_widget.show()
+        # 처음에는 input_widget을 숨긴 상태로 유지
+        self.input_widget.hide()
         
+        # WELCOME 메시지 표시
         self.add_robot_message(Messages.WELCOME)
         self.message_data.conversation_started = True
+        
+        # TTS가 끝나면 input_widget을 보여주도록 설정
+        self.tts_thread = TTSWorker(Messages.WELCOME, self.dog)
+        self.tts_thread.finished.connect(self.show_input_after_welcome)
+        self.tts_thread.start()
+
+    def show_input_after_welcome(self):
+        self.input_widget.show()
         self.message_input.setFocus()
+        self.dog.tts_finished_event.set()
 
     def send_message(self):
         self.message_data.text = self.message_input.text()
@@ -372,19 +383,15 @@ class RobotDogUI(QMainWindow):
             print(f"피드백 액션: {action_to_execute}")
 
             is_landmark_action = self.dog.ai_client.is_landmark_action
-            is_landmark_state = self.dog.ai_client.is_landmark_state
             
             try:
-                # landmark 관련 로직을 try 블록 안으로 이동
+                # GPT에게 랜드마크 판단을 요청
                 landmark_name = None
-                if is_landmark_state:
-                    for name, coords in NaviConfig.landmarks.items():
-                        if coords == is_landmark_state:
-                            landmark_name = name
-                            break
+                if is_landmark_action:
+                    landmark_name = self.dog.ai_client.get_landmark_name(self.message_data.text)
 
                 print(f"Is landmark action_ui: {is_landmark_action}")
-                print(f"Landmark name: {landmark_name}")  # 디버깅용
+                print(f"Found landmark name: {landmark_name}")  # 디버깅용
 
                 # 로봇 메시지 표시
                 if is_landmark_action and landmark_name:
@@ -478,8 +485,8 @@ class RobotDogUI(QMainWindow):
         self.chat_layout.addWidget(message)
         QTimer.singleShot(0, self._scroll_to_bottom)
 
-        # TTS 스레드를 실행
-        if not self.message_data.feedback_mode:
+        # WELCOME 메시지가 아닐 때만 TTS 실행
+        if not self.message_data.feedback_mode and text != Messages.WELCOME:
             self.tts_thread = TTSWorker(text, self.dog)
             self.tts_thread.finished.connect(self.on_tts_finished)
             self.tts_thread.start()
