@@ -357,16 +357,27 @@ class RobotDogUI(QMainWindow):
             print("Pending feedback action found.")
             action_to_execute = self.message_data.pending_feedback_action
 
-            # 액션 설명 포맷팅 로직 수정
             try:
-                # 단일 액션인 경우
-                if isinstance(action_to_execute, str):
-                    action_description = action_to_execute
-                # 리스트인 경우
-                elif isinstance(action_to_execute, list):
+                # 액션 설명 포맷팅
+                if isinstance(action_to_execute, list):
+                    # 연속된 동일 액션 카운팅
                     formatted_actions = []
-                    for action in action_to_execute:
-                        formatted_actions.append(str(action))
+                    i = 0
+                    while i < len(action_to_execute):
+                        current_action = action_to_execute[i]
+                        count = 1
+                        
+                        # 다음 액션이 같은 경우에만 카운트 증가
+                        while i + 1 < len(action_to_execute) and action_to_execute[i + 1] == current_action:
+                            count += 1
+                            i += 1
+                        
+                        if count > 1:
+                            formatted_actions.append(f"{current_action} {count} times")
+                        else:
+                            formatted_actions.append(current_action)
+                        i += 1
+                    
                     action_description = " and ".join(formatted_actions)
                 else:
                     action_description = str(action_to_execute)
