@@ -357,50 +357,40 @@ class RobotDogUI(QMainWindow):
             print("Pending feedback action found.")
             action_to_execute = self.message_data.pending_feedback_action
 
+            # 액션 설명 포맷팅
+            if not action_to_execute:
+                action_description = ""
+            else:
+                formatted_actions = []
+                for action, group in groupby(action_to_execute):
+                    count = len(list(group))
+                    formatted_actions.append(f"{action} {count} times")
+                action_description = " and ".join(formatted_actions)
+
+            # 로딩 애니메이션 숨기기
+            self.hide_loading()
+            print(f"피드백 액션: {action_to_execute}")
+
+            is_landmark_action = self.dog.ai_client.is_landmark_action
+            is_landmark_state = self.dog.ai_client.is_landmark_state
+            
             try:
-                # 액션 설명 포맷팅
-                if isinstance(action_to_execute, list):
-                    # 연속된 동일 액션 카운팅
-                    formatted_actions = []
-                    i = 0
-                    while i < len(action_to_execute):
-                        current_action = action_to_execute[i]
-                        count = 1
-                        
-                        # 다음 액션이 같은 경우에만 카운트 증가
-                        while i + 1 < len(action_to_execute) and action_to_execute[i + 1] == current_action:
-                            count += 1
-                            i += 1
-                        
-                        if count > 1:
-                            formatted_actions.append(f"{current_action} {count} times")
-                        else:
-                            formatted_actions.append(current_action)
-                        i += 1
-                    
-                    action_description = " and ".join(formatted_actions)
-                else:
-                    action_description = str(action_to_execute)
-
-                # 로딩 애니메이션 숨기기
-                self.hide_loading()
-                print(f"피드백 액션: {action_to_execute}")
-
-                is_landmark_action = self.dog.ai_client.is_landmark_action
-                is_landmark_state = self.dog.ai_client.is_landmark_state
-                
-                # 랜드마크 관련 메시지 생성
-                if is_landmark_action and is_landmark_state is not None:
-                    landmark_name = None
+                # landmark 관련 로직을 try 블록 안으로 이동
+                landmark_name = None
+                if is_landmark_state:
                     for name, coords in NaviConfig.landmarks.items():
                         if coords == is_landmark_state:
                             landmark_name = name
                             break
-                    
-                    if landmark_name:
-                        self.add_robot_message(
-                            f"Yes, I can go to the {landmark_name}. Should I try?"
-                        )
+
+                print(f"Is landmark action_ui: {is_landmark_action}")
+                print(f"Landmark name: {landmark_name}")  # 디버깅용
+
+                # 로봇 메시지 표시
+                if is_landmark_action and landmark_name:
+                    self.add_robot_message(
+                        f"Yes, I can go to the {landmark_name}. Should I try?"
+                    )
                 else:
                     self.add_robot_message(
                         f"I understand you want me to {action_description}. "
@@ -409,18 +399,20 @@ class RobotDogUI(QMainWindow):
 
                 # 피드백 대기 상태 유지
                 self.message_data.awaiting_feedback = True
-                
-                # 응답 처리를 위한 플래그 설정
                 self.message_data.confirming_action = True
-
-                # 입력 필드에 포커스
                 self.message_input.setFocus()
 
             except Exception as e:
                 print(f"Error in confirm_feedback: {e}")
-                self.add_robot_message("I'm sorry, there was an error processing your request. Please try again.")
-                self.message_data.confirming_action = False
-                self.message_data.pending_feedback_action = None
+                # 에러 발생시 기본 메시지 표시
+                self.add_robot_message(
+                    f"I understand you want me to {action_description}. "
+                    "Should I proceed with this action?"
+                )
+                self.message_data.awaiting_feedback = True
+                self.message_data.confirming_action = True
+                self.message_input.setFocus()
+
         else:
             print("No pending feedback action.")
 
