@@ -331,6 +331,7 @@ class RobotDogUI(QMainWindow):
             
             if self.message_data.text.lower() != "feedback mode":
                 self.show_loading()
+                print("[DEBUG] show_loading - send_message (normal message)")
             
             self.send_message_thread = SendMessageThread(self.message_data, self.dog)
             self.send_message_thread.process_target_signal.connect(self.process_target)
@@ -352,6 +353,7 @@ class RobotDogUI(QMainWindow):
         # 2. 피드백 모드로 처음 진입하는 경우가 아닐 때만 로딩 표시
         if self.message_data.text.lower() != "feedback mode":
             self.show_loading()
+            print("[DEBUG] show_loading - send_message (normal message)")
         
         self.send_message_thread = SendMessageThread(self.message_data, self.dog)
         self.send_message_thread.process_target_signal.connect(self.process_target)
@@ -429,8 +431,10 @@ class RobotDogUI(QMainWindow):
         self.dog.ai_client.set_target(text)
         self.message_data.target_set = True
         
-        # 검색 시작 메시지 표시 후 로딩 애니메이션 추가
-        # QTimer.singleShot(1000, self.show_loading)
+        QTimer.singleShot(1000, lambda: (
+            self.show_loading(),
+            print("[DEBUG] show_loading - process_target (after search start)")
+        ))
         QTimer.singleShot(1000, self.start_search)
 
     def execute_feedback_action(self, action):
@@ -440,6 +444,8 @@ class RobotDogUI(QMainWindow):
                 return
             
             print("Executing feedback with actions:", action)
+            self.show_loading()
+            print("[DEBUG] show_loading - execute_feedback_action")
             self.dog.activate_sportclient(action)
             QTimer.singleShot(3000, self.complete_feedback)
             
@@ -470,8 +476,7 @@ class RobotDogUI(QMainWindow):
             self.feedback_button.show()
 
         self.show_loading()
-
-        # self.show_auto_mode_message()  # Show auto mode message when resuming auto mode
+        print("[DEBUG] show_loading - resume_auto_mode")
 
     def add_user_message(self, text):
         message = ChatMessage(text, is_user=True)
@@ -493,7 +498,12 @@ class RobotDogUI(QMainWindow):
 
     def on_tts_finished(self):
         self.dog.tts_finished_event.set()
-        QTimer.singleShot(1000, self.show_loading)
+        # 피드백 모드가 아닐 때만 로딩 애니메이션 표시
+        if not self.message_data.feedback_mode:
+            QTimer.singleShot(1000, lambda: (
+                self.show_loading(),
+                print("[DEBUG] show_loading - on_tts_finished")
+            ))
 
     def _scroll_to_bottom(self):
         QTimer.singleShot(100, lambda: self.scroll.verticalScrollBar().setValue(
