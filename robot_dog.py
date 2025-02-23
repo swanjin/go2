@@ -206,8 +206,9 @@ class Dog:
                     continue
                 
                 formatted_action = self.format_actions(assistant.action)
+                print(f"formatted_action: {formatted_action}")
                 combined_message = f"I'm going to {formatted_action}. {assistant.reason}."
-                if self.env["interactive"] or self.env["vo"]:
+                if self.env["interactive"] or self.env["vn"]:
                     pass
                 
                 self.activate_sportclient(assistant.action)

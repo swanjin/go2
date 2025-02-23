@@ -517,7 +517,7 @@ class RobotDogUI(QMainWindow):
     def handle_status_update(self, status, image=None):
         print("handle_status_update called")
         print(f"Feedback mode: {self.message_data.feedback_mode}")
-        if self.dog.env["vn"] or self.dog.env["woz"]:
+        if self.dog.env["woz"] or self.dog.env["vn"]:
             return
         else:
             self.hide_loading()
@@ -744,7 +744,7 @@ class SearchThread(QThread):
                     self.status_update.emit(combined_message, q_image)
                     self.dog.tts_finished_event.wait()
                 
-                if self.dog.env["vn"] or self.dog.env["woz"]:
+                if  self.dog.env["woz"] or self.dog.env["vn"]:
                     self.status_update.emit(combined_message, q_image)
 
                 if self.dog.env["woz"] or formatted_action == 'stop':
