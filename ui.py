@@ -290,10 +290,8 @@ class RobotDogUI(QMainWindow):
 
     def start_conversation(self):
         self.start_button.deleteLater()
-        # 처음에는 input_widget을 숨긴 상태로 유지
         self.input_widget.hide()
-        
-        # WELCOME 메시지 표시
+
         self.add_robot_message(Messages.WELCOME)
         self.message_data.conversation_started = True
         
@@ -382,6 +380,7 @@ class RobotDogUI(QMainWindow):
 
             # 로딩 애니메이션 숨기기
             self.hide_loading()
+            print("[DEBUG] hide_loading - confirm_feedback")
             print(f"피드백 액션: {action_to_execute}")
 
             is_landmark_action = self.dog.ai_client.is_landmark_action
@@ -431,10 +430,7 @@ class RobotDogUI(QMainWindow):
         self.dog.ai_client.set_target(text)
         self.message_data.target_set = True
         
-        QTimer.singleShot(1000, lambda: (
-            self.show_loading(),
-            print("[DEBUG] show_loading - process_target (after search start)")
-        ))
+        QTimer.singleShot(1000, self.show_loading)
         QTimer.singleShot(1000, self.start_search)
 
     def execute_feedback_action(self, action):
@@ -458,6 +454,7 @@ class RobotDogUI(QMainWindow):
     def complete_feedback(self):
         # 먼저 로딩 애니메이션 숨기기
         self.hide_loading()
+        print("[DEBUG] hide_loading - complete_feedback")
         
         # 그 다음 피드백 완료 메시지 표시
         self.add_robot_message(Messages.FEEDBACK_COMPLETE)
@@ -485,25 +482,21 @@ class RobotDogUI(QMainWindow):
         self.message_input.clear()
 
     def add_robot_message(self, text, image=None):
-        # 로봇 메시지를 표시할 때 로그
         message = ChatMessage(text, is_user=False, image=image)
         self.chat_layout.addWidget(message)
         QTimer.singleShot(0, self._scroll_to_bottom)
-
-        # WELCOME 메시지가 아닐 때만 TTS 실행
-        if not self.message_data.feedback_mode and text != Messages.WELCOME:
-            self.tts_thread = TTSWorker(text, self.dog)
-            self.tts_thread.finished.connect(self.on_tts_finished)
-            self.tts_thread.start()
+        if text == Messages.SEARCH_COMPLETE.format(self.dog.target):
+            return
+        else:
+            if not self.message_data.feedback_mode and text != Messages.WELCOME:
+                self.tts_thread = TTSWorker(text, self.dog)
+                self.tts_thread.finished.connect(self.on_tts_finished)
+                self.tts_thread.start()
 
     def on_tts_finished(self):
         self.dog.tts_finished_event.set()
-        # 피드백 모드가 아닐 때만 로딩 애니메이션 표시
         if not self.message_data.feedback_mode:
-            QTimer.singleShot(1000, lambda: (
-                self.show_loading(),
-                print("[DEBUG] show_loading - on_tts_finished")
-            ))
+            QTimer.singleShot(1000, self.show_loading)
 
     def _scroll_to_bottom(self):
         QTimer.singleShot(100, lambda: self.scroll.verticalScrollBar().setValue(
@@ -524,18 +517,31 @@ class RobotDogUI(QMainWindow):
     def handle_status_update(self, status, image=None):
         print("handle_status_update called")
         print(f"Feedback mode: {self.message_data.feedback_mode}")
-        if self.dog.env["interactive"]:
+        if self.dog.env["vn"] or self.dog.env["woz"]:
+            return
+        else:
             self.hide_loading()
             self.add_robot_message(status, image)
 
     def handle_end_search(self, message, delayed_time=72000):
-        self.hide_loading()
         if self.dog.env["woz"]:
+            print("[DEBUG] hide_loading - handle_end_search")
+            QTimer.singleShot(delayed_time - 100, lambda: self.hide_loading())
             QTimer.singleShot(delayed_time, lambda: self.add_robot_message(
                 Messages.SEARCH_COMPLETE.format(self.dog.target)
             ))
+            # TTS도 delayed_time + 100ms 후에 실행
+            QTimer.singleShot(delayed_time + 100, lambda: self._delayed_tts(
+                Messages.SEARCH_COMPLETE.format(self.dog.target)
+            ))
         else:
+            self.hide_loading()
             self.add_robot_message(Messages.SEARCH_COMPLETE.format(self.dog.target))
+
+    def _delayed_tts(self, text):
+        """TTS를 실행하는 헬퍼 메서드"""
+        self.tts_thread = TTSWorker(text, self.dog)
+        self.tts_thread.start()
 
     def update_camera_feed(self, image):
         if self.search_started:
@@ -551,6 +557,7 @@ class RobotDogUI(QMainWindow):
     def trigger_feedback_mode(self):
         # 기존 로딩 애니메이션 제거
         self.hide_loading()
+        print("[DEBUG] hide_loading - trigger_feedback_mode")
         
         # 예약된 로딩 타이머가 있다면 취소
         if self.loading_timer is not None:
@@ -654,6 +661,7 @@ class RobotDogUI(QMainWindow):
     def add_robot_message_with_loading(self, text, image=None):
         """로딩을 숨기고 로봇 메시지를 표시합니다."""
         self.hide_loading()
+        print("[DEBUG] hide_loading - add_robot_message_with_loading")
         self.add_robot_message(text, image)
 
     def show_confirmation_dialog(self, action_description):
@@ -716,7 +724,7 @@ class SearchThread(QThread):
 
         def get_response_wrapper(*args, **kwargs):
             # 라운드가 시작됨을 표시
-
+            print("get_response_wrapper called")
             # LLM에게 응답을 요청
             response = original_get_response(*args, **kwargs)
 
@@ -731,14 +739,14 @@ class SearchThread(QThread):
                 formatted_action = self.format_actions(response.action)
                 combined_message = f"I'm going to {formatted_action}. {response.reason}"
 
-                self.dog.tts_finished_event.clear()
-                # UI 쪽으로 시그널을 보내 로봇 메시지 표시 -> TTSWorker 실행
-                self.status_update.emit(combined_message, q_image)
+                if self.dog.env["interactive"]:
+                    self.dog.tts_finished_event.clear()
+                    self.status_update.emit(combined_message, q_image)
+                    self.dog.tts_finished_event.wait()
+                
+                if self.dog.env["vn"] or self.dog.env["woz"]:
+                    self.status_update.emit(combined_message, q_image)
 
-                # TTS가 끝날 때까지 대기
-                self.dog.tts_finished_event.wait()
-
-                # stop 동작 등으로 탐색이 종료되는지 체크
                 if self.dog.env["woz"] or formatted_action == 'stop':
                     end_message = Messages.SEARCH_COMPLETE.format("apple")
                     self.end_search.emit(end_message)
