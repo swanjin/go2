@@ -223,6 +223,7 @@ class RobotDogUI(QMainWindow):
         self.search_started = False
         self.loading_message = None
         self.loading_timer = None
+        self.delayed_loading_timer = None  # 지연된 로딩을 위한 타이머 추가
         
         # 시그널 연결
         self.confirm_feedback_signal.connect(self.confirm_feedback)
@@ -316,7 +317,7 @@ class RobotDogUI(QMainWindow):
             self.send_message_thread.add_robot_message_signal.connect(self.add_robot_message_with_loading)
             self.send_message_thread.confirm_feedback_signal.connect(self.confirm_feedback)
             self.send_message_thread.execute_feedback_action_signal.connect(self.execute_feedback_action)
-            self.send_message_thread.show_loading_signal.connect(self.show_loading)  # 추가된 연결
+            self.send_message_thread.show_loading_signal.connect(self.show_loading)
             self.send_message_thread.start()
             
             self.message_input.clear()
@@ -329,7 +330,7 @@ class RobotDogUI(QMainWindow):
             
             if self.message_data.text.lower() != "feedback mode":
                 self.show_loading()
-                print("[DEBUG] show_loading - send_message (normal message)")
+                print("[DEBUG] show_loading - send_message (feedback mode)")
             
             self.send_message_thread = SendMessageThread(self.message_data, self.dog)
             self.send_message_thread.process_target_signal.connect(self.process_target)
@@ -430,7 +431,13 @@ class RobotDogUI(QMainWindow):
         self.dog.ai_client.set_target(text)
         self.message_data.target_set = True
         
-        QTimer.singleShot(1000, self.show_loading)
+        # 지연된 로딩 타이머 설정
+        self.delayed_loading_timer = QTimer(self)
+        self.delayed_loading_timer.timeout.connect(lambda: self.show_loading())
+        self.delayed_loading_timer.setSingleShot(True)
+        self.delayed_loading_timer.start(1000)
+        print("[DEBUG] show_loading - process_target (delayed timer set)")
+        
         QTimer.singleShot(1000, self.start_search)
 
     def execute_feedback_action(self, action):
@@ -496,7 +503,14 @@ class RobotDogUI(QMainWindow):
     def on_tts_finished(self):
         self.dog.tts_finished_event.set()
         if not self.message_data.feedback_mode:
-            QTimer.singleShot(1000, self.show_loading)
+            # 지연된 로딩 타이머 설정
+            if self.delayed_loading_timer is not None:
+                self.delayed_loading_timer.stop()
+            self.delayed_loading_timer = QTimer(self)
+            self.delayed_loading_timer.timeout.connect(lambda: self.show_loading())
+            self.delayed_loading_timer.setSingleShot(True)
+            self.delayed_loading_timer.start(1000)
+            print("[DEBUG] show_loading - on_tts_finished (delayed timer set)")
 
     def _scroll_to_bottom(self):
         QTimer.singleShot(100, lambda: self.scroll.verticalScrollBar().setValue(
@@ -555,6 +569,12 @@ class RobotDogUI(QMainWindow):
         event.accept()
 
     def trigger_feedback_mode(self):
+        # 지연된 로딩 타이머가 있다면 취소
+        if self.delayed_loading_timer is not None:
+            self.delayed_loading_timer.stop()
+            self.delayed_loading_timer = None
+            print("[DEBUG] Cancelled delayed loading timer")
+        
         # 기존 로딩 애니메이션 제거
         self.hide_loading()
         print("[DEBUG] hide_loading - trigger_feedback_mode")
