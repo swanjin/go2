@@ -524,20 +524,11 @@ class RobotDogUI(QMainWindow):
     def handle_status_update(self, status, image=None):
         print("handle_status_update called")
         print(f"Feedback mode: {self.message_data.feedback_mode}")
-        if self.dog.env["interactive"] or self.dog.env["vo"]:
-            # 이전 로딩 메시지 제거 및 새 메시지 표시
+        if self.dog.env["interactive"]:
             self.hide_loading()
             self.add_robot_message(status, image)
-            # 1초 후에 다음 메시지를 위한 로딩 표시
-            # if self.loading_timer is not None:
-            #     self.loading_timer.stop()
-            # self.loading_timer = QTimer()
-            # self.loading_timer.timeout.connect(self.show_loading)
-            # self.loading_timer.setSingleShot(True)
-            # self.loading_timer.start(1000)
 
     def handle_end_search(self, message, delayed_time=72000):
-        # 검색이 끝나면 로딩 애니메이션 제거
         self.hide_loading()
         if self.dog.env["woz"]:
             QTimer.singleShot(delayed_time, lambda: self.add_robot_message(
