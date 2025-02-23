@@ -400,6 +400,10 @@ class OpenaiClient(AiClientBase):
         return sentence
 
     def tts(self, text):
+        # env에서 tts가 false면 바로 리턴
+        if not self.env.get('tts', True):  # tts 설정이 없으면 기본값 True
+            return
+            
         CHUNK = 1024
         if not isinstance(text, list):
             text = text
