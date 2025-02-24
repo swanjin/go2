@@ -177,24 +177,23 @@ class OpenaiClient(AiClientBase):
                 return '2'  # 1 step
         elif object_name == self.env['object2']:
             curr_x = self.curr_state[0]
-            if curr_x in [-2, -1]:
+            if curr_x in [-2, -1, 0]:
                 return '4'  # 2 steps
-            else:  # curr_x == 0, 1
+            else:  # curr_x == 1
                 return '2'  # 1 step
         elif object_name == self.env['object3']: # for bottle forward detectable area
             curr_y = self.curr_state[1]
-            if curr_y in [5, 6]:
-                return '4'  # 2 steps
-            elif curr_y in [4]:
+            if curr_y in [4, 5, 6]:
                 return '3'  # 2 steps
-            else:  # curr_y == 2, 3
+            else:  # curr_y in [2, 3]
                 return '2'  # 1 step
         elif object_name == self.env['target']: # for apple forward detectable area
-            curr_x = self.curr_state[0] 
-            if curr_x in [2, 3, 4]:
-                return '2.5'  # 2 steps
-            elif curr_x in [0, 1]:
-                return '1.5'  # 1 steps
+            curr_x = self.curr_state[0]
+            curr_y = self.curr_state[1]
+            if curr_y in [1, 2]:
+                return '3'  # 1 steps
+            elif curr_x in [0, 1, 2, 3, 4]:
+                return '2'  # 2 steps
             else:  # curr_x in [-1]
                 return '0.5'  # stop
         elif object_name == self.env['object4']: # for sofa forward detectable area

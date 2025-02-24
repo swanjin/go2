@@ -1,13 +1,12 @@
 class NaviConfig:
     landmarks = {
         "coffee machine": (-2, 5, 0),
-        "refrigerator": (4, 5, 0),
-        "sink": (0, 6, 0),
+        "refrigerator": (3, 5, 0),
         "tv": (-5, -1, 270),
         "desk": (-5, -6, 180),
         "cabinet": (0, -6, 180),
         "sofa": (4, -3, 90),
-        "banana": (1, 6, 0),
+        "banana": (1, 5, 0),
         "bottle": (3, 1, 90),
     }
     border_size = 7
@@ -33,7 +32,7 @@ class NaviConfig:
     bottle_height = 3
     apple_shift_bottom_left = (1, 1)
     apple_shift_width = 3
-    apple_shift_height = 2
+    apple_shift_height = 1
     apple_forward_bottom_left = (-1, 3)
     apple_forward_width = 5
     apple_forward_height = 2

@@ -134,8 +134,7 @@ class AiClientBase:
             - **Action**: Rotate once to explore a different orientation without changing your position (x, y). Avoid action that would update your state (x, y, orientation) as the same state that you have already visited according to the 'Memory' section.
 
         - **Subcase 2.2**: Either {self.env['object1']}, {self.env['object2']}, {self.env['object3']} or {self.env['object4']} is detected in the 'Detection' section, and its distance is **more than** the stopping threshold ('{self.env['stop_landmark']}').
-            - **Action**: Move forward once or twice.
-            - Strictly follow the following rules: 
+            - **Action**: Strictly follow the following rules: 
                 - If the distance to the detected object is between '{self.env['stop_landmark']}' and '{(self.env['stop_landmark']+self.env['threshold_range'])}' meters, move forward **once**. 
                 - If the distance to the detected object is greater than '{(self.env['stop_landmark']+self.env['threshold_range'])}' meters, move forward **twice**.
 
