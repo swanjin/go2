@@ -273,7 +273,6 @@ class Dog:
                 print("1. Move forward sequence")
                 self.VelocityMove(0.5, 0, 0)
                 self.VelocityMove(0.5, 0, 0)
-                self.VelocityMove(0.5, 0, 0)
                 print("2. Turn left")
                 self.VelocityMove(0, 0, 1.65)
                 print("3. Move forward sequence")
