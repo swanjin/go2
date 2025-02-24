@@ -275,15 +275,20 @@ class Dog:
                 self.VelocityMove(0.5, 0, 0)
                 self.VelocityMove(0.5, 0, 0)
                 print("2. Turn left")
-                self.VelocityMove(0, 0, 1.6)
+                self.VelocityMove(0, 0, 1.65)
                 print("3. Move forward sequence")
                 self.VelocityMove(0.5, 0, 0)
                 self.VelocityMove(0.5, 0, 0)
                 self.VelocityMove(0.5, 0, 0)
                 self.VelocityMove(0.5, 0, 0)
                 print("4. Turn left")
-                self.VelocityMove(0, 0, 1.6)
-                print("5. Final stop")
+                self.VelocityMove(0, 0, 1.65)
+                print("5. Move forward sequence")
+                self.VelocityMove(0.5, 0, 0)
+                self.VelocityMove(0.5, 0, 0)
+                print("6. Shift left")
+                self.VelocityMove(0, 0.5, 0)
+                print("7. Final stop")
                 self.VelocityMove(0, 0, 0)
                 
                 # stop_message = "Stop. I found an apple."
@@ -298,8 +303,8 @@ class Dog:
                         'move backward': (-0.5, 0, 0),
                         'shift right': (0, -0.5, 0),
                         'shift left': (0, 0.5, 0),
-                        'turn right': (0, 0, -1.6),
-                        'turn left': (0, 0, 1.6)
+                        'turn right': (0, 0, -1.65),
+                        'turn left': (0, 0, 1.65)
                     }
                     
                     for action in actions:
