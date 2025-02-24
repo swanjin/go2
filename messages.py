@@ -7,7 +7,7 @@ class Messages:
     FEEDBACK_PROCESSING = "I'm going to process your feedback."
     FEEDBACK_REJECT = "It seems my suggested actions don't align with your needs. Could you clarify your expectations or suggest adjustments?"
     FEEDBACK_COMPLETE = "I just processed your feedback. I'm back to automatic search mode now."
-    FEEDBACK_HELP = "I am seeing a {} right now. Can you tell me what I should do? I need your help."
+    FEEDBACK_HELP = "Since I am seeing a {} right now, can you tell me what I should do? Your advice would be really helpful."
     
     # Search related messages
     SEARCH_START = "I'll start searching for {} now."

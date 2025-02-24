@@ -775,8 +775,9 @@ class SearchThread(QThread):
                         last_round.round_number = last_round.round_number - 1
                         detected_objects = ", ".join(last_round.detected_objects)
                         combined_message = Messages.FEEDBACK_HELP.format(detected_objects)
+                        updated_message = self.dog.ai_client.is_kitchen(combined_message)
                         self.dog.tts_finished_event.clear()
-                        self.status_update.emit(combined_message, q_image)
+                        self.status_update.emit(updated_message, q_image)
                         self.dog.tts_finished_event.wait()
                         # Start feedback mode automatically
                         self.ui.trigger_feedback_mode()  # Use the UI instance to call the method

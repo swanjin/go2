@@ -91,7 +91,10 @@ class OpenaiClient(AiClientBase):
 
         self.log_file.flush()
         self.round_number += 1
-        self.curr_state = round.assistant.new_state
+        if round.assistant.initial_state == (0,0,0) and round.chat == []:
+            self.curr_state = round.assistant.initial_state
+        else:
+            self.curr_state = round.assistant.new_state
 
     def construct_detection_auto(self, description):
         return (
@@ -597,3 +600,20 @@ class OpenaiClient(AiClientBase):
         except Exception as e:
             print(f"Error in get_landmark_name: {e}")
             return None
+
+
+    def is_kitchen(self, input):
+        msg = []
+        prompt = (
+            "Your task: evaluate the user's response to determine if the space is a kitchen, living room, or office space (choose only one) and the fill in the blank with the space type."
+            "Response format: Since I am seeing a banana, refrigerator, and coffee machine right now, it's much clearer that this is a ___ space. Can you tell me what I should do? Your advice would be really helpful."
+        )
+        self.append_message(msg, "user", prompt)
+        self.append_message(msg, "user", input)
+
+        try:
+            rawAssistant = self.get_ai_response(msg)
+            return rawAssistant
+        except Exception as e:
+            print(f"Error in is_kitchen: {e}")
+            return False
