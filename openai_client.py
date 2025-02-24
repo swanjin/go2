@@ -44,6 +44,7 @@ class OpenaiClient(AiClientBase):
         self.apple_shift_area = self.detectable_area(range(NaviConfig.apple_shift_bottom_left[0], NaviConfig.apple_shift_bottom_left[0]+NaviConfig.apple_shift_width+1), range(NaviConfig.apple_shift_bottom_left[1], NaviConfig.apple_shift_bottom_left[1]+NaviConfig.apple_shift_height+1), 270)
         self.apple_forward_area = self.detectable_area(range(NaviConfig.apple_forward_bottom_left[0], NaviConfig.apple_forward_bottom_left[0]+NaviConfig.apple_forward_width+1), range(NaviConfig.apple_forward_bottom_left[1], NaviConfig.apple_forward_bottom_left[1]+NaviConfig.apple_forward_height+1), 270)
         self.sofa_detect_area = self.detectable_area(range(NaviConfig.sofa_bottom_left[0], NaviConfig.sofa_bottom_left[0]+NaviConfig.sofa_width+1), range(NaviConfig.sofa_bottom_left[1], NaviConfig.sofa_bottom_left[1]+NaviConfig.sofa_height+1), 90)
+        self.kitchen_detect_area = self.detectable_area(range(NaviConfig.kitchen_bottom_left[0], NaviConfig.kitchen_bottom_left[0]+NaviConfig.kitchen_width+1), range(NaviConfig.kitchen_bottom_left[1], NaviConfig.kitchen_bottom_left[1]+NaviConfig.kitchen_height+1), 0)
         
         # Combine all detectable areas into a single set to remove duplicates
         self.all_detectable_areas = list(set(
@@ -52,7 +53,8 @@ class OpenaiClient(AiClientBase):
             self.bottle_detect_area +
             self.apple_shift_area +
             self.apple_forward_area +
-            self.sofa_detect_area
+            self.sofa_detect_area +
+            self.kitchen_detect_area
         ))
 
         self.client = OpenAI(api_key=key)
@@ -72,14 +74,14 @@ class OpenaiClient(AiClientBase):
         self.target = target
 
     def update_memory_list(self, detected_objects, distances, description, chat, assistant):
-        round = Round(self.round_number, detected_objects, distances, chat, assistant)
+        round = Round(self.round_number, detected_objects, distances, description, chat, assistant)
         self.memory_list.append(round)
 
         self.log_file.write(
             f"Round {round.round_number}:\n"
             f"- Detected Objects: {round.detected_objects if round.detected_objects else 'None'}\n"
             f"- Distances: {round.distances if round.distances else 'None'}\n"
-            f"- Description: {description if description else 'None'}\n"
+            f"- Description: {round.description if round.description else 'None'}\n"
             f"- Chat: {round.chat if round.chat else 'None'}\n"
             f"- Initial State: {round.assistant.initial_state}\n"
             f"- Action: {round.assistant.action}\n"
@@ -153,6 +155,14 @@ class OpenaiClient(AiClientBase):
             self.env['object4']
         )
 
+        landmarks = list(NaviConfig.landmarks.keys())[:3]
+        for landmark in landmarks:
+            self.check_and_update_analysis(
+                image_analysis, 
+                self.kitchen_detect_area, 
+                landmark
+            )
+
         return image_analysis.frame, image_analysis.detected_objects, image_analysis.distances, image_analysis.description
 
     def check_and_update_analysis(self, image_analysis, detectable_area, object_name):
@@ -167,15 +177,15 @@ class OpenaiClient(AiClientBase):
             image_analysis.description.append(description)
 
     def calculate_distance(self, object_name):
-        if object_name == self.env['object1']:
+        if self.curr_state in self.banana_detect_area and object_name == self.env['object1']: # for banana forward detectable area
             curr_y = self.curr_state[1]
-            if curr_y in [-2, -1, 0]:
+            if curr_y in [-2, -1]:
                 return '4'  # 2 steps
-            elif curr_y in [1, 2]:
+            elif curr_y in [0, 1, 2]:
                 return '3'  # 2 steps
             else:  # curr_y == 3, 4
                 return '2'  # 1 step
-        elif object_name == self.env['object2']:
+        elif self.curr_state in self.refrigerator_detect_area and object_name == self.env['object2']: # for refrigerator forward detectable area
             curr_x = self.curr_state[0]
             if curr_x in [-2, -1, 0]:
                 return '4'  # 2 steps
@@ -187,21 +197,26 @@ class OpenaiClient(AiClientBase):
                 return '3'  # 2 steps
             else:  # curr_y in [2, 3]
                 return '2'  # 1 step
-        elif object_name == self.env['target']: # for apple forward detectable area
+        elif self.curr_state in self.apple_forward_area and object_name == self.env['target']: # for apple forward detectable area
             curr_x = self.curr_state[0]
+            if curr_x in [3, 4]:
+                return '3'  # 2 steps
+            elif curr_x in [0, 1, 2]:
+                return '2'  # 2 step
+            else:  # curr_x in [-1]
+                return '0.5'  # stop
+        elif self.curr_state in self.apple_shift_area and object_name == self.env['target']: # for apple shift detectable area
             curr_y = self.curr_state[1]
             if curr_y in [1, 2]:
                 return '3'  # 1 steps
-            elif curr_x in [0, 1, 2, 3, 4]:
-                return '2'  # 2 steps
-            else:  # curr_x in [-1]
-                return '0.5'  # stop
-        elif object_name == self.env['object4']: # for sofa forward detectable area
+        elif self.curr_state in self.sofa_detect_area and object_name == self.env['object4']: # for sofa forward detectable area
             curr_x = self.curr_state[0]
             if curr_x in [-3, -2]:
                 return '4'  # 2 steps
             else:  # curr_x == -1
                 return '2'  # 1 step
+        elif self.curr_state in self.kitchen_detect_area and object_name in list(NaviConfig.landmarks.keys())[:2]: # This is for coffee machine and refrigerator. Banana's distance is computed as same as 3 in the first condition
+            return '3'
 
     def append_message(self, message, message_role: str, message_content: str):
         message.append({"role": message_role, "content": message_content})

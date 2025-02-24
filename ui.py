@@ -140,9 +140,9 @@ class SendMessageThread(QThread):
                     assistant = self.dog.ai_client.get_response_landmark_or_general_command(
                         text, 
                         image_bboxes_array, 
-                        image_description, 
+                        image_detected_objects, 
                         image_distances, 
-                        image_detected_objects
+                        image_description
                     )
                     self.message_data.pending_feedback_action = assistant.action
                     self.confirm_feedback_signal.emit()
@@ -197,7 +197,7 @@ class SendMessageThread(QThread):
 
             if self.dog.ai_client.is_instruction_command(text):
                 print("❗ Executing instruction or command")            
-                assistant = self.dog.ai_client.get_response_landmark_or_general_command(text, image_bboxes_array, image_description, image_distances, image_detected_objects)
+                assistant = self.dog.ai_client.get_response_landmark_or_general_command(text, image_bboxes_array, image_detected_objects, image_distances, image_description)
                 print(f"📋 생성된 액션: {assistant.action}")
                 self.message_data.pending_feedback_action = assistant.action
                 self.confirm_feedback_signal.emit()
@@ -503,10 +503,14 @@ class RobotDogUI(QMainWindow):
     def on_tts_finished(self):
         self.dog.tts_finished_event.set()
         if not self.message_data.feedback_mode:
-            # 지연된 로딩 타이머 설정
-            if self.delayed_loading_timer is not None:
-                self.delayed_loading_timer.stop()
-            self.delayed_loading_timer = QTimer(self)
+            # Ensure the delayed_loading_timer is initialized
+            if self.delayed_loading_timer is None:
+                self.delayed_loading_timer = QTimer(self)  # Initialize the timer if it's None
+            
+            # Stop any existing timer
+            self.delayed_loading_timer.stop()
+            
+            # Set up the delayed loading timer
             self.delayed_loading_timer.timeout.connect(lambda: self.show_loading())
             self.delayed_loading_timer.setSingleShot(True)
             self.delayed_loading_timer.start(1000)
@@ -522,7 +526,7 @@ class RobotDogUI(QMainWindow):
         self.camera_thread.frame_update.connect(self.update_camera_feed)
         self.camera_thread.start()
 
-        self.search_thread = SearchThread(self.dog)
+        self.search_thread = SearchThread(self.dog, self)
         self.search_thread.status_update.connect(self.handle_status_update)
         self.search_thread.end_search.connect(self.handle_end_search)
         self.search_thread.start()
@@ -720,9 +724,10 @@ class SearchThread(QThread):
     status_update = pyqtSignal(str, QImage)
     end_search = pyqtSignal(str)
 
-    def __init__(self, dog_instance):
+    def __init__(self, dog_instance, ui_instance):
         super().__init__()
         self.dog = dog_instance
+        self.ui = ui_instance  # Add a reference to the UI instance
 
     def format_actions(self,actions):
         if not actions:  # Handle empty list case
@@ -759,10 +764,26 @@ class SearchThread(QThread):
                 formatted_action = self.format_actions(response.action)
                 combined_message = f"I'm going to {formatted_action}. {response.reason}"
 
+                if self.dog.ai_client.memory_list:
+                    last_round = self.dog.ai_client.memory_list[-1]
+                else:
+                    print("No rounds in memory_list")
+
                 if self.dog.env["interactive"]:
-                    self.dog.tts_finished_event.clear()
-                    self.status_update.emit(combined_message, q_image)
-                    self.dog.tts_finished_event.wait()
+                    if last_round.assistant.initial_state == (0,0,0):
+                        print("🤖 Robot is asking for help.")  
+                        last_round.round_number = last_round.round_number - 1
+                        detected_objects = ", ".join(last_round.detected_objects)
+                        combined_message = Messages.FEEDBACK_HELP.format(detected_objects)
+                        self.dog.tts_finished_event.clear()
+                        self.status_update.emit(combined_message, q_image)
+                        self.dog.tts_finished_event.wait()
+                        # Start feedback mode automatically
+                        self.ui.trigger_feedback_mode()  # Use the UI instance to call the method
+                    else:
+                        self.dog.tts_finished_event.clear()
+                        self.status_update.emit(combined_message, q_image)
+                        self.dog.tts_finished_event.wait()
                 
                 if  self.dog.env["woz"] or self.dog.env["vn"]:
                     self.status_update.emit(combined_message, q_image)

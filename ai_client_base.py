@@ -163,9 +163,9 @@ class AiClientBase:
         - **Action**: action1, action2, ...
         - **Reason**: 
           - If neither {self.env['object1']}, {self.env['object2']}, {self.env['object3']}, nor {self.env['object4']} is detected, never metion any of them but include a sentece which has a similar meaning to 'No meaningful objects realted to the target are detected, so I am rotating to explore a different orientation.' in your reasoning.
-          - If {self.env['object1']} or {self.env['object2']} is found, think about whether this space is a kitchen, living room, or office space and metion it and make an everyday contextual association with the {self.env['target']}.
+          - If {self.env['object1']} or {self.env['object2']} is found, assess whether the space can be best described as a kitchen, living room, or office space (choose only one), and mention that while making an everyday contextual association with {self.env['target']}.
           - If {self.env['object3']} is found, associate it with the {self.env['target']} as something to eat or drink.
-          - If {self.env['object4']} is found, think about whether this space is a 'kitchen', 'open living room', or 'office space' and metion it.
+          - If {self.env['object4']} is found, assess whether the space can be best described as a 'kitchen', 'open living room', or 'office space' (choose only one), and mention that while making an everyday contextual association with {self.env['target']}.
           - Explain your reasoning in one concise sentence.
           - Do not mention case numbers, subcase numbers, section names or distances.
           - If referring to the {self.env['target']} position in the image, use 'left', 'middle', or 'right' without mentioning 'third'.

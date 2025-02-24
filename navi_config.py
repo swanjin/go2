@@ -1,13 +1,10 @@
 class NaviConfig:
     landmarks = {
-        "coffee machine": (-2, 5, 0),
-        "refrigerator": (3, 5, 0),
-        "tv": (-5, -1, 270),
-        "desk": (-5, -6, 180),
-        "cabinet": (0, -6, 180),
-        "sofa": (4, -3, 90),
-        "banana": (1, 5, 0),
-        "bottle": (3, 1, 90),
+        "coffee machine": (-2, 5, 0), # Kitchen
+        "refrigerator": (3, 5, 0), # Kitchen
+        "banana": (1, 5, 0), # Kitchen
+        "sofa": (4, -3, 90), 
+        "bottle": (3, 1, 90), 
     }
     border_size = 7
     grid_size = 10
@@ -39,3 +36,6 @@ class NaviConfig:
     sofa_bottom_left = (-3, -2)
     sofa_width = 2
     sofa_height = 2
+    kitchen_bottom_left = (-1, -1)
+    kitchen_width = 2
+    kitchen_height = 2
