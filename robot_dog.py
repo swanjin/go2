@@ -259,7 +259,7 @@ class Dog:
             self.sport_client.Move(vx, vy, vyaw)
             time.sleep(dt)
         if self.env["woz"]:
-            elapsed_time = 5
+            elapsed_time = 5 # intentional delay for woz
         for i in range(int(elapsed_time / dt)):
             self.sport_client.StopMove()
             time.sleep(dt)
@@ -275,19 +275,27 @@ class Dog:
                 self.VelocityMove(0.5, 0, 0)
                 print("2. Turn left")
                 self.VelocityMove(0, 0, 1.65)
+                # print("2. Turn right sequence") # extended version of woz
+                # self.VelocityMove(0, 0, -1.65)
+                # self.VelocityMove(0, 0, -1.65)
+                # self.VelocityMove(0, 0, -1.65)
                 print("3. Move forward sequence")
+                self.VelocityMove(0.5, 0, 0)
+                self.VelocityMove(0.5, 0, 0)
                 self.VelocityMove(0.5, 0, 0)
                 self.VelocityMove(0.5, 0, 0)
                 self.VelocityMove(0.5, 0, 0)
                 self.VelocityMove(0.5, 0, 0)
                 print("4. Turn left")
                 self.VelocityMove(0, 0, 1.65)
+                # print("4. Turn right sequence") # extended version of woz
+                # self.VelocityMove(0, 0, -1.65)
+                # self.VelocityMove(0, 0, -1.65)
+                # self.VelocityMove(0, 0, -1.65)
                 print("5. Move forward sequence")
                 self.VelocityMove(0.5, 0, 0)
                 self.VelocityMove(0.5, 0, 0)
-                print("6. Shift left")
-                self.VelocityMove(0, 0.5, 0)
-                print("7. Final stop")
+                print("6. Final stop")
                 self.VelocityMove(0, 0, 0)
                 
                 # stop_message = "Stop. I found an apple."
@@ -300,8 +308,8 @@ class Dog:
                     action_map = {
                         'move forward': (0.5, 0, 0),
                         'move backward': (-0.5, 0, 0),
-                        'shift right': (0, -0.5, 0),
-                        'shift left': (0, 0.5, 0),
+                        'shift right': (0, -0.35, 0),
+                        'shift left': (0, 0.35, 0),
                         'turn right': (0, 0, -1.65),
                         'turn left': (0, 0, 1.65)
                     }

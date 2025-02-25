@@ -41,18 +41,18 @@ class OpenaiClient(AiClientBase):
         self.banana_detect_area = self.detectable_area(range(NaviConfig.banana_bottom_left[0], NaviConfig.banana_bottom_left[0]+NaviConfig.banana_width+1), range(NaviConfig.banana_bottom_left[1], NaviConfig.banana_bottom_left[1]+NaviConfig.banana_height+1), 0)    
         self.refrigerator_detect_area = self.detectable_area(range(NaviConfig.refrigerator_bottom_left[0], NaviConfig.refrigerator_bottom_left[0]+NaviConfig.refrigerator_width+1), range(NaviConfig.refrigerator_bottom_left[1], NaviConfig.refrigerator_bottom_left[1]+NaviConfig.refrigerator_height+1), 90)
         self.bottle_detect_area = self.detectable_area(range(NaviConfig.bottle_bottom_left[0], NaviConfig.bottle_bottom_left[0]+NaviConfig.bottle_width+1), range(NaviConfig.bottle_bottom_left[1], NaviConfig.bottle_bottom_left[1]+NaviConfig.bottle_height+1), 180)
-        self.apple_shift_area = self.detectable_area(range(NaviConfig.apple_shift_bottom_left[0], NaviConfig.apple_shift_bottom_left[0]+NaviConfig.apple_shift_width+1), range(NaviConfig.apple_shift_bottom_left[1], NaviConfig.apple_shift_bottom_left[1]+NaviConfig.apple_shift_height+1), 270)
-        self.apple_forward_area = self.detectable_area(range(NaviConfig.apple_forward_bottom_left[0], NaviConfig.apple_forward_bottom_left[0]+NaviConfig.apple_forward_width+1), range(NaviConfig.apple_forward_bottom_left[1], NaviConfig.apple_forward_bottom_left[1]+NaviConfig.apple_forward_height+1), 270)
         self.sofa_detect_area = self.detectable_area(range(NaviConfig.sofa_bottom_left[0], NaviConfig.sofa_bottom_left[0]+NaviConfig.sofa_width+1), range(NaviConfig.sofa_bottom_left[1], NaviConfig.sofa_bottom_left[1]+NaviConfig.sofa_height+1), 90)
-        
+        # self.apple_shift_area = self.detectable_area(range(NaviConfig.apple_shift_bottom_left[0], NaviConfig.apple_shift_bottom_left[0]+NaviConfig.apple_shift_width+1), range(NaviConfig.apple_shift_bottom_left[1], NaviConfig.apple_shift_bottom_left[1]+NaviConfig.apple_shift_height+1), 270)
+        # self.apple_forward_area = self.detectable_area(range(NaviConfig.apple_forward_bottom_left[0], NaviConfig.apple_forward_bottom_left[0]+NaviConfig.apple_forward_width+1), range(NaviConfig.apple_forward_bottom_left[1], NaviConfig.apple_forward_bottom_left[1]+NaviConfig.apple_forward_height+1), 270)
+
         # Combine all detectable areas into a single set to remove duplicates
         self.all_detectable_areas = list(set(
             self.banana_detect_area +
             self.refrigerator_detect_area +
             self.bottle_detect_area +
-            self.apple_shift_area +
-            self.apple_forward_area +
             self.sofa_detect_area
+            # self.apple_shift_area +
+            # self.apple_forward_area +
         ))
 
         self.client = OpenAI(api_key=key)
@@ -72,14 +72,14 @@ class OpenaiClient(AiClientBase):
         self.target = target
 
     def update_memory_list(self, detected_objects, distances, description, chat, assistant):
-        round = Round(self.round_number, detected_objects, distances, chat, assistant)
-        self.memory_list.append(round)
+        round = Round(self.round_number, detected_objects, distances, description, chat, assistant)
+        self.curr_state = round.assistant.new_state
 
         self.log_file.write(
             f"Round {round.round_number}:\n"
             f"- Detected Objects: {round.detected_objects if round.detected_objects else 'None'}\n"
             f"- Distances: {round.distances if round.distances else 'None'}\n"
-            f"- Description: {description if description else 'None'}\n"
+            f"- Description: {round.description if round.description else 'None'}\n"
             f"- Chat: {round.chat if round.chat else 'None'}\n"
             f"- Initial State: {round.assistant.initial_state}\n"
             f"- Action: {round.assistant.action}\n"
@@ -89,7 +89,9 @@ class OpenaiClient(AiClientBase):
 
         self.log_file.flush()
         self.round_number += 1
-        self.curr_state = round.assistant.new_state
+        self.memory_list.append(round)
+
+        return round.assistant
 
     def construct_detection_auto(self, description):
         return (
@@ -137,71 +139,68 @@ class OpenaiClient(AiClientBase):
 
         self.check_and_update_analysis(
             image_analysis, 
-            self.apple_shift_area, 
-            self.env['target']
-        )
-
-        self.check_and_update_analysis(
-            image_analysis, 
-            self.apple_forward_area, 
-            self.env['target']
-        )
-
-        self.check_and_update_analysis(
-            image_analysis, 
             self.sofa_detect_area, 
             self.env['object4']
         )
+        # self.check_and_update_analysis(
+        #     image_analysis, 
+        #     self.apple_shift_area, 
+        #     self.env['target']
+        # )
+        # self.check_and_update_analysis(
+        #     image_analysis, 
+        #     self.apple_forward_area, 
+        #     self.env['target']
+        # )
 
         return image_analysis.frame, image_analysis.detected_objects, image_analysis.distances, image_analysis.description
 
     def check_and_update_analysis(self, image_analysis, detectable_area, object_name):
         if self.curr_state in detectable_area and object_name not in image_analysis.detected_objects:
             distance = self.calculate_distance(object_name)
-            if self.curr_state in self.apple_shift_area: 
-                description = f"You detected {object_name} on the right side of the frame with a distance of {distance} meters."
-            else:
-                description = f"You detected {object_name} with a distance of {distance} meters."
+            # if self.curr_state in self.apple_shift_area: 
+            #     description = f"You detected {object_name} on the right side of the frame with a distance of {distance} meters."
+            # else:
+            description = f"You detected {object_name} with a distance of {distance} meters."
             image_analysis.detected_objects.append(object_name)
             image_analysis.distances.append(distance)
             image_analysis.description.append(description)
 
     def calculate_distance(self, object_name):
-        if object_name == self.env['object1']:
+        if self.curr_state in self.banana_detect_area and object_name == self.env['object1']: # for banana forward detectable area
             curr_y = self.curr_state[1]
-            if curr_y in [-2, -1, 0]:
+            if curr_y in [-2, -1]:
                 return '4'  # 2 steps
-            elif curr_y in [1, 2]:
+            elif curr_y in [0, 1, 2]:
                 return '3'  # 2 steps
-            else:  # curr_y == 3, 4
+            else:  # curr_y in [3]
                 return '2'  # 1 step
-        elif object_name == self.env['object2']:
+        elif self.curr_state in self.refrigerator_detect_area and object_name == self.env['object2']: # for refrigerator forward detectable area
             curr_x = self.curr_state[0]
             if curr_x in [-2, -1, 0]:
                 return '4'  # 2 steps
-            else:  # curr_x == 1
+            else:  # curr_x in [1]
                 return '2'  # 1 step
-        elif object_name == self.env['object3']: # for bottle forward detectable area
+        elif self.curr_state in self.bottle_detect_area and object_name == self.env['object3']: # for bottle forward detectable area
             curr_y = self.curr_state[1]
-            if curr_y in [4, 5, 6]:
+            if curr_y in [4, 5]:
                 return '3'  # 2 steps
-            else:  # curr_y in [2, 3]
-                return '2'  # 1 step
-        elif object_name == self.env['target']: # for apple forward detectable area
-            curr_x = self.curr_state[0]
-            curr_y = self.curr_state[1]
-            if curr_y in [1, 2]:
-                return '3'  # 1 steps
-            elif curr_x in [0, 1, 2, 3, 4]:
-                return '2'  # 2 steps
-            else:  # curr_x in [-1]
-                return '0.5'  # stop
-        elif object_name == self.env['object4']: # for sofa forward detectable area
+        elif self.curr_state in self.sofa_detect_area and object_name == self.env['object4']: # for sofa forward detectable area
             curr_x = self.curr_state[0]
             if curr_x in [-3, -2]:
                 return '4'  # 2 steps
             else:  # curr_x == -1
                 return '2'  # 1 step
+        # elif self.curr_state in self.apple_shift_area and object_name == self.env['target']: # for apple shift detectable area
+        #     curr_y = self.curr_state[1]
+        #     if curr_y in [1, 2]:
+        #         return '3'  # 1 steps
+        # elif self.curr_state in self.apple_forward_area and object_name == self.env['target']: # for apple forward detectable area
+        #     curr_x = self.curr_state[0]
+        #     if curr_x in [3, 4]:
+        #         return '3'  # 2 steps
+        #     elif curr_x in [2]:
+        #         return '2'  # 2 step
 
     def append_message(self, message, message_role: str, message_content: str):
         message.append({"role": message_role, "content": message_content})
@@ -254,32 +253,32 @@ class OpenaiClient(AiClientBase):
                 distance_value = float(distances[detected_objects.index(self.env['object2'])])
             elif self.curr_state in self.bottle_detect_area:
                 distance_value = float(distances[detected_objects.index(self.env['object3'])])
-            elif self.curr_state in self.apple_shift_area:
-                distance_value = float(distances[detected_objects.index(self.env['target'])])
-            elif self.curr_state in self.apple_forward_area:
-                distance_value = float(distances[detected_objects.index(self.env['target'])])
             elif self.curr_state in self.sofa_detect_area:
                 distance_value = float(distances[detected_objects.index(self.env['object4'])])
+            # elif self.curr_state in self.apple_shift_area:
+            #     distance_value = float(distances[detected_objects.index(self.env['target'])])
+            # elif self.curr_state in self.apple_forward_area:
+            #     distance_value = float(distances[detected_objects.index(self.env['target'])])
 
         except (ValueError, TypeError, IndexError) as e:
             print(f"Error converting distance to float: {e}")
             return action
 
-        if self.curr_state in self.apple_shift_area:
-            action = ['shift right'] # 처음 apple_shift_area에 위치했는데, action을 shift right 안 하면 reason이 교정된 shift right 헹동이랑 match 안되는 버그 있음
-        elif self.curr_state in self.apple_forward_area and 'left' in description[detected_objects.index(self.env['target'])]:
-            action = ['shift left']
-        elif self.curr_state in self.apple_forward_area and 'right' in description[detected_objects.index(self.env['target'])]:
-            action = ['shift right']
-        else:
-            stop_hurdle = float(self.env.get('stop_target', 0)) if self.env['target'] in detected_objects else float(self.env.get('stop_landmark', 0))
+        # if self.curr_state in self.apple_shift_area:
+        #     action = ['shift right'] # 처음 apple_shift_area에 위치했는데, action을 shift right 안 하면 reason이 교정된 shift right 헹동이랑 match 안되는 버그 있음
+        # elif self.curr_state in self.apple_forward_area and 'left' in description[detected_objects.index(self.env['target'])]:
+        #     action = ['shift left']
+        # elif self.curr_state in self.apple_forward_area and 'right' in description[detected_objects.index(self.env['target'])]:
+        #     action = ['shift right']
+        # else:
+        stop_hurdle = float(self.env.get('stop_target', 0)) if self.env['target'] in detected_objects else float(self.env.get('stop_landmark', 0))
 
-            if distance_value < stop_hurdle:
-                action = ['stop'] if self.env['target'] in detected_objects else ['turn right']
-            elif distance_value < (stop_hurdle + float(self.env['threshold_range'])):
-                action = ['move forward']
-            else:
-                action = ['move forward', 'move forward']
+        if distance_value < stop_hurdle:
+            action = ['stop'] if self.env['target'] in detected_objects else ['turn right']
+        elif distance_value < (stop_hurdle + float(self.env['threshold_range'])):
+            action = ['move forward']
+        else:
+            action = ['move forward', 'move forward']
 
         return action
     
@@ -426,7 +425,7 @@ class OpenaiClient(AiClientBase):
                 audio_segment = AudioSegment.from_file(container, format="wav")
                 
                 # 속도
-                faster_segment = speedup(audio_segment, playback_speed=1.2)
+                faster_segment = speedup(audio_segment, playback_speed=self.env['tts_speed'])
 
                 play(faster_segment)
         finally:

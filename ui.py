@@ -537,7 +537,7 @@ class RobotDogUI(QMainWindow):
             self.hide_loading()
             self.add_robot_message(status, image)
 
-    def handle_end_search(self, message, delayed_time=81000):
+    def handle_end_search(self, message, delayed_time=87000):
         if self.dog.env["woz"]:
             print("[DEBUG] hide_loading - handle_end_search")
             QTimer.singleShot(delayed_time - 100, lambda: self.hide_loading())

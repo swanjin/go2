@@ -107,19 +107,19 @@ class AiClientBase:
         {self.get_action_dictionary()}
 
         #### Case 1: The target object {self.env['target']} is detected in the 'Detection' section.
-        - **Subcase 1.1**: The {self.env['target']} is in the middle of the frame, and the distance to the {self.env['target']} is greater than '{stop_target}'.
-            - **Action**: Move your position vertically to get closer to the target with the number of times as below.
-                - If the chosen action is 'move forward' and the distance to the target is within ({stop_target}, {stop_target + threshold_range}) meters, execute 1 times.
-                - Otherwise, execute 2 times.
+        - **Subcase 1.1**: At least one of the {self.env['target']} is in the middle of the frame, and its distance is greater than '{stop_target}'.
+            - **Action**: [IMPORTANT] Strictly observe the following rules:
+                - If its distance is between {stop_target} and {stop_target + threshold_range} meters, move forward **once**.
+                - If its distance is greater than {stop_target + threshold_range} meters, move forward **twice**.
 
-        - **Subcase 1.2**: The {self.env['target']} is in the middle of the frame, and the distance to the {self.env['target']} is less than '{stop_target}'.
+        - **Subcase 1.2**: At least one of the {self.env['target']} is in the middle of the frame, and its distance is less than '{stop_target}'.
             - **Action**: 'stop'.
 
-        - **Subcase 1.3**: The {self.env['target']} is on the left side of the frame.
-            - **Action**: 'shift left'.
+        - **Subcase 1.3**: All the detected {self.env['target']} are on the left side of the frame.
+            - **Action**: 'shift left'. [IMPORTANT] Never 'shift right' in this subcase.
 
-        - **Subcase 1.4**: The {self.env['target']} is on the right side of the frame.
-            - **Action**: 'shift right'.
+        - **Subcase 1.4**: All the detected {self.env['target']} are on the right side of the frame.
+            - **Action**: 'shift right'. [IMPORTANT] Never 'shift left' in this subcase.
 
         - **Verification Step for Case 1**:
             - Ensure the following before proceeding:
@@ -131,22 +131,22 @@ class AiClientBase:
 
         #### Case 2: The {self.env['target']} is **not detected** in the 'Detection' section.
         - **Subcase 2.1**: Neither {self.env['object1']}, {self.env['object2']}, {self.env['object3']}, nor {self.env['object4']} is detected in the 'Detection' section.
-            - **Action**: Rotate once to explore a different orientation without changing your position (x, y). Avoid action that would update your state (x, y, orientation) as the same state that you have already visited according to the 'Memory' section.
+            - **Action**: Rotate once to explore a different orientation without changing your position (x, y). If the previous round involved turning right once, do not turn left this round, and vice versa.
 
-        - **Subcase 2.2**: Either {self.env['object1']}, {self.env['object2']}, {self.env['object3']} or {self.env['object4']} is detected in the 'Detection' section, and its distance is **more than** the stopping threshold ('{self.env['stop_landmark']}').
-            - **Action**: Strictly follow the following rules: 
-                - If the distance to the detected object is between '{self.env['stop_landmark']}' and '{(self.env['stop_landmark']+self.env['threshold_range'])}' meters, move forward **once**. 
-                - If the distance to the detected object is greater than '{(self.env['stop_landmark']+self.env['threshold_range'])}' meters, move forward **twice**.
+        - **Subcase 2.2**: Either {self.env['object1']}, {self.env['object2']}, {self.env['object3']} or {self.env['object4']} is detected in the 'Detection' section, and its distance is greater than the threshold ('{self.env['stop_landmark']}').
+            - **Action**: [IMPORTANT] Strictly observe the following rules:
+                - If the distance to the detected object is between {self.env['stop_landmark']} and {(self.env['stop_landmark']+self.env['threshold_range'])} meters, move forward **once**.
+                - If the distance to the detected object is greater than {(self.env['stop_landmark']+self.env['threshold_range'])} meters, move forward **twice**.
 
-        - **Subcase 2.3**: Either {self.env['object1']}, {self.env['object2']}, {self.env['object3']}, or {self.env['object4']} is detected in the 'Detection' section, and its distance is **less than** the stopping threshold ('{self.env['stop_landmark']}').
-            - **Action**: Rotate once to explore a different orientation without changing your position (x, y). Avoid action that would update your state (x, y, orientation) as the same state that you have already visited according to the 'Memory' section.
+        - **Subcase 2.3**: Either {self.env['object1']}, {self.env['object2']}, {self.env['object3']}, or {self.env['object4']} is detected in the 'Detection' section, and its distance is **less than** the threshold ('{self.env['stop_landmark']}').
+            - **Action**: Rotate once to explore a different orientation without changing your position (x, y). If the previous round involved turning right once, do not turn left this round, and vice versa.
         
         - **Verification Step for Case 2**:
             - Ensure the following before proceeding:
             1. Have you checked whether the {self.env['target']} is **not detected** in the 'Detection' section?
             2. Have you confirmed the presence or absence of {self.env['object1']}, {self.env['object2']}, {self.env['object3']}, or {self.env['object4']} in the 'Detection' section?
             3. If either {self.env['object1']}, {self.env['object2']}, {self.env['object3']}, or {self.env['object4']} is detected:
-                - Have you measured the distance accurately against the stopping threshold ('{self.env['stop_landmark']}')?
+                - Have you measured the distance accurately against the threshold ('{self.env['stop_landmark']}')?
             4. Based on these checks, confirm which subcase (2.1, 2.2, or 2.3) applies and proceed with the specified action.
 
         ### Instructions for New state:
@@ -177,8 +177,8 @@ class AiClientBase:
         You are Go2, a robot dog assistant who only speaks English. Your task is to search for the target object, {self.env['target']}. Current state is {curr_state}. You can only see objects in your facing direction. You can only see objects in your facing direction.
 
         State: (x, y, orientation)
-        - Grid x: -7 to 7
-        - Grid y: -9 to 7
+        - Grid x: {-NaviConfig.border_size} to {NaviConfig.border_size}
+        - Grid y: {-NaviConfig.border_size-1} to {NaviConfig.border_size+1}
         - Orientation: 0°=N, 90°=E, 180°=S, 270°=W
         - Current state: {curr_state}
 
@@ -196,6 +196,9 @@ class AiClientBase:
         
         Response Format: 
         - Respond only with "(x,y,orientation)" without extra text.
+                
+        Example:
+        - Input: "go to the banana" => Output: "{NaviConfig.landmarks.get('banana')}"
         """)
 
     def response_format_non_command(self): # non-command: what can you see?
