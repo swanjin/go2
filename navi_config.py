@@ -30,8 +30,8 @@ class NaviConfig:
     apple_shift_bottom_left = (1, 1)
     apple_shift_width = 3
     apple_shift_height = 1
-    apple_forward_bottom_left = (-1, 3)
-    apple_forward_width = 5
+    apple_forward_bottom_left = (2, 3)
+    apple_forward_width = 2
     apple_forward_height = 2
     sofa_bottom_left = (-3, -2)
     sofa_width = 2

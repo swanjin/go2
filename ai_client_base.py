@@ -108,8 +108,8 @@ class AiClientBase:
 
         #### Case 1: The target object {self.env['target']} is detected in the 'Detection' section.
         - **Subcase 1.1**: The {self.env['target']} is in the middle of the frame, and the distance to the {self.env['target']} is greater than '{stop_target}'.
-            - **Action**: Move your position vertically to get closer to the target with the number of times as below.
-                - If the chosen action is 'move forward' and the distance to the target is within ({stop_target}, {stop_target + threshold_range}) meters, execute 1 times.
+            - **Action**: Strictly follow the following rules:
+                - If the distance to the target is between {stop_target} and {stop_target + threshold_range} meters, execute 1 times.
                 - Otherwise, execute 2 times.
 
         - **Subcase 1.2**: The {self.env['target']} is in the middle of the frame, and the distance to the {self.env['target']} is less than '{stop_target}'.
@@ -131,7 +131,7 @@ class AiClientBase:
 
         #### Case 2: The {self.env['target']} is **not detected** in the 'Detection' section.
         - **Subcase 2.1**: Neither {self.env['object1']}, {self.env['object2']}, {self.env['object3']}, nor {self.env['object4']} is detected in the 'Detection' section.
-            - **Action**: Rotate once to explore a different orientation without changing your position (x, y). Avoid action that would update your state (x, y, orientation) as the same state that you have already visited according to the 'Memory' section.
+            - **Action**: Rotate once to explore a different orientation without changing your position (x, y). If the previous round involved turning right once, do not turn left this round, and vice versa.
 
         - **Subcase 2.2**: Either {self.env['object1']}, {self.env['object2']}, {self.env['object3']} or {self.env['object4']} is detected in the 'Detection' section, and its distance is **more than** the stopping threshold ('{self.env['stop_landmark']}').
             - **Action**: Strictly follow the following rules: 
@@ -139,7 +139,7 @@ class AiClientBase:
                 - If the distance to the detected object is greater than '{(self.env['stop_landmark']+self.env['threshold_range'])}' meters, move forward **twice**.
 
         - **Subcase 2.3**: Either {self.env['object1']}, {self.env['object2']}, {self.env['object3']}, or {self.env['object4']} is detected in the 'Detection' section, and its distance is **less than** the stopping threshold ('{self.env['stop_landmark']}').
-            - **Action**: Rotate once to explore a different orientation without changing your position (x, y). Avoid action that would update your state (x, y, orientation) as the same state that you have already visited according to the 'Memory' section.
+            - **Action**: Rotate once to explore a different orientation without changing your position (x, y). If the previous round involved turning right onceZ, do not turn left this round, and vice versa.
         
         - **Verification Step for Case 2**:
             - Ensure the following before proceeding:

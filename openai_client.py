@@ -75,7 +75,16 @@ class OpenaiClient(AiClientBase):
 
     def update_memory_list(self, detected_objects, distances, description, chat, assistant):
         round = Round(self.round_number, detected_objects, distances, description, chat, assistant)
-        self.memory_list.append(round)
+
+        # If the initial state is (0,0,0) and the chat is True, then the action is stop and the new state is (0,0,0)
+        if round.assistant.initial_state == (0,0,0) and round.chat ==[]:
+            self.curr_state = round.assistant.initial_state
+            round.assistant.action = []
+            round.assistant.new_state = round.assistant.initial_state
+            round.assistant.reason = "Asking for help."
+
+        else:
+            self.curr_state = round.assistant.new_state
 
         self.log_file.write(
             f"Round {round.round_number}:\n"
@@ -90,11 +99,9 @@ class OpenaiClient(AiClientBase):
         )
 
         self.log_file.flush()
+        self.memory_list.append(round)
         self.round_number += 1
-        if round.assistant.initial_state == (0,0,0) and round.chat == []:
-            self.curr_state = round.assistant.initial_state
-        else:
-            self.curr_state = round.assistant.new_state
+        return round.assistant
 
     def construct_detection_auto(self, description):
         return (
@@ -285,10 +292,10 @@ class OpenaiClient(AiClientBase):
 
         if self.curr_state in self.apple_shift_area:
             action = ['shift right'] # 처음 apple_shift_area에 위치했는데, action을 shift right 안 하면 reason이 교정된 shift right 헹동이랑 match 안되는 버그 있음
-        elif self.curr_state in self.apple_forward_area and 'left' in description[detected_objects.index(self.env['target'])]:
-            action = ['shift left']
-        elif self.curr_state in self.apple_forward_area and 'right' in description[detected_objects.index(self.env['target'])]:
-            action = ['shift right']
+        # elif self.curr_state in self.apple_forward_area and 'left' in description[detected_objects.index(self.env['target'])]:
+        #     action = ['shift left']
+        # elif self.curr_state in self.apple_forward_area and 'right' in description[detected_objects.index(self.env['target'])]:
+        #     action = ['shift right']
         else:
             stop_hurdle = float(self.env.get('stop_target', 0)) if self.env['target'] in detected_objects else float(self.env.get('stop_landmark', 0))
 
@@ -332,9 +339,9 @@ class OpenaiClient(AiClientBase):
 
         # Update data
         self.store_image(frame_bboxes_array)
-        self.update_memory_list(detected_objects, distances, description, self.chat, assistant)
+        assistant_memory = self.update_memory_list(detected_objects, distances, description, self.chat, assistant)
 
-        return assistant
+        return assistant_memory
     
     def initial_prompt_feedback(self, detected_objects):
         # Initialize messages
