@@ -36,8 +36,6 @@ class TTSWorker(QThread):
             print("[TTSWorker] TTS finished")
         except Exception as e:
             print(f"[TTSWorker] Error during TTS: {str(e)}")
-            # 오류가 발생해도 TTS가 완료된 것으로 처리하여 UI가 계속 작동하도록 함
-            # 오류가 발생해도 TTS가 완료된 것으로 처리하여 UI가 계속 작동하도록 함
 
 class ChatMessage(QFrame):
     def __init__(self, text="", is_user=False, image=None, is_loading=False, parent=None):
