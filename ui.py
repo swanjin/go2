@@ -22,14 +22,22 @@ class TTSWorker(QThread):
         self.dog = dog  # dog 인스턴스는 openai_client (TTS 메서드가 포함된)를 가지고 있음
 
     def run(self):
+        # UI 업데이트와 TTS 사이에 약간의 지연 추가
+        import time
+        time.sleep(0.2)  # 0.2초 지연 (0.5초에서 줄임)
+        
         # TTS 시작 로그
         print(f"[TTSWorker] Starting TTS with text: {self.text}")
         
-        # 실제 TTS 실행 (openai_client.py의 tts() 메서드)
-        self.dog.ai_client.tts(self.text)
-        
-        # TTS 종료 로그
-        print("[TTSWorker] TTS finished")
+        try:
+            # 실제 TTS 실행 (openai_client.py의 tts() 메서드)
+            self.dog.ai_client.tts(self.text)
+            # TTS 종료 로그
+            print("[TTSWorker] TTS finished")
+        except Exception as e:
+            print(f"[TTSWorker] Error during TTS: {str(e)}")
+            # 오류가 발생해도 TTS가 완료된 것으로 처리하여 UI가 계속 작동하도록 함
+            # 오류가 발생해도 TTS가 완료된 것으로 처리하여 UI가 계속 작동하도록 함
 
 class ChatMessage(QFrame):
     def __init__(self, text="", is_user=False, image=None, is_loading=False, parent=None):
@@ -56,12 +64,7 @@ class ChatMessage(QFrame):
             loading = SimpleLoadingIndicator()
             container_layout.addWidget(loading)
         else:
-            # 기존 메시지 표시 코드는 그대로 유지
-            message = QLabel(text)
-            message.setWordWrap(True)
-            message.setStyleSheet(Styles.chat_message_bubble(is_user))
-            container_layout.addWidget(message)
-            
+            # 이미지가 있으면 먼저 표시
             if image is not None:
                 img_label = QLabel()
                 pixmap = QPixmap.fromImage(image)
@@ -74,6 +77,12 @@ class ChatMessage(QFrame):
                 img_label.setPixmap(scaled_pixmap)
                 img_label.setStyleSheet(Styles.chat_image())
                 container_layout.addWidget(img_label)
+            
+            # 텍스트 메시지 표시
+            message = QLabel(text)
+            message.setWordWrap(True)
+            message.setStyleSheet(Styles.chat_message_bubble(is_user))
+            container_layout.addWidget(message)
 
         # Align messages
         main_layout.addStretch() if is_user else None
@@ -489,16 +498,31 @@ class RobotDogUI(QMainWindow):
         self.message_input.clear()
 
     def add_robot_message(self, text, image=None):
+        # 먼저 UI에 메시지 추가
         message = ChatMessage(text, is_user=False, image=image)
         self.chat_layout.addWidget(message)
-        QTimer.singleShot(0, self._scroll_to_bottom)
+        
+        # UI 업데이트를 즉시 처리하도록 강제
+        QApplication.processEvents()
+        
+        # 스크롤을 아래로 이동
+        self._scroll_to_bottom()
+        
+        # 특정 메시지는 TTS 처리하지 않음
         if text == Messages.SEARCH_COMPLETE.format(self.dog.target):
             return
-        else:
-            if not self.message_data.feedback_mode and text != Messages.WELCOME:
+        
+        # 피드백 모드가 아니고 환영 메시지가 아닌 경우에만 TTS 실행
+        if not self.message_data.feedback_mode and text != Messages.WELCOME:
+            try:
+                # TTS 스레드 시작
                 self.tts_thread = TTSWorker(text, self.dog)
                 self.tts_thread.finished.connect(self.on_tts_finished)
                 self.tts_thread.start()
+            except Exception as e:
+                print(f"[TTS] Error starting TTS: {str(e)}")
+                # TTS에 실패해도 UI 흐름은 계속되도록 함
+                self.on_tts_finished()
 
     def on_tts_finished(self):
         self.dog.tts_finished_event.set()
