@@ -687,18 +687,33 @@ class RobotDogUI(QMainWindow):
                     widget.deleteLater()
 
     def show_loading(self):
-        """로딩 메시지를 표시합니다."""
+        # 이미 로딩 메시지가 있으면 새로 만들지 않음
         if self.loading_message:
-            self.loading_message.deleteLater()
-        self.loading_message = ChatMessage(is_user=False, is_loading=True)
+            return
+        
+        # 로딩 메시지 생성 및 표시
+        self.loading_message = ChatMessage(is_loading=True, is_user=False)
         self.chat_layout.addWidget(self.loading_message)
-        self._scroll_to_bottom()
-    
+        
+        # 로딩 시작 시 피드백 버튼도 함께 표시 (interactive 모드인 경우에만)
+        if self.dog.env["interactive"] and not self.message_data.feedback_mode:
+            self.feedback_button.show()
+        
+        QApplication.processEvents()  # UI 업데이트 즉시 처리
+        QTimer.singleShot(0, self._scroll_to_bottom)
+
     def hide_loading(self):
-        """로딩 메시지를 제거합니다."""
+        # 로딩 메시지가 있으면 제거
         if self.loading_message:
             self.loading_message.deleteLater()
             self.loading_message = None
+            
+            # 로딩이 끝날 때 피드백 버튼도 함께 숨김
+            if self.dog.env["interactive"] and not self.message_data.feedback_mode:
+                self.feedback_button.hide()
+            
+            QApplication.processEvents()  # UI 업데이트 즉시 처리
+            QTimer.singleShot(0, self._scroll_to_bottom)
 
     def add_robot_message_with_loading(self, text, image=None):
         """로딩을 숨기고 로봇 메시지를 표시합니다."""
