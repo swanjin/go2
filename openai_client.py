@@ -401,37 +401,55 @@ class OpenaiClient(AiClientBase):
         # env에서 tts가 false면 바로 리턴
         if not self.env.get('tts', True):  # tts 설정이 없으면 기본값 True
             return
-            
-        CHUNK = 1024
-        if not isinstance(text, list):
-            text = text
-        else:
-            text = self.parse_action_tts(text)
-
-        # Open `/dev/null` and redirect stderr temporarily
-        devnull = os.open(os.devnull, os.O_WRONLY)
-        original_stderr = os.dup(2)
-        os.dup2(devnull, 2)
-
         try:
-            with self.client.with_streaming_response.audio.speech.create(
-                model="tts-1",
-                voice="alloy",
-                input=text,
-                response_format="wav"
-            ) as response:
-                container = io.BytesIO(response.read())
-                # Load the entire audio using pydub
-                audio_segment = AudioSegment.from_file(container, format="wav")
-                
-                # 속도
-                faster_segment = speedup(audio_segment, playback_speed=self.env['tts_speed'])
+            import pyttsx3
+            
+            # 텍스트가 리스트인 경우 문자열로 변환
+            if isinstance(text, list):
+                text = self.parse_action_tts(text)
+            
+            # 발음 개선을 위한 텍스트 전처리
+            text = self.improve_pronunciation(text)
+            
+            # pyttsx3 엔진 초기화
+            engine = pyttsx3.init()
+            
+            # 음성 속도 설정 (기본값: 200, 낮을수록 느림)
+            # env에서 tts_speed를 가져오되, 기본값은 0.8로 설정 (더 느리게)
+            rate = int(200 * self.env.get('tts_speed'))
+            engine.setProperty('rate', rate)
+            
+            # 음량 설정 (0.0 ~ 1.0)
+            engine.setProperty('volume', 1.0)
+            
+            # 영어 음성으로 설정 (가능한 경우)
+            voices = engine.getProperty('voices')
+            for voice in voices:
+                if "english" in voice.name.lower() or "en-" in voice.id.lower():
+                    engine.setProperty('voice', voice.id)
+                    break
+            
+            # 텍스트 읽기
+            engine.say(text)
+            engine.runAndWait()
+            
+            # Properly disconnect and clean up the engine
+            engine = None  # Release the engine reference
+            
+            print("[TTSWorker] TTS finished")
+        except Exception as e:
+            print(f"[TTSWorker] Error during TTS: {str(e)}")
+            # 오류가 발생해도 TTS가 완료된 것으로 처리하여 UI가 계속 작동하도록 함
 
-                play(faster_segment)
-        finally:
-            os.dup2(original_stderr, 2)
-            os.close(devnull)
-            os.close(original_stderr)
+    def improve_pronunciation(self, text):
+        """특정 단어나 구문의 발음을 개선하기 위한 텍스트 전처리 함수"""
+        # Go2를 "Go two"로 변환
+        text = text.replace("Go2", "Go two")
+        
+        # 필요한 경우 다른 발음 개선 규칙 추가
+        # 예: text = text.replace("특정단어", "발음하기 쉬운 형태")
+        
+        return text
 
     # def tts(self, text):
     #     # Check if TTS is enabled in the environment settings
