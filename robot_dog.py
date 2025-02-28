@@ -40,6 +40,7 @@ class Dog:
         self.image_files = None  # To store image paths when using test_dataset
         # self.feedback = None
         # self.window = None  # Will be set by the UI
+        self.tts_engine = None
 
         # Initialize the communication channel and the sport client
         if self.env["connect_robot"]:
@@ -326,3 +327,54 @@ class Dog:
 
         self.robot_auto_thread.start()
         self.feedback_thread.start()
+
+    def tts(self, text):
+        if not self.env.get('tts', True):
+            return
+        
+        try:
+            import pyttsx3
+            
+            # Convert text to string if it's a list
+            if isinstance(text, list):
+                text = self.parse_action_tts(text)
+            
+            # Improve pronunciation if you have such a method
+            if hasattr(self, 'improve_pronunciation'):
+                text = self.improve_pronunciation(text)
+            
+            print(f"[TTSWorker] Starting TTS with text: {text}")
+            
+            # Create a new engine instance each time to avoid reference issues
+            if self.tts_engine:
+                try:
+                    self.tts_engine.stop()
+                except:
+                    pass
+                
+            self.tts_engine = pyttsx3.init()
+            
+            # Configure the engine
+            rate = int(200 * self.env.get('tts_speed', 0.8))
+            self.tts_engine.setProperty('rate', rate)
+            self.tts_engine.setProperty('volume', 1.0)
+            
+            # Set voice to English if available
+            voices = self.tts_engine.getProperty('voices')
+            for voice in voices:
+                if "english" in voice.name.lower() or "en-" in voice.id.lower():
+                    self.tts_engine.setProperty('voice', voice.id)
+                    break
+                
+            # Use the engine to say the text
+            self.tts_engine.say(text)
+            self.tts_engine.runAndWait()
+            
+            print("[TTSWorker] TTS finished")
+            
+            # Signal that TTS is finished if using events
+            if hasattr(self, 'tts_finished_event'):
+                self.tts_finished_event.set()
+            
+        except Exception as e:
+            print(f"[TTSWorker] Error in TTS: {e}")
