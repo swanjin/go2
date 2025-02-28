@@ -456,17 +456,19 @@ class OpenaiClient(AiClientBase):
         msg = []
         prompt = (
             "You are Go2, a helpful robot dog assistant who only speaks English. "
-            "Your task: Determine if the user input is requesting you to perform any action or movement. "
+            "Your task: Determine if the user input is requesting you to perform any action or movement, OR providing location information that implies movement. "
             "Respond with 'true' if:\n"
             "- The user wants you to move somewhere\n"
             "- The user give you a direction\n"
             "- The user give you a landmark\n"
             "- The user wants you to perform any physical action\n"
             "- The user gives any kind of instruction or command\n"
+            "- The user provides information about where an object is located (implying you should go there)\n"
+            "- The user mentions 'between' landmarks or objects (implying a location to visit)\n"
             "Respond with 'false' if:\n"
             "- The user is asking a question NOT about the action or direction\n"
-            "- The user is making a statement\n"
-            "- The user is just providing information\n"
+            "- The user is making a statement with no implication for movement\n"
+            "- The user is just providing general information unrelated to locations\n"
             "Examples:\n"
             "- 'go to the apple' -> true\n"
             "- 'can you turn around' -> true\n"
@@ -474,6 +476,8 @@ class OpenaiClient(AiClientBase):
             "- 'the apple (or target) is behind you' -> true\n"
             "- 'get close to the refrigerator (or other landmark)' -> true\n"
             "- 'go straight as far as you can' -> true\n"
+            "- 'I think the apple is between banana and refrigerator' -> true\n"
+            "- 'the target is located near the sofa' -> true\n"
             "- 'can you see the apple?' -> false\n"
             "- 'what is in front of you?' -> false"
         )
@@ -486,6 +490,7 @@ class OpenaiClient(AiClientBase):
         except (KeyError, IndexError, AttributeError) as e:
             print(f"Error in is_instruction_command: {e}")
             return False
+        print(f"is_command: {is_command}")
         return is_command
     
     def is_yes(self, input):
@@ -535,6 +540,7 @@ class OpenaiClient(AiClientBase):
         except (KeyError, IndexError, AttributeError) as e:
             print(f"Error in is_landmark: {e}")
             return False
+        print(f"is_landmark: {is_landmark}")
         return is_landmark
     
     def is_no_command(self, input):
@@ -597,3 +603,45 @@ class OpenaiClient(AiClientBase):
         except Exception as e:
             print(f"Error in get_landmark_name: {e}")
             return None
+
+    def get_multiple_landmark_names(self, input):
+        msg = []
+        # NaviConfig에서 랜드마크 목록 가져오기
+        landmarks_list = ", ".join(NaviConfig.landmarks.keys())
+        
+        prompt = (
+            "You are Go2, a helpful robot dog assistant who only speaks English. "
+            f"Given the following landmarks: {landmarks_list}\n"
+            "Identify ALL landmarks the user is referring to in their input. "
+            "Return a comma-separated list of ONLY the landmark names from the list above that appear in the input. "
+            "If no landmarks are mentioned, return 'none'.\n"
+            "Examples:\n"
+            "- 'can you go to the coffee machine?' -> coffee machine\n"
+            "- 'the apple is between the refrigerator and banana' -> refrigerator, banana\n"
+            "- 'move to the area between the sofa and refrigerator' -> sofa, refrigerator\n"
+            "- 'go to the table' -> none"
+        )
+        
+        self.append_message(msg, "user", prompt)
+        self.append_message(msg, "user", input)
+        
+        try:
+            response = self.get_ai_response(msg).lower()
+            if response == 'none':
+                return []
+                
+            # 응답을 쉼표로 분리하고 각 항목을 정리
+            landmark_candidates = [item.strip() for item in response.split(',')]
+            
+            # 실제 랜드마크와 일치하는 항목만 필터링
+            found_landmarks = []
+            for candidate in landmark_candidates:
+                for landmark in NaviConfig.landmarks.keys():
+                    if landmark.lower() == candidate:
+                        found_landmarks.append(landmark)
+                        break
+            
+            return found_landmarks
+        except Exception as e:
+            print(f"Error in get_multiple_landmark_names: {e}")
+            return []

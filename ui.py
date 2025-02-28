@@ -395,18 +395,24 @@ class RobotDogUI(QMainWindow):
             
             try:
                 # GPT에게 랜드마크 판단을 요청
-                landmark_name = None
+                landmark_names = []
                 if is_landmark_action:
-                    landmark_name = self.dog.ai_client.get_landmark_name(self.message_data.text)
+                    landmark_names = self.dog.ai_client.get_multiple_landmark_names(self.message_data.text)
 
                 print(f"Is landmark action_ui: {is_landmark_action}")
-                print(f"Found landmark name: {landmark_name}")  # 디버깅용
+                print(f"Found landmark names: {landmark_names}")  # 디버깅용
 
                 # 로봇 메시지 표시
-                if is_landmark_action and landmark_name:
-                    self.add_robot_message(
-                        f"Yes, I can go to the {landmark_name}. Should I try?"
-                    )
+                if is_landmark_action and landmark_names:
+                    if len(landmark_names) > 1:
+                        landmarks_text = " and ".join(landmark_names)
+                        self.add_robot_message(
+                            f"I can go to the area between {landmarks_text}. Should I try?"
+                        )
+                    else:
+                        self.add_robot_message(
+                            f"I can go to the {landmark_names[0]}. Should I try?"
+                        )
                 else:
                     self.add_robot_message(
                         f"I understand you want me to {action_description}. "
@@ -566,7 +572,6 @@ class RobotDogUI(QMainWindow):
             QTimer.singleShot(delayed_time, lambda: self.add_robot_message(
                 Messages.SEARCH_COMPLETE.format(self.dog.target)
             ))
-            # TTS도 delayed_time + 100ms 후에 실행
             QTimer.singleShot(delayed_time + 100, lambda: self._delayed_tts(
                 Messages.SEARCH_COMPLETE.format(self.dog.target)
             ))
