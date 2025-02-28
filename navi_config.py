@@ -2,6 +2,8 @@ class NaviConfig:
     landmarks = {
         "banana": (2, 5, 0),
         "refrigerator": (3, 5, 0),
+        "kitchen": (0, 5, 0),
+        "curtain": (-1, 2, 180),
     }
     border_size = 7
     grid_size = 10

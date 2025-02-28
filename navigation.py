@@ -143,16 +143,16 @@ class PathAnimator:
         banana_area = Rectangle(NaviConfig.banana_bottom_left, NaviConfig.banana_width, NaviConfig.banana_height, color='yellow', alpha=0.5, label='⬆️ banana detectable area')
         refrigerator_area = Rectangle(NaviConfig.refrigerator_bottom_left, NaviConfig.refrigerator_width, NaviConfig.refrigerator_height, color='lightgray', alpha=0.5, label='➡️ refrigerator detectable area')
         bottle_area = Rectangle(NaviConfig.bottle_bottom_left, NaviConfig.bottle_width, NaviConfig.bottle_height, color='blue', alpha=0.5, label='⬇️ bottle detectable area')
-        apple_shift_area = Rectangle(NaviConfig.apple_shift_bottom_left, NaviConfig.apple_shift_width, NaviConfig.apple_shift_height, color='green', alpha=0.5, label='⬅️ apple shift detectable area')
-        apple_forward_area = Rectangle(NaviConfig.apple_forward_bottom_left, NaviConfig.apple_forward_width, NaviConfig.apple_forward_height, color='coral', alpha=0.5, label='⬅️ apple forward detectable area')
         sofa_area = Rectangle(NaviConfig.sofa_bottom_left, NaviConfig.sofa_width, NaviConfig.sofa_height, color='purple', alpha=0.5, label='➡️ sofa detectable area')
+        # apple_shift_area = Rectangle(NaviConfig.apple_shift_bottom_left, NaviConfig.apple_shift_width, NaviConfig.apple_shift_height, color='green', alpha=0.5, label='⬅️ apple shift detectable area')
+        # apple_forward_area = Rectangle(NaviConfig.apple_forward_bottom_left, NaviConfig.apple_forward_width, NaviConfig.apple_forward_height, color='coral', alpha=0.5, label='⬅️ apple forward detectable area')
 
         self.ax.add_patch(banana_area)
         self.ax.add_patch(refrigerator_area)
         self.ax.add_patch(bottle_area)
-        self.ax.add_patch(apple_shift_area)
-        self.ax.add_patch(apple_forward_area)
         self.ax.add_patch(sofa_area)
+        # self.ax.add_patch(apple_shift_area)
+        # self.ax.add_patch(apple_forward_area)
 
         for name, (x, y, _) in self.landmarks.items():
             self.ax.plot(x, y, 'ro')
