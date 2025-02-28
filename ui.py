@@ -147,9 +147,9 @@ class SendMessageThread(QThread):
                     assistant = self.dog.ai_client.get_response_landmark_or_general_command(
                         text, 
                         image_bboxes_array, 
-                        image_description, 
-                        image_distances, 
-                        image_detected_objects
+                        image_detected_objects, 
+                        image_distances,
+                        image_description
                     )
                     self.message_data.pending_feedback_action = assistant.action
                     self.confirm_feedback_signal.emit()
@@ -204,7 +204,7 @@ class SendMessageThread(QThread):
 
             if self.dog.ai_client.is_instruction_command(text):
                 print("❗ Executing instruction or command")            
-                assistant = self.dog.ai_client.get_response_landmark_or_general_command(text, image_bboxes_array, image_description, image_distances, image_detected_objects)
+                assistant = self.dog.ai_client.get_response_landmark_or_general_command(text, image_bboxes_array, image_detected_objects, image_distances, image_description)
                 print(f"📋 생성된 액션: {assistant.action}")
                 self.message_data.pending_feedback_action = assistant.action
                 self.confirm_feedback_signal.emit()
