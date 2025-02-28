@@ -285,7 +285,6 @@ class Dog:
                 self.VelocityMove(0.5, 0, 0)
                 self.VelocityMove(0.5, 0, 0)
                 self.VelocityMove(0.5, 0, 0)
-                self.VelocityMove(0.5, 0, 0)
                 print("4. Turn left")
                 self.VelocityMove(0, 0, 1.65)
                 # print("4. Turn right sequence") # extended version of woz

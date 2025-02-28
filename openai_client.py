@@ -183,7 +183,7 @@ class OpenaiClient(AiClientBase):
                 return '2'  # 1 step
         elif self.curr_state in self.bottle_detect_area and object_name == self.env['object3']: # for bottle forward detectable area
             curr_y = self.curr_state[1]
-            if curr_y in [4, 5]:
+            if curr_y in [4, 5, 6]:
                 return '3'  # 2 steps
         elif self.curr_state in self.sofa_detect_area and object_name == self.env['object4']: # for sofa forward detectable area
             curr_x = self.curr_state[0]
@@ -398,57 +398,93 @@ class OpenaiClient(AiClientBase):
         return sentence
 
     def tts(self, text):
-        # Check if TTS is enabled in the environment settings
-        if not self.env.get('tts', True):  # Default to True if not specified
+        # env에서 tts가 false면 바로 리턴
+        if not self.env.get('tts', True):  # tts 설정이 없으면 기본값 True
             return
+            
+        CHUNK = 1024
+        if not isinstance(text, list):
+            text = text
+        else:
+            text = self.parse_action_tts(text)
+
+        # Open `/dev/null` and redirect stderr temporarily
+        devnull = os.open(os.devnull, os.O_WRONLY)
+        original_stderr = os.dup(2)
+        os.dup2(devnull, 2)
 
         try:
-            import pyttsx3
+            with self.client.with_streaming_response.audio.speech.create(
+                model="tts-1",
+                voice="alloy",
+                input=text,
+                response_format="wav"
+            ) as response:
+                container = io.BytesIO(response.read())
+                # Load the entire audio using pydub
+                audio_segment = AudioSegment.from_file(container, format="wav")
+                
+                # 속도
+                faster_segment = speedup(audio_segment, playback_speed=self.env['tts_speed'])
 
-            # Convert text to string if it's a list
-            if isinstance(text, list):
-                text = self.parse_action_tts(text)
+                play(faster_segment)
+        finally:
+            os.dup2(original_stderr, 2)
+            os.close(devnull)
+            os.close(original_stderr)
 
-            # Improve pronunciation
-            text = self.improve_pronunciation(text)
+    # def tts(self, text):
+    #     # Check if TTS is enabled in the environment settings
+    #     if not self.env.get('tts', True):  # Default to True if not specified
+    #         return
 
-            # Initialize pyttsx3 engine
-            engine = pyttsx3.init()
+    #     try:
+    #         import pyttsx3
 
-            # Set speech rate
-            rate = int(200 * self.env.get('tts_speed', 0.8))
-            engine.setProperty('rate', rate)
+    #         # Convert text to string if it's a list
+    #         if isinstance(text, list):
+    #             text = self.parse_action_tts(text)
 
-            # Set volume
-            engine.setProperty('volume', 1.0)
+    #         # Improve pronunciation
+    #         text = self.improve_pronunciation(text)
 
-            # Set voice to English if available
-            voices = engine.getProperty('voices')
-            for voice in voices:
-                if "english" in voice.name.lower() or "en-" in voice.id.lower():
-                    engine.setProperty('voice', voice.id)
-                    break
+    #         # Initialize pyttsx3 engine
+    #         engine = pyttsx3.init()
 
-            # Use the engine to say the text
-            engine.say(text)
-            engine.runAndWait()
+    #         # Set speech rate
+    #         rate = int(200 * self.env.get('tts_speed', 0.8))
+    #         engine.setProperty('rate', rate)
 
-            # Properly stop the engine to avoid callback issues
-            engine.stop()
+    #         # Set volume
+    #         engine.setProperty('volume', 1.0)
 
-            print("[TTSWorker] TTS finished")
-        except Exception as e:
-            print(f"[TTSWorker] Error during TTS: {str(e)}")
+    #         # Set voice to English if available
+    #         voices = engine.getProperty('voices')
+    #         for voice in voices:
+    #             if "english" in voice.name.lower() or "en-" in voice.id.lower():
+    #                 engine.setProperty('voice', voice.id)
+    #                 break
 
-    def improve_pronunciation(self, text):
-        """특정 단어나 구문의 발음을 개선하기 위한 텍스트 전처리 함수"""
-        # Go2를 "Go two"로 변환
-        text = text.replace("Go2", "Go two")
+    #         # Use the engine to say the text
+    #         engine.say(text)
+    #         engine.runAndWait()
+
+    #         # Properly stop the engine to avoid callback issues
+    #         engine.stop()
+
+    #         print("[TTSWorker] TTS finished")
+    #     except Exception as e:
+    #         print(f"[TTSWorker] Error during TTS: {str(e)}")
+
+    # def improve_pronunciation(self, text):
+    #     """특정 단어나 구문의 발음을 개선하기 위한 텍스트 전처리 함수"""
+    #     # Go2를 "Go two"로 변환
+    #     text = text.replace("Go2", "Go two")
         
-        # 필요한 경우 다른 발음 개선 규칙 추가
-        # 예: text = text.replace("특정단어", "발음하기 쉬운 형태")
+    #     # 필요한 경우 다른 발음 개선 규칙 추가
+    #     # 예: text = text.replace("특정단어", "발음하기 쉬운 형태")
         
-        return text
+    #     return text
 
     def close(self):
         self.log_file.close()

@@ -3,18 +3,18 @@ class NaviConfig:
         "banana": (2, 5, 0),
         "refrigerator": (3, 5, 0),
         "kitchen": (0, 5, 0),
-        "curtain": (-1, 2, 180),
+        "curtain": (-1, 4, 180),
     }
     border_size = 7
     grid_size = 10
     obstacles = {
-        "obstacle1": (-7, 1, 0),
-        "obstacle2": (-6, 1, 0),
-        "obstacle3": (-5, 1, 0),
-        "obstacle4": (-4, 1, 0),
-        "obstacle5": (-3, 1, 0),
-        "obstacle6": (-2, 1, 0),
-        "obstacle7": (-1, 1, 0),
+        "obstacle1": (-7, 2, 0),
+        "obstacle2": (-6, 2, 0),
+        "obstacle3": (-5, 2, 0),
+        "obstacle4": (-4, 2, 0),
+        "obstacle5": (-3, 2, 0),
+        "obstacle6": (-2, 2, 0),
+        "obstacle7": (-1, 2, 0),
     }
     # Manually update 'calculate_distance' in openai_client.py
     banana_bottom_left = (-1, -2)
