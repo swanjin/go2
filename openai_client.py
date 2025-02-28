@@ -398,46 +398,47 @@ class OpenaiClient(AiClientBase):
         return sentence
 
     def tts(self, text):
-        # env에서 tts가 false면 바로 리턴
-        if not self.env.get('tts', True):  # tts 설정이 없으면 기본값 True
+        # Check if TTS is enabled in the environment settings
+        if not self.env.get('tts', True):  # Default to True if not specified
             return
-            
+
         try:
             import pyttsx3
-            
-            # 텍스트가 리스트인 경우 문자열로 변환
+
+            # Convert text to string if it's a list
             if isinstance(text, list):
                 text = self.parse_action_tts(text)
-            
-            # 발음 개선을 위한 텍스트 전처리
+
+            # Improve pronunciation
             text = self.improve_pronunciation(text)
-            
-            # pyttsx3 엔진 초기화
+
+            # Initialize pyttsx3 engine
             engine = pyttsx3.init()
-            
-            # 음성 속도 설정 (기본값: 200, 낮을수록 느림)
-            # env에서 tts_speed를 가져오되, 기본값은 0.8로 설정 (더 느리게)
+
+            # Set speech rate
             rate = int(200 * self.env.get('tts_speed', 0.8))
             engine.setProperty('rate', rate)
-            
-            # 음량 설정 (0.0 ~ 1.0)
+
+            # Set volume
             engine.setProperty('volume', 1.0)
-            
-            # 영어 음성으로 설정 (가능한 경우)
+
+            # Set voice to English if available
             voices = engine.getProperty('voices')
             for voice in voices:
                 if "english" in voice.name.lower() or "en-" in voice.id.lower():
                     engine.setProperty('voice', voice.id)
                     break
-            
-            # 텍스트 읽기
+
+            # Use the engine to say the text
             engine.say(text)
             engine.runAndWait()
-            
+
+            # Properly stop the engine to avoid callback issues
+            engine.stop()
+
             print("[TTSWorker] TTS finished")
         except Exception as e:
             print(f"[TTSWorker] Error during TTS: {str(e)}")
-            # 오류가 발생해도 TTS가 완료된 것으로 처리하여 UI가 계속 작동하도록 함
 
     def improve_pronunciation(self, text):
         """특정 단어나 구문의 발음을 개선하기 위한 텍스트 전처리 함수"""
