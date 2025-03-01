@@ -3,6 +3,10 @@ import matplotlib.pyplot as plt
 from matplotlib.patches import Polygon, Rectangle
 from matplotlib.animation import FuncAnimation
 from navi_config import NaviConfig
+import yaml
+
+import utils
+
 
 class NaviModel:
     @staticmethod
@@ -140,10 +144,10 @@ class PathAnimator:
         self.ax.axhline(y=0, color='black', linewidth=0.5)
         self.ax.axvline(x=0, color='black', linewidth=0.5)
 
-        banana_area = Rectangle(NaviConfig.banana_bottom_left, NaviConfig.banana_width, NaviConfig.banana_height, color='yellow', alpha=0.5, label='⬆️ banana detectable area')
-        refrigerator_area = Rectangle(NaviConfig.refrigerator_bottom_left, NaviConfig.refrigerator_width, NaviConfig.refrigerator_height, color='lightgray', alpha=0.5, label='➡️ refrigerator detectable area')
-        bottle_area = Rectangle(NaviConfig.bottle_bottom_left, NaviConfig.bottle_width, NaviConfig.bottle_height, color='blue', alpha=0.5, label='⬇️ bottle detectable area')
-        sofa_area = Rectangle(NaviConfig.sofa_bottom_left, NaviConfig.sofa_width, NaviConfig.sofa_height, color='purple', alpha=0.5, label='➡️ sofa detectable area')
+        banana_area = Rectangle(NaviConfig.banana_bottom_left, NaviConfig.banana_width, NaviConfig.banana_height, color='yellow', alpha=0.5, label='⬆️ banana')
+        refrigerator_area = Rectangle(NaviConfig.refrigerator_bottom_left, NaviConfig.refrigerator_width, NaviConfig.refrigerator_height, color='lightgray', alpha=0.5, label='➡️ refrigerator')
+        bottle_area = Rectangle(NaviConfig.bottle_bottom_left, NaviConfig.bottle_width, NaviConfig.bottle_height, color='blue', alpha=0.5, label='⬇️ bottle')
+        sofa_area = Rectangle(NaviConfig.sofa_bottom_left, NaviConfig.sofa_width, NaviConfig.sofa_height, color='purple', alpha=0.5, label='➡️ sofa')
         # apple_shift_area = Rectangle(NaviConfig.apple_shift_bottom_left, NaviConfig.apple_shift_width, NaviConfig.apple_shift_height, color='green', alpha=0.5, label='⬅️ apple shift detectable area')
         # apple_forward_area = Rectangle(NaviConfig.apple_forward_bottom_left, NaviConfig.apple_forward_width, NaviConfig.apple_forward_height, color='coral', alpha=0.5, label='⬅️ apple forward detectable area')
 
@@ -253,13 +257,17 @@ class Mapping:
                 self.obstacles[f"border_{idx}"] = (point[0], point[1], 0)
 
 if __name__ == "__main__":
+    # Load configuration from env.yml
+    with open('env.yml', 'r') as file:
+        config = yaml.safe_load(file)
+    
     # Initialize Mapping
     mapping = Mapping()
 
     # Run simulation with obstacle avoidance
     navi_model = NaviModel()
-    start = (-2, -2, 90)
-    target = (-2, -2, 90)
+    start = utils.string_to_tuple(config['curr_state'])
+    target = start
     path_to_target = navi_model.navigate_to(start, target, mapping.obstacles)
     print("Path to target:", path_to_target)
 
