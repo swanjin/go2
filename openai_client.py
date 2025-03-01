@@ -39,7 +39,7 @@ class OpenaiClient(AiClientBase):
 
         # Specify detectable areas
         self.banana_detect_area = self.detectable_area(range(NaviConfig.banana_bottom_left[0], NaviConfig.banana_bottom_left[0]+NaviConfig.banana_width+1), range(NaviConfig.banana_bottom_left[1], NaviConfig.banana_bottom_left[1]+NaviConfig.banana_height+1), 0)    
-        self.refrigerator_detect_area = self.detectable_area(range(NaviConfig.refrigerator_bottom_left[0], NaviConfig.refrigerator_bottom_left[0]+NaviConfig.refrigerator_width+1), range(NaviConfig.refrigerator_bottom_left[1], NaviConfig.refrigerator_bottom_left[1]+NaviConfig.refrigerator_height+1), 90)
+        self.fridge_detect_area = self.detectable_area(range(NaviConfig.fridge_bottom_left[0], NaviConfig.fridge_bottom_left[0]+NaviConfig.fridge_width+1), range(NaviConfig.fridge_bottom_left[1], NaviConfig.fridge_bottom_left[1]+NaviConfig.fridge_height+1), 90)
         self.bottle_detect_area = self.detectable_area(range(NaviConfig.bottle_bottom_left[0], NaviConfig.bottle_bottom_left[0]+NaviConfig.bottle_width+1), range(NaviConfig.bottle_bottom_left[1], NaviConfig.bottle_bottom_left[1]+NaviConfig.bottle_height+1), 180)
         self.sofa_detect_area = self.detectable_area(range(NaviConfig.sofa_bottom_left[0], NaviConfig.sofa_bottom_left[0]+NaviConfig.sofa_width+1), range(NaviConfig.sofa_bottom_left[1], NaviConfig.sofa_bottom_left[1]+NaviConfig.sofa_height+1), 90)
         # self.apple_shift_area = self.detectable_area(range(NaviConfig.apple_shift_bottom_left[0], NaviConfig.apple_shift_bottom_left[0]+NaviConfig.apple_shift_width+1), range(NaviConfig.apple_shift_bottom_left[1], NaviConfig.apple_shift_bottom_left[1]+NaviConfig.apple_shift_height+1), 270)
@@ -48,7 +48,7 @@ class OpenaiClient(AiClientBase):
         # Combine all detectable areas into a single set to remove duplicates
         self.all_detectable_areas = list(set(
             self.banana_detect_area +
-            self.refrigerator_detect_area +
+            self.fridge_detect_area +
             self.bottle_detect_area +
             self.sofa_detect_area
             # self.apple_shift_area +
@@ -127,7 +127,7 @@ class OpenaiClient(AiClientBase):
         
         self.check_and_update_analysis(
             image_analysis, 
-            self.refrigerator_detect_area, 
+            self.fridge_detect_area, 
             self.env['object2']
         )
         
@@ -175,7 +175,7 @@ class OpenaiClient(AiClientBase):
                 return '3'  # 2 steps
             else:  # curr_y in [3]
                 return '2'  # 1 step
-        elif self.curr_state in self.refrigerator_detect_area and object_name == self.env['object2']: # for refrigerator forward detectable area
+        elif self.curr_state in self.fridge_detect_area and object_name == self.env['object2']: # for fridge forward detectable area
             curr_x = self.curr_state[0]
             if curr_x in [-2, -1, 0]:
                 return '4'  # 2 steps
@@ -249,7 +249,7 @@ class OpenaiClient(AiClientBase):
         try:
             if self.curr_state in self.banana_detect_area:
                 distance_value = float(distances[detected_objects.index(self.env['object1'])])
-            elif self.curr_state in self.refrigerator_detect_area:
+            elif self.curr_state in self.fridge_detect_area:
                 distance_value = float(distances[detected_objects.index(self.env['object2'])])
             elif self.curr_state in self.bottle_detect_area:
                 distance_value = float(distances[detected_objects.index(self.env['object3'])])
@@ -511,9 +511,9 @@ class OpenaiClient(AiClientBase):
             "- 'can you turn around' -> true\n"
             "- 'move forward' -> true\n"
             "- 'the apple (or target) is behind you' -> true\n"
-            "- 'get close to the refrigerator (or other landmark)' -> true\n"
+            "- 'get close to the fridge (or other landmark)' -> true\n"
             "- 'go straight as far as you can' -> true\n"
-            "- 'I think the apple is between banana and refrigerator' -> true\n"
+            "- 'I think the apple is between banana and fridge' -> true\n"
             "- 'the target is located near the sofa' -> true\n"
             "- 'can you see the apple?' -> false\n"
             "- 'what is in front of you?' -> false"
@@ -622,7 +622,7 @@ class OpenaiClient(AiClientBase):
             "Examples:\n"
             "- 'can you go to the coffee machine?' -> coffee machine\n"
             "- 'move to the coffee maker' -> coffee machine\n"
-            "- 'head towards the fridge' -> refrigerator\n"
+            "- 'head towards the fridge' -> fridge\n"
             "- 'go to the sofa' -> sofa\n"
             "- 'move to the table' -> none"
         )
@@ -654,8 +654,8 @@ class OpenaiClient(AiClientBase):
             "If no landmarks are mentioned, return 'none'.\n"
             "Examples:\n"
             "- 'can you go to the coffee machine?' -> coffee machine\n"
-            "- 'the apple is between the refrigerator and banana' -> refrigerator, banana\n"
-            "- 'move to the area between the sofa and refrigerator' -> sofa, refrigerator\n"
+            "- 'the apple is between the fridge and banana' -> fridge, banana\n"
+            "- 'move to the area between the sofa and fridge' -> sofa, fridge\n"
             "- 'go to the table' -> none"
         )
         

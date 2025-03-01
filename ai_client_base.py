@@ -186,7 +186,7 @@ class AiClientBase:
         {self.get_obstacles()}
         """)
 
-    def response_format_landmark_command(self): # landmark command: go close to the refrigerator
+    def response_format_landmark_command(self): # landmark command: go close to the fridge
         return (f"""        
         Rules:
         1. Target state within grid bounds, not an obstacle.

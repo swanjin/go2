@@ -1,7 +1,7 @@
 class NaviConfig:
     landmarks = {
         "banana": (2, 4, 0),
-        "refrigerator": (3, 4, 0),
+        "fridge": (3, 4, 0),
         "kitchen": (0, 4, 0),
         "curtain": (-1, 3, 180),
     }
@@ -17,9 +17,9 @@ class NaviConfig:
     banana_bottom_left = (-1, -3)
     banana_width = 2
     banana_height = 5
-    refrigerator_bottom_left = (-1, 2)
-    refrigerator_width = 2
-    refrigerator_height = 2
+    fridge_bottom_left = (-1, 2)
+    fridge_width = 2
+    fridge_height = 2
     bottle_bottom_left = (1, 3)
     bottle_width = 3
     bottle_height = 1
