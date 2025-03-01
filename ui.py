@@ -799,7 +799,7 @@ class SearchThread(QThread):
                                 QImage.Format.Format_RGB888)
                 
                 formatted_action = self.format_actions(response.action)
-                combined_message = f"I'm going to {formatted_action}. {response.reason}"
+                combined_message = f"{response.reason}"
 
                 if self.dog.env["interactive"]:
                     self.dog.tts_finished_event.clear()

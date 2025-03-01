@@ -16,7 +16,8 @@ class AiClientBase:
         self.env = env
         self.image_counter = 0
         self.is_first_response = True
-        self.border_points = Mapping().generate_border_points(NaviConfig.border_size)  # Assuming border_size is 7
+        self.border_points = Mapping().generate_border_points(NaviConfig.border_size)
+        self.obstacle_points = NaviConfig.obstacles.values()
 
     def initial_prompt(self, curr_state):
         return (f"""
@@ -26,9 +27,6 @@ class AiClientBase:
         - orientation is the facing direction in degrees.
 
         Your task is to search for the target object, {self.env['target']}. Current state is {curr_state}. You can only see objects in your facing direction and must adjust your orientation to face the target while searching.
-
-        You should avoid obstacles.
-        {self.get_obstacles()}
         """)
     
     def get_action_dictionary(self):
@@ -47,6 +45,14 @@ class AiClientBase:
     
     def get_new_state(self):
         return ("""
+        Obstacles:
+        You should avoid the following obstacles:
+        {self.get_obstacles()}
+
+        Allowed Coordinates:
+        You can navigate to the following coordinates:
+        {self.list_inner_coordinates()}
+        
         Orientation determines all directional movements. Use the following orientation mappings:
         - 0° or 360° (North): Facing the positive Y-axis.
         - 90° or -270° (East): Facing the positive X-axis.
@@ -71,7 +77,7 @@ class AiClientBase:
         Position and orientation remain unchanged.
 
         Verification Step:
-        - If the action needs to be executed several times, the new state must be updated for each action.
+        - If the Action needs to be executed several times, the New State must be updated for each action.
         - Confirm each x or y coordinate change reflects the intended movement or shift by double-checking against the table above to ensure consistency with the specified orientation.
         """)
     
@@ -83,15 +89,29 @@ class AiClientBase:
         border_lines = ", ".join([f"({x}, {y})" for x, y in self.border_points])
         
         # Dynamically fetch all obstacles from NaviConfig
-        obstacles = ", ".join([f"({coords[0]}, {coords[1]})" for coords in NaviConfig.obstacles.values()])
+        obstacles = ", ".join([f"({coords[0]}, {coords[1]})" for coords in self.obstacle_points])
         
-        return (f"""
-        Obstacles:
-        1. Border lines
-        {border_lines}
-        2. Box
-        {obstacles}
-        """)
+        return (f"""{border_lines}, {obstacles}""")
+
+    def list_inner_coordinates(self):
+        # Get the border size from NaviConfig
+        border_size = NaviConfig.border_size
+
+        # Get the obstacle coordinates
+        obstacle_coords = set(self.obstacle_points)
+
+        # List all coordinates within the border, excluding obstacles
+        inner_coords = [
+            (x, y) for x in range(-border_size + 1, border_size)
+            for y in range(-border_size, border_size + 1)
+            if (x, y) not in obstacle_coords
+        ]
+
+        # Format the inner coordinates as a string
+        inner_coords_str = ", ".join([f"({x}, {y})" for x, y in inner_coords])
+
+        # Return the prompt with the allowed coordinates
+        return f"""{inner_coords_str}"""
 
     def prompt_auto(self, curr_state):
         stop_target = self.env.get('stop_target')
@@ -103,6 +123,9 @@ class AiClientBase:
         return (f"""
         {self.initial_prompt(curr_state)}
 
+        ### Instructions for New State:
+        {self.get_new_state()}
+        
         ### Instructions for Action:
         {self.get_action_dictionary()}
 
@@ -130,27 +153,29 @@ class AiClientBase:
             5. Based on these checks, confirm which subcase (1.1, 1.2, 1.3, or 1.4) applies and proceed with the specified action.
 
         #### Case 2: The {self.env['target']} is **not detected** in the 'Detection' section.
-        - **Subcase 2.1**: Neither {self.env['object1']}, {self.env['object2']}, {self.env['object3']}, nor {self.env['object4']} is detected in the 'Detection' section.
-            - **Action**: Rotate once to explore a different orientation without changing your position (x, y). If the previous round involved turning right once, do not turn left this round, and vice versa.
-
-        - **Subcase 2.2**: Either {self.env['object1']}, {self.env['object2']}, {self.env['object3']} or {self.env['object4']} is detected in the 'Detection' section, and its distance is greater than the threshold ('{self.env['stop_landmark']}').
+        - **Subcase 2.1**: The {self.env['object2']} is detected in the 'Detection' section.
             - **Action**: [IMPORTANT] Strictly observe the following rules:
-                - If the distance to the detected object is between {self.env['stop_landmark']} and {(self.env['stop_landmark']+self.env['threshold_range'])} meters, move forward **once**.
-                - If the distance to the detected object is greater than {(self.env['stop_landmark']+self.env['threshold_range'])} meters, move forward **twice**.
+                - If the distance to the detected object is greater than {(self.env['stop_landmark']+(self.env['threshold_range']*6))} meters, move forward **seven times**.
+                - If the distance to the detected object is greater than {(self.env['stop_landmark']+(self.env['threshold_range']*5))} meters and less than {(self.env['stop_landmark']+(self.env['threshold_range']*6))} meters, move forward **six times**.
+                - If the distance to the detected object is greater than {(self.env['stop_landmark']+(self.env['threshold_range']*4))} meters and less than {(self.env['stop_landmark']+(self.env['threshold_range']*5))} meters, move forward **five times**.
+                - If the distance to the detected object is greater than {(self.env['stop_landmark']+(self.env['threshold_range']*3))} meters and less than {(self.env['stop_landmark']+(self.env['threshold_range']*4))} meters, move forward **four times**.
+                - If the distance to the detected object is greater than {(self.env['stop_landmark']+(self.env['threshold_range']*2))} meters and less than {(self.env['stop_landmark']+(self.env['threshold_range']*3))} meters, move forward **three times**.
+                - If the distance to the detected object is greater than {(self.env['stop_landmark']+(self.env['threshold_range']))} meters and less than {(self.env['stop_landmark']+(self.env['threshold_range']*2))} meters, move forward **two times**.
+                - If the distance to the detected object is less than {self.env['stop_landmark']} meters, rotate once to explore a different orientation without changing your position (x, y). If the previous round involved turning right once, do not turn left this round, and vice versa.
 
-        - **Subcase 2.3**: Either {self.env['object1']}, {self.env['object2']}, {self.env['object3']}, or {self.env['object4']} is detected in the 'Detection' section, and its distance is **less than** the threshold ('{self.env['stop_landmark']}').
-            - **Action**: Rotate once to explore a different orientation without changing your position (x, y). If the previous round involved turning right once, do not turn left this round, and vice versa.
-        
-        - **Verification Step for Case 2**:
-            - Ensure the following before proceeding:
-            1. Have you checked whether the {self.env['target']} is **not detected** in the 'Detection' section?
-            2. Have you confirmed the presence or absence of {self.env['object1']}, {self.env['object2']}, {self.env['object3']}, or {self.env['object4']} in the 'Detection' section?
-            3. If either {self.env['object1']}, {self.env['object2']}, {self.env['object3']}, or {self.env['object4']} is detected:
-                - Have you measured the distance accurately against the threshold ('{self.env['stop_landmark']}')?
-            4. Based on these checks, confirm which subcase (2.1, 2.2, or 2.3) applies and proceed with the specified action.
+        - **Subcase 2.2**: Either {self.env['object3']}, {self.env['object4']}, or {self.env['object5']} is detected in the 'Detection' section.
+            - **Action**: [IMPORTANT] Strictly observe the following rules:
+                - If the distance to the detected object is greater than {(self.env['stop_landmark']+self.env['threshold_range'])*2} meters, move forward **two times**.
+                - If the distance to the detected object is greater than {(self.env['stop_landmark']+self.env['threshold_range'])} meters and less than {(self.env['stop_landmark']+self.env['threshold_range'])*2} meters, move forward **one time**.
+                - If the distance to the detected object is less than {self.env['stop_landmark']}, rotate once to explore a different orientation without changing your position (x, y). If the previous round involved turning right once, do not turn left this round, and vice versa.
 
-        ### Instructions for New state:
-        {self.get_new_state()}
+        - **Subcase 2.3**: Either {self.env['object6']} or {self.env['object7']} is detected in the 'Detection' section.
+            - **Action**: [IMPORTANT] Strictly observe the following rules:
+                - Rotate once to explore a different orientation without changing your position (x, y). If the previous round involved turning right once, do not turn left this round, and vice versa.
+
+        - **Subcase 2.4**: None of {self.env['object2']}, {self.env['object3']}, {self.env['object4']}, {self.env['object5']}, {self.env['object6']}, or {self.env['object7']} are detected in the 'Detection' section.
+            - **Action**: [IMPORTANT] Strictly observe the following rules:
+                - Rotate once to explore a different orientation without changing your position (x, y). If the previous round involved turning right once, do not turn left this round, and vice versa.
         """)
 
     def response_format_auto(self):
@@ -162,14 +187,14 @@ class AiClientBase:
         - **New State**: (x, y, orientation)
         - **Action**: action1, action2, ...
         - **Reason**: 
-          - If neither {self.env['object1']}, {self.env['object2']}, {self.env['object3']}, nor {self.env['object4']} is detected, never metion any of them but include a sentece which has a similar meaning to 'I looked around, but I don't see an {self.env['target']}, so I'm rotating to explore a different orientation.' in your reasoning.
-          - If {self.env['object1']} or {self.env['object2']} is found, assess whether the space can be best described as a kitchen, living room, or office space (choose only one), and mention that while making an everyday contextual association with {self.env['target']}.
-          - If {self.env['object3']} is found, associate it with the {self.env['target']} as something to eat or drink.
-          - If {self.env['object4']} is found, assess whether the space can be best described as a 'kitchen', 'open living room', or 'office space' (choose only one), and mention that while making an everyday contextual association with {self.env['target']}.
-          - Explain your reasoning in one concise sentence.
+          - If none of {self.env['object2']}, {self.env['object3']}, {self.env['object4']}, {self.env['object5']}, {self.env['object6']}, or {self.env['object7']} are detected, don't mention them. Instead, say something like, 'I looked around, but I don't see {self.env['target']}, so I'll turn to look in a different direction.
+          - If {self.env['object2']} or {self.env['object3']} is found, this is a kitchen and mention it while making an everyday contextual association with {self.env['target']}.
+          - If {self.env['object4']} and {self.env['object5']} are found, there might be more food around in the living room.
+          - If {self.env['object6']} is found, it seems like an office space, and {self.env['target']} wouldn't typically be here.
+          - If {self.env['object7']} is found, it suggests this is a living room, not the kind of place where you'd expect to find {self.env['target']}.
+          - Explain your reasoning concisely within two sentences.
           - Do not mention case numbers, subcase numbers, section names or distances.
           - If referring to the {self.env['target']} position in the image, use 'left', 'middle', or 'right' without mentioning 'third'.
-
         """)
 
     def prompt_landmark_or_non_command(self, curr_state):
@@ -213,7 +238,7 @@ class AiClientBase:
         return (f"""
         {self.initial_prompt(curr_state)}
 
-        ### Instructions for Action/New state:
+        ### Instructions for Action/New State:
         {self.get_action_dictionary()}\n\n
         {self.get_new_state()}
         """)
@@ -255,6 +280,8 @@ class AiClientBase:
     def close(self):
         pass
 
+
+
 @dataclass
 class ResponseMsg:
     initial_state: tuple
@@ -288,3 +315,4 @@ class ResponseMsg:
                 reason="Parse error"
             )
         return ResponseMsg(initial_state, new_state, actions, reason)
+        

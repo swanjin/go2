@@ -38,21 +38,23 @@ class OpenaiClient(AiClientBase):
         self.is_landmark_state = None
 
         # Specify detectable areas
-        self.banana_detect_area = self.detectable_area(range(NaviConfig.banana_bottom_left[0], NaviConfig.banana_bottom_left[0]+NaviConfig.banana_width+1), range(NaviConfig.banana_bottom_left[1], NaviConfig.banana_bottom_left[1]+NaviConfig.banana_height+1), 0)    
-        self.fridge_detect_area = self.detectable_area(range(NaviConfig.fridge_bottom_left[0], NaviConfig.fridge_bottom_left[0]+NaviConfig.fridge_width+1), range(NaviConfig.fridge_bottom_left[1], NaviConfig.fridge_bottom_left[1]+NaviConfig.fridge_height+1), 90)
-        self.bottle_detect_area = self.detectable_area(range(NaviConfig.bottle_bottom_left[0], NaviConfig.bottle_bottom_left[0]+NaviConfig.bottle_width+1), range(NaviConfig.bottle_bottom_left[1], NaviConfig.bottle_bottom_left[1]+NaviConfig.bottle_height+1), 180)
-        self.sofa_detect_area = self.detectable_area(range(NaviConfig.sofa_bottom_left[0], NaviConfig.sofa_bottom_left[0]+NaviConfig.sofa_width+1), range(NaviConfig.sofa_bottom_left[1], NaviConfig.sofa_bottom_left[1]+NaviConfig.sofa_height+1), 90)
-        # self.apple_shift_area = self.detectable_area(range(NaviConfig.apple_shift_bottom_left[0], NaviConfig.apple_shift_bottom_left[0]+NaviConfig.apple_shift_width+1), range(NaviConfig.apple_shift_bottom_left[1], NaviConfig.apple_shift_bottom_left[1]+NaviConfig.apple_shift_height+1), 270)
-        # self.apple_forward_area = self.detectable_area(range(NaviConfig.apple_forward_bottom_left[0], NaviConfig.apple_forward_bottom_left[0]+NaviConfig.apple_forward_width+1), range(NaviConfig.apple_forward_bottom_left[1], NaviConfig.apple_forward_bottom_left[1]+NaviConfig.apple_forward_height+1), 270)
+        self.snack_area1 = self.detectable_area(range(NaviConfig.snack1_bottom_left[0], NaviConfig.snack1_bottom_left[0]+NaviConfig.snack1_width+1), range(NaviConfig.snack1_bottom_left[1], NaviConfig.snack1_bottom_left[1]+NaviConfig.snack1_height+1), 90)
+        self.sofa_area = self.detectable_area(range(NaviConfig.sofa_bottom_left[0], NaviConfig.sofa_bottom_left[0]+NaviConfig.sofa_width+1), range(NaviConfig.sofa_bottom_left[1], NaviConfig.sofa_bottom_left[1]+NaviConfig.sofa_height+1), 90)
+        self.desk_area = self.detectable_area(range(NaviConfig.desk_bottom_left[0], NaviConfig.desk_bottom_left[0]+NaviConfig.desk_width+1), range(NaviConfig.desk_bottom_left[1], NaviConfig.desk_bottom_left[1]+NaviConfig.desk_height+1), 180)
+        self.tv_area = self.detectable_area(range(NaviConfig.tv_bottom_left[0], NaviConfig.tv_bottom_left[0]+NaviConfig.tv_width+1), range(NaviConfig.tv_bottom_left[1], NaviConfig.tv_bottom_left[1]+NaviConfig.tv_height+1), 270)
+        self.banana_area = self.detectable_area(range(NaviConfig.banana_bottom_left[0], NaviConfig.banana_bottom_left[0]+NaviConfig.banana_width+1), range(NaviConfig.banana_bottom_left[1], NaviConfig.banana_bottom_left[1]+NaviConfig.banana_height+1), 0)    
+        self.fridge_area = self.detectable_area(range(NaviConfig.fridge_bottom_left[0], NaviConfig.fridge_bottom_left[0]+NaviConfig.fridge_width+1), range(NaviConfig.fridge_bottom_left[1], NaviConfig.fridge_bottom_left[1]+NaviConfig.fridge_height+1), 90)
+        self.snack_area2 = self.detectable_area(range(NaviConfig.snack2_bottom_left[0], NaviConfig.snack2_bottom_left[0]+NaviConfig.snack2_width+1), range(NaviConfig.snack2_bottom_left[1], NaviConfig.snack2_bottom_left[1]+NaviConfig.snack2_height+1), 180)
 
         # Combine all detectable areas into a single set to remove duplicates
         self.all_detectable_areas = list(set(
-            self.banana_detect_area +
-            self.fridge_detect_area +
-            self.bottle_detect_area +
-            self.sofa_detect_area
-            # self.apple_shift_area +
-            # self.apple_forward_area +
+            self.snack_area1 +
+            self.sofa_area +
+            self.desk_area +
+            self.tv_area +
+            self.banana_area +
+            self.fridge_area +
+            self.snack_area2
         ))
 
         self.client = OpenAI(api_key=key)
@@ -118,89 +120,95 @@ class OpenaiClient(AiClientBase):
     
     def analyze_image(self, image_pil):
         image_analysis = self.vision_model.describe_image(image_pil)
-        
-        self.check_and_update_analysis(
-            image_analysis, 
-            self.banana_detect_area, 
-            self.env['object1']
-        )
-        
-        self.check_and_update_analysis(
-            image_analysis, 
-            self.fridge_detect_area, 
-            self.env['object2']
-        )
-        
-        self.check_and_update_analysis(
-            image_analysis, 
-            self.bottle_detect_area, 
-            self.env['object3']
-        )
 
         self.check_and_update_analysis(
             image_analysis, 
-            self.sofa_detect_area, 
+            self.snack_area1, 
             self.env['object4']
         )
-        # self.check_and_update_analysis(
-        #     image_analysis, 
-        #     self.apple_shift_area, 
-        #     self.env['target']
-        # )
-        # self.check_and_update_analysis(
-        #     image_analysis, 
-        #     self.apple_forward_area, 
-        #     self.env['target']
-        # )
+        self.check_and_update_analysis(
+            image_analysis, 
+            self.sofa_area, 
+            self.env['object5']
+        )
+        self.check_and_update_analysis(
+            image_analysis, 
+            self.desk_area, 
+            self.env['object6']
+        )
+        self.check_and_update_analysis(
+            image_analysis, 
+            self.tv_area, 
+            self.env['object7']
+        )
+        self.check_and_update_analysis(
+            image_analysis, 
+            self.banana_area, 
+            self.env['object2']
+        )
+        self.check_and_update_analysis(
+            image_analysis, 
+            self.fridge_area, 
+            self.env['object3']
+        )
+        self.check_and_update_analysis(
+            image_analysis, 
+            self.snack_area2, 
+            self.env['object4']
+        )
 
         return image_analysis.frame, image_analysis.detected_objects, image_analysis.distances, image_analysis.description
 
     def check_and_update_analysis(self, image_analysis, detectable_area, object_name):
         if self.curr_state in detectable_area and object_name not in image_analysis.detected_objects:
             distance = self.calculate_distance(object_name)
-            # if self.curr_state in self.apple_shift_area: 
-            #     description = f"You detected {object_name} on the right side of the frame with a distance of {distance} meters."
-            # else:
             description = f"You detected {object_name} with a distance of {distance} meters."
             image_analysis.detected_objects.append(object_name)
             image_analysis.distances.append(distance)
             image_analysis.description.append(description)
 
     def calculate_distance(self, object_name):
-        if self.curr_state in self.banana_detect_area and object_name == self.env['object1']: # for banana forward detectable area
-            curr_y = self.curr_state[1]
-            if curr_y in [-2, -1]:
-                return '4'  # 2 steps
-            elif curr_y in [0, 1, 2]:
-                return '3'  # 2 steps
-            else:  # curr_y in [3]
-                return '2'  # 1 step
-        elif self.curr_state in self.fridge_detect_area and object_name == self.env['object2']: # for fridge forward detectable area
-            curr_x = self.curr_state[0]
-            if curr_x in [-2, -1, 0]:
-                return '4'  # 2 steps
-            else:  # curr_x in [1]
-                return '2'  # 1 step
-        elif self.curr_state in self.bottle_detect_area and object_name == self.env['object3']: # for bottle forward detectable area
-            curr_y = self.curr_state[1]
-            if curr_y in [4, 5, 6]:
-                return '3'  # 2 steps
-        elif self.curr_state in self.sofa_detect_area and object_name == self.env['object4']: # for sofa forward detectable area
-            curr_x = self.curr_state[0]
+        curr_x = self.curr_state[0]
+        curr_y = self.curr_state[1]
+        if self.curr_state in self.snack_area1 and object_name == self.env['object4']:
             if curr_x in [-3, -2]:
-                return '4'  # 2 steps
-            else:  # curr_x == -1
-                return '2'  # 1 step
-        # elif self.curr_state in self.apple_shift_area and object_name == self.env['target']: # for apple shift detectable area
-        #     curr_y = self.curr_state[1]
-        #     if curr_y in [1, 2]:
-        #         return '3'  # 1 steps
-        # elif self.curr_state in self.apple_forward_area and object_name == self.env['target']: # for apple forward detectable area
-        #     curr_x = self.curr_state[0]
-        #     if curr_x in [3, 4]:
-        #         return '3'  # 2 steps
-        #     elif curr_x in [2]:
-        #         return '2'  # 2 step
+                return '3.1'  # 2 steps
+            elif curr_x in [-1]:
+                return '2.6'  # 1 steps
+        elif self.curr_state in self.sofa_area and object_name == self.env['object5']:
+            if curr_x in [-2]:
+                return '3.1'  
+            elif curr_x in [-1]:
+                return '2.6'
+        elif self.curr_state in self.desk_area and object_name == self.env['object6']:
+            if curr_y in [-3,-2]:
+                return '1'
+        elif self.curr_state in self.tv_area and object_name == self.env['object7']:
+            if curr_x in [-1,0]:
+                return '1'
+        elif self.curr_state in self.banana_area and object_name == self.env['object2']:
+            if curr_y in [-3]:
+                return '5.1'  # 7 steps
+            elif curr_y in [-2]:
+                return '4.6'  # 6 steps
+            elif curr_y in [-1]:
+                return '4.1'  # 5 steps
+            elif curr_y in [0]:
+                return '3.6'  # 4 steps
+            elif curr_y in [1]:
+                return '3.1'  # 3 steps
+            elif curr_y in [2]:
+                return '2.6'  # 2 steps
+        elif self.curr_state in self.fridge_area and object_name == self.env['object3']:
+            if curr_x in [-1, 0]:
+                return '3.1'  # 2 steps
+            elif curr_x in [1]:
+                return '2.6'  # 1 steps
+        elif self.curr_state in self.snack_area2 and object_name == self.env['object4']:
+            if curr_y in [4]:
+                return '3.1'  # 2 steps
+            elif curr_y in [3]:
+                return '2.6'  # 1 steps
 
     def append_message(self, message, message_role: str, message_content: str):
         message.append({"role": message_role, "content": message_content})
@@ -247,38 +255,59 @@ class OpenaiClient(AiClientBase):
             return action
 
         try:
-            if self.curr_state in self.banana_detect_area:
-                distance_value = float(distances[detected_objects.index(self.env['object1'])])
-            elif self.curr_state in self.fridge_detect_area:
-                distance_value = float(distances[detected_objects.index(self.env['object2'])])
-            elif self.curr_state in self.bottle_detect_area:
-                distance_value = float(distances[detected_objects.index(self.env['object3'])])
-            elif self.curr_state in self.sofa_detect_area:
+            if self.curr_state in self.snack_area1:
                 distance_value = float(distances[detected_objects.index(self.env['object4'])])
-            # elif self.curr_state in self.apple_shift_area:
-            #     distance_value = float(distances[detected_objects.index(self.env['target'])])
-            # elif self.curr_state in self.apple_forward_area:
-            #     distance_value = float(distances[detected_objects.index(self.env['target'])])
+            elif self.curr_state in self.sofa_area:
+                distance_value = float(distances[detected_objects.index(self.env['object5'])])
+            elif self.curr_state in self.desk_area:
+                distance_value = float(distances[detected_objects.index(self.env['object6'])])
+            elif self.curr_state in self.tv_area:
+                distance_value = float(distances[detected_objects.index(self.env['object7'])])
+            elif self.curr_state in self.banana_area:
+                distance_value = float(distances[detected_objects.index(self.env['object2'])])
+            elif self.curr_state in self.fridge_area:
+                distance_value = float(distances[detected_objects.index(self.env['object3'])])
+            elif self.curr_state in self.snack_area2:
+                distance_value = float(distances[detected_objects.index(self.env['object4'])])
 
         except (ValueError, TypeError, IndexError) as e:
             print(f"Error converting distance to float: {e}")
             return action
 
-        # if self.curr_state in self.apple_shift_area:
-        #     action = ['shift right'] # 처음 apple_shift_area에 위치했는데, action을 shift right 안 하면 reason이 교정된 shift right 헹동이랑 match 안되는 버그 있음
-        # elif self.curr_state in self.apple_forward_area and 'left' in description[detected_objects.index(self.env['target'])]:
-        #     action = ['shift left']
-        # elif self.curr_state in self.apple_forward_area and 'right' in description[detected_objects.index(self.env['target'])]:
-        #     action = ['shift right']
-        # else:
-        stop_hurdle = float(self.env.get('stop_target', 0)) if self.env['target'] in detected_objects else float(self.env.get('stop_landmark', 0))
+        stop_hurdle = float(self.env.get('stop_landmark', 0))
+        threshold_range = float(self.env['threshold_range'])
 
-        if distance_value < stop_hurdle:
-            action = ['stop'] if self.env['target'] in detected_objects else ['turn right']
-        elif distance_value < (stop_hurdle + float(self.env['threshold_range'])):
-            action = ['move forward']
-        else:
-            action = ['move forward', 'move forward']
+        # Subcase 2.1 logic
+        if self.env['object2'] in detected_objects:
+            print(f"Distance value: {distance_value}")
+            if distance_value > (stop_hurdle + threshold_range * 6):
+                action = ['move forward'] * 7
+            elif distance_value > (stop_hurdle + threshold_range * 5):
+                action = ['move forward'] * 6
+            elif distance_value > (stop_hurdle + threshold_range * 4):
+                action = ['move forward'] * 5
+            elif distance_value > (stop_hurdle + threshold_range * 3):
+                action = ['move forward'] * 4
+            elif distance_value > (stop_hurdle + threshold_range * 2):
+                action = ['move forward'] * 3
+            elif distance_value > (stop_hurdle + threshold_range):
+                action = ['move forward'] * 2
+            # elif distance_value < stop_hurdle:
+            #     action = ['turn right']  # or 'turn left', depending on previous action
+
+        # Subcase 2.2 logic
+        elif any(obj in detected_objects for obj in [self.env['object3'], self.env['object4'], self.env['object5']]):
+            print(f"Distance value: {distance_value}")
+            if distance_value > (stop_hurdle + threshold_range * 2):
+                action = ['move forward'] * 2
+            elif distance_value > (stop_hurdle + threshold_range):
+                action = ['move forward']
+            # elif distance_value < stop_hurdle:
+            #     action = ['turn right']  # or 'turn left', depending on previous action
+
+        # # Subcase 2.3 logic
+        # elif any(obj in detected_objects for obj in [self.env['object6'], self.env['object7']]):
+        #     action = ['turn right']  # or 'turn left', depending on previous action
 
         return action
     
@@ -305,7 +334,7 @@ class OpenaiClient(AiClientBase):
             assistant.action = self.correct_action(assistant.action, detected_objects, distances, description)
 
         assistant.new_state = self.correct_next_position(self.curr_state, assistant.action)
-        assistant.reason = self.check_action_same_as_previous_round(assistant.action, assistant.reason)
+        # assistant.reason = self.check_action_same_as_previous_round(assistant.action, assistant.reason)
 
         # Check for feedback interruption early in the function
         if dog_instance.check_feedback_and_interruption():
