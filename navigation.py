@@ -145,14 +145,14 @@ class PathAnimator:
         self.ax.axvline(x=0, color='black', linewidth=0.5)
 
         banana_area = Rectangle(NaviConfig.banana_bottom_left, NaviConfig.banana_width, NaviConfig.banana_height, color='yellow', alpha=0.5, label='⬆️ banana')
-        refrigerator_area = Rectangle(NaviConfig.refrigerator_bottom_left, NaviConfig.refrigerator_width, NaviConfig.refrigerator_height, color='lightgray', alpha=0.5, label='➡️ refrigerator')
+        fridge_area = Rectangle(NaviConfig.fridge_bottom_left, NaviConfig.fridge_width, NaviConfig.fridge_height, color='lightgray', alpha=0.5, label='➡️ fridge')
         bottle_area = Rectangle(NaviConfig.bottle_bottom_left, NaviConfig.bottle_width, NaviConfig.bottle_height, color='blue', alpha=0.5, label='⬇️ bottle')
         sofa_area = Rectangle(NaviConfig.sofa_bottom_left, NaviConfig.sofa_width, NaviConfig.sofa_height, color='purple', alpha=0.5, label='➡️ sofa')
         # apple_shift_area = Rectangle(NaviConfig.apple_shift_bottom_left, NaviConfig.apple_shift_width, NaviConfig.apple_shift_height, color='green', alpha=0.5, label='⬅️ apple shift detectable area')
         # apple_forward_area = Rectangle(NaviConfig.apple_forward_bottom_left, NaviConfig.apple_forward_width, NaviConfig.apple_forward_height, color='coral', alpha=0.5, label='⬅️ apple forward detectable area')
 
         self.ax.add_patch(banana_area)
-        self.ax.add_patch(refrigerator_area)
+        self.ax.add_patch(fridge_area)
         self.ax.add_patch(bottle_area)
         self.ax.add_patch(sofa_area)
         # self.ax.add_patch(apple_shift_area)
