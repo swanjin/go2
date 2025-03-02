@@ -406,16 +406,23 @@ class RobotDogUI(QMainWindow):
                 print(f"Error generating feedback message: {e}")
                 self.add_robot_message("I've received your feedback and I'm acting on it now.")
             
-            # 액션 실행
-            print("Executing feedback with actions:", action)
-            self.dog.activate_sportclient(action)
-            QTimer.singleShot(3000, self.complete_feedback)
+            # UI 업데이트를 즉시 처리하도록 강제
+            QApplication.processEvents()
+            
+            # 약간의 지연 후 액션 실행 (UI가 확실히 업데이트된 후)
+            QTimer.singleShot(300, lambda: self._execute_action(action))
             
         except Exception as e:
             print(f"Error in execute_feedback_action: {str(e)}")
             error_msg = Messages.ERROR_FEEDBACK_EXECUTION.format(str(e))
             self.add_robot_message(error_msg)
             self.resume_auto_mode()
+
+    def _execute_action(self, action):
+        """액션을 실행하는 별도의 메서드"""
+        print("Executing feedback with actions:", action)
+        self.dog.activate_sportclient(action)
+        QTimer.singleShot(3000, self.complete_feedback)
 
     def complete_feedback(self):
         # 먼저 로딩 애니메이션 숨기기
@@ -515,9 +522,13 @@ class RobotDogUI(QMainWindow):
             QTimer.singleShot(delayed_time + 100, lambda: self._delayed_tts(
                 Messages.SEARCH_COMPLETE.format(self.dog.target)
             ))
+            # 검색 완료 후 모든 기능 종료
+            QTimer.singleShot(delayed_time + 200, self.shutdown_all_features)
         else:
             self.hide_loading()
             self.add_robot_message(Messages.SEARCH_COMPLETE.format(self.dog.target))
+            # 검색 완료 후 모든 기능 종료
+            QTimer.singleShot(500, self.shutdown_all_features)
 
     def _delayed_tts(self, text):
         """TTS를 실행하는 헬퍼 메서드"""
@@ -674,6 +685,66 @@ class RobotDogUI(QMainWindow):
         msg_box.setText(f"Do you want to execute the following action?\n\n{action_description}")
         msg_box.setStandardButtons(QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No)
         return msg_box.exec()
+
+    def shutdown_all_features(self):
+        """모든 UI 기능을 종료하는 메서드"""
+        print("[DEBUG] Shutting down all UI features")
+        
+        # 입력 위젯 비활성화
+        self.input_widget.setEnabled(False)
+        self.input_widget.hide()
+        
+        # 피드백 버튼 비활성화
+        self.feedback_button.setEnabled(False)
+        self.feedback_button.hide()
+        
+        # 진행 중인 모든 스레드 종료
+        if hasattr(self, 'camera_thread') and self.camera_thread.isRunning():
+            self.camera_thread.stop()
+            self.camera_thread.wait()
+        
+        if hasattr(self, 'search_thread') and self.search_thread.isRunning():
+            self.search_thread.quit()
+            self.search_thread.wait()
+        
+        if hasattr(self, 'send_message_thread') and self.send_message_thread.isRunning():
+            self.send_message_thread.quit()
+            self.send_message_thread.wait()
+        
+        if hasattr(self, 'tts_thread') and self.tts_thread.isRunning():
+            self.tts_thread.quit()
+            self.tts_thread.wait()
+        
+        # 타이머 종료
+        if self.loading_timer is not None:
+            self.loading_timer.stop()
+        
+        if self.delayed_loading_timer is not None:
+            self.delayed_loading_timer.stop()
+        
+        # 로딩 메시지 제거
+        self.hide_loading()
+        
+        # 검색 완료 메시지 표시
+        completion_message = QLabel("Search completed. All features are now disabled.")
+        completion_message.setStyleSheet(f"""
+            QLabel {{
+                color: {Colors.PRIMARY};
+                font-size: {Sizes.FONT_MEDIUM}px;
+                font-weight: bold;
+                padding: {Sizes.PADDING_SMALL}px;
+                margin-top: 20px;
+            }}
+        """)
+        self.chat_layout.addWidget(completion_message, alignment=Qt.AlignmentFlag.AlignCenter)
+        self._scroll_to_bottom()
+        
+        # 메시지 데이터 초기화
+        self.message_data.feedback_mode = False
+        self.message_data.awaiting_feedback = False
+        self.message_data.confirming_action = False
+        
+        print("[DEBUG] All UI features have been shut down")
 
 class CameraThread(QThread):
     frame_update = pyqtSignal(QImage)
