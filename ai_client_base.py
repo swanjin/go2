@@ -34,8 +34,8 @@ class AiClientBase:
         Action dictionary:
         - 'move forward'
         - 'move backward'
-        - 'shift right' 
-        - 'shift left'
+        - 'turn right 30' 
+        - 'turn left 30'
         - 'turn right'
         - 'turn left'
         - 'stop'
@@ -61,14 +61,16 @@ class AiClientBase:
 
         The effect of executing each action once on x and y grid coordinates depends on the orientation as shown:
 
-        | Orientation | move forward | move backward | shift right | shift left |
-        |-------------|--------------|---------------|-------------|------------|
-        | 0° (North)  | (x, y + 1)   | (x, y - 1)    | (x + 1, y)  | (x - 1, y) |
-        | 90° (East)  | (x + 1, y)   | (x - 1, y)    | (x, y - 1)  | (x, y + 1) |
-        | 180° (South)| (x, y - 1)   | (x, y + 1)    | (x - 1, y)  | (x + 1, y) |
-        | 270° (West) | (x - 1, y)   | (x + 1, y)    | (x, y + 1)  | (x, y - 1) |
+        | Orientation | move forward | move backward |
+        |-------------|--------------|---------------|
+        | 0° (North)  | (x, y + 1)   | (x, y - 1)    |
+        | 90° (East)  | (x + 1, y)   | (x - 1, y)    |
+        | 180° (South)| (x, y - 1)   | (x, y + 1)    |
+        | 270° (West) | (x - 1, y)   | (x + 1, y)    |
 
         The effect of executing turn right or turn left once (Orientation Changes Only):
+        - turn right 30: Increases orientation by 30°.
+        - turn left 30: Decreases orientation by 30°.
         - turn right: Increases orientation by 90°.
         - turn left: Decreases orientation by 90°.
         After each turn, normalize the orientation to a range of 0° to 360° (e.g., -90° becomes 270°).
@@ -139,10 +141,10 @@ class AiClientBase:
             - **Action**: 'stop'.
 
         - **Subcase 1.3**: All the detected {self.env['target']} are on the left side of the frame.
-            - **Action**: 'shift left'. [IMPORTANT] Never 'shift right' in this subcase.
+            - **Action**: 'turn left 30'. [IMPORTANT] Never 'turn right 30' or 'turn left' or 'turn right' in this subcase.
 
         - **Subcase 1.4**: All the detected {self.env['target']} are on the right side of the frame.
-            - **Action**: 'shift right'. [IMPORTANT] Never 'shift left' in this subcase.
+            - **Action**: 'turn right 30'. [IMPORTANT] Never 'turn left 30' or 'turn left' or 'turn right' in this subcase.
 
         - **Verification Step for Case 1**:
             - Ensure the following before proceeding:

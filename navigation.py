@@ -38,24 +38,28 @@ class NaviModel:
                 next_position[1] += 1
             elif orientation == 270:
                 next_position[0] += 1
-        elif "shift right" in action:
-            if orientation == 0:
-                next_position[0] += 1
-            elif orientation == 90:
-                next_position[1] -= 1
-            elif orientation == 180:
-                next_position[0] -= 1
-            elif orientation == 270:
-                next_position[1] += 1
-        elif "shift left" in action:
-            if orientation == 0:
-                next_position[0] -= 1
-            elif orientation == 90:
-                next_position[1] += 1
-            elif orientation == 180:
-                next_position[0] += 1
-            elif orientation == 270:
-                next_position[1] -= 1
+        elif "turn right 30" in action:
+            next_position[2] = (orientation + 30) % 360
+        elif "turn left 30" in action:
+            next_position[2] = (orientation - 30) % 360
+        # elif "shift right" in action:
+        #     if orientation == 0:
+        #         next_position[0] += 1
+        #     elif orientation == 90:
+        #         next_position[1] -= 1
+        #     elif orientation == 180:
+        #         next_position[0] -= 1
+        #     elif orientation == 270:
+        #         next_position[1] += 1
+        # elif "shift left" in action:
+        #     if orientation == 0:
+        #         next_position[0] -= 1
+        #     elif orientation == 90:
+        #         next_position[1] += 1
+        #     elif orientation == 180:
+        #         next_position[0] += 1
+        #     elif orientation == 270:
+        #         next_position[1] -= 1
         elif "turn right" in action:
             next_position[2] = (orientation + 90) % 360
         elif "turn left" in action:
@@ -73,7 +77,7 @@ class NaviModel:
 
     def get_neighbors(self, current, obstacles):
         """Generate possible moves based on the robot's orientation"""
-        actions = ["move forward", "move backward", "shift right", "shift left", "turn right", "turn left"]
+        actions = ["move forward", "move backward", "turn right 30", "turn left 30", "turn right", "turn left"]
         neighbors = []
         for action in actions:
             next_pos = self.get_next_position(current, action)
