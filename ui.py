@@ -101,7 +101,6 @@ class SendMessageThread(QThread):
     process_target_signal = pyqtSignal(str, str)
     input_widget_signal = pyqtSignal(bool)
     feedback_button_signal = pyqtSignal(bool)
-    confirm_feedback_signal = pyqtSignal()
     add_user_message_signal = pyqtSignal(str)
     add_robot_message_signal = pyqtSignal(str, object)
     activate_feedback_mode_signal = pyqtSignal()
@@ -123,37 +122,6 @@ class SendMessageThread(QThread):
         
         # 먼저 사용자 메시지를 표시
         self.add_user_message_signal.emit(text)
-        
-        # 컨펌 상태일 때의 처리
-        if self.message_data.confirming_action and self.message_data.pending_feedback_action:
-            if self.dog.ai_client.is_yes(text):
-                print("✅ Yes 응답 받음 - 액션 실행 시작")
-                self.show_loading_signal.emit()  # 로딩 표시
-                self.execute_feedback_action_signal.emit(self.message_data.pending_feedback_action)
-                self.message_data.pending_feedback_action = None
-                self.message_data.confirming_action = False
-            else:
-                print("❌ No 응답 받음")
-                if self.dog.ai_client.is_no_command(text):
-                    print("❌ 단순 거절 - 상세 설명 요청")
-                    self.show_loading_signal.emit()  # 로딩 표시
-                    self.add_robot_message_signal.emit("Please provide more details or clarify your feedback.", None)
-                    self.message_data.confirming_action = False
-                else:
-                    print("🔄 새로운 명령 감지 - 액션 생성 중")
-                    self.show_loading_signal.emit()  # 로딩 표시
-                    frame = self.dog.read_frame()
-                    image_bboxes_array, image_detected_objects, image_distances, image_description = self.dog.ai_client.feedback_mode_on(frame)
-                    assistant = self.dog.ai_client.get_response_landmark_or_general_command(
-                        text, 
-                        image_bboxes_array, 
-                        image_detected_objects, 
-                        image_distances,
-                        image_description
-                    )
-                    self.message_data.pending_feedback_action = assistant.action
-                    self.confirm_feedback_signal.emit()
-            return
         
         print("\n=== send_message called ===")  # Debug print
         if not self.message_data.conversation_started:
@@ -206,8 +174,9 @@ class SendMessageThread(QThread):
                 print("❗ Executing instruction or command")            
                 assistant = self.dog.ai_client.get_response_landmark_or_general_command(text, image_bboxes_array, image_detected_objects, image_distances, image_description)
                 print(f"📋 생성된 액션: {assistant.action}")
-                self.message_data.pending_feedback_action = assistant.action
-                self.confirm_feedback_signal.emit()
+                # 확인 과정 없이 바로 액션 실행
+                self.show_loading_signal.emit()
+                self.execute_feedback_action_signal.emit(assistant.action)
             
             else:
                 print("Getting answer to question from AI client...")  # Debug print
@@ -220,9 +189,6 @@ class SendMessageThread(QThread):
             self.dog.feedback = text
 
 class RobotDogUI(QMainWindow):
-    # 클래스 레벨에서 시그널 정의
-    confirm_feedback_signal = pyqtSignal()
-    
     def __init__(self, dog_instance):
         super().__init__()
         self.dog = dog_instance
@@ -230,10 +196,7 @@ class RobotDogUI(QMainWindow):
         self.search_started = False
         self.loading_message = None
         self.loading_timer = None
-        self.delayed_loading_timer = None  # 지연된 로딩을 위한 타이머 추가
-        
-        # 시그널 연결
-        self.confirm_feedback_signal.connect(self.confirm_feedback)
+        self.delayed_loading_timer = None
         
         self.initUI()
         
@@ -316,22 +279,8 @@ class RobotDogUI(QMainWindow):
     def send_message(self):
         self.message_data.text = self.message_input.text()
         
-        # 피드백 확인 중인 경우 특별 처리
-        if self.message_data.confirming_action and self.message_data.pending_feedback_action:
-            # 스레드를 통해 메시지 처리
-            self.send_message_thread = SendMessageThread(self.message_data, self.dog)
-            self.send_message_thread.add_user_message_signal.connect(self.add_user_message)
-            self.send_message_thread.add_robot_message_signal.connect(self.add_robot_message_with_loading)
-            self.send_message_thread.confirm_feedback_signal.connect(self.confirm_feedback)
-            self.send_message_thread.execute_feedback_action_signal.connect(self.execute_feedback_action)
-            self.send_message_thread.show_loading_signal.connect(self.show_loading)
-            self.send_message_thread.start()
-            
-            self.message_input.clear()
-            return
-        
-        # 기존 피드백 모드에서의 처리
-        elif self.message_data.feedback_mode and self.message_data.awaiting_feedback:
+        # 피드백 모드에서의 처리
+        if self.message_data.feedback_mode and self.message_data.awaiting_feedback:
             # 먼저 사용자 메시지를 표시
             self.add_user_message(self.message_data.text)
             
@@ -340,13 +289,14 @@ class RobotDogUI(QMainWindow):
                 print("[DEBUG] show_loading - send_message (feedback mode)")
             
             self.send_message_thread = SendMessageThread(self.message_data, self.dog)
+            # 시그널 연결
             self.send_message_thread.process_target_signal.connect(self.process_target)
             self.send_message_thread.input_widget_signal.connect(self.input_widget.setVisible)
             self.send_message_thread.feedback_button_signal.connect(self.feedback_button.setVisible)
-            self.send_message_thread.confirm_feedback_signal.connect(self.confirm_feedback)
             self.send_message_thread.add_robot_message_signal.connect(self.add_robot_message_with_loading)
             self.send_message_thread.activate_feedback_mode_signal.connect(self.activate_feedback_mode)
             self.send_message_thread.execute_feedback_action_signal.connect(self.execute_feedback_action)
+            self.send_message_thread.show_loading_signal.connect(self.show_loading)
             self.send_message_thread.start()
             
             self.message_input.clear()
@@ -365,78 +315,11 @@ class RobotDogUI(QMainWindow):
         self.send_message_thread.process_target_signal.connect(self.process_target)
         self.send_message_thread.input_widget_signal.connect(self.input_widget.setVisible)
         self.send_message_thread.feedback_button_signal.connect(self.feedback_button.setVisible)
-        self.send_message_thread.confirm_feedback_signal.connect(self.confirm_feedback)
         self.send_message_thread.add_robot_message_signal.connect(self.add_robot_message_with_loading)
         self.send_message_thread.activate_feedback_mode_signal.connect(self.activate_feedback_mode)
         self.send_message_thread.execute_feedback_action_signal.connect(self.execute_feedback_action)
+        self.send_message_thread.show_loading_signal.connect(self.show_loading)
         self.send_message_thread.start()
-
-    def confirm_feedback(self):
-        if self.message_data.pending_feedback_action:
-            print("Pending feedback action found.")
-            action_to_execute = self.message_data.pending_feedback_action
-
-            # 액션 설명 포맷팅
-            if not action_to_execute:
-                action_description = ""
-            else:
-                formatted_actions = []
-                for action, group in groupby(action_to_execute):
-                    count = len(list(group))
-                    formatted_actions.append(f"{action} {count} times")
-                action_description = " and ".join(formatted_actions)
-
-            # 로딩 애니메이션 숨기기
-            self.hide_loading()
-            print("[DEBUG] hide_loading - confirm_feedback")
-            print(f"피드백 액션: {action_to_execute}")
-
-            is_landmark_action = self.dog.ai_client.is_landmark_action
-            
-            try:
-                # GPT에게 랜드마크 판단을 요청
-                landmark_names = []
-                if is_landmark_action:
-                    landmark_names = self.dog.ai_client.get_multiple_landmark_names(self.message_data.text)
-
-                print(f"Is landmark action_ui: {is_landmark_action}")
-                print(f"Found landmark names: {landmark_names}")  # 디버깅용
-
-                # 로봇 메시지 표시
-                if is_landmark_action and landmark_names:
-                    if len(landmark_names) > 1:
-                        landmarks_text = " and ".join(landmark_names)
-                        self.add_robot_message(
-                            f"I can go to the area between {landmarks_text}. Should I try?"
-                        )
-                    else:
-                        self.add_robot_message(
-                            f"I can go to the {landmark_names[0]}. Should I try?"
-                        )
-                else:
-                    self.add_robot_message(
-                        f"I understand you want me to {action_description}. "
-                        "Should I proceed with this action?"
-                    )
-
-                # 피드백 대기 상태 유지
-                self.message_data.awaiting_feedback = True
-                self.message_data.confirming_action = True
-                self.message_input.setFocus()
-
-            except Exception as e:
-                print(f"Error in confirm_feedback: {e}")
-                # 에러 발생시 기본 메시지 표시
-                self.add_robot_message(
-                    f"I understand you want me to {action_description}. "
-                    "Should I proceed with this action?"
-                )
-                self.message_data.awaiting_feedback = True
-                self.message_data.confirming_action = True
-                self.message_input.setFocus()
-
-        else:
-            print("No pending feedback action.")
 
     def process_target(self, text, response):
         print()
@@ -459,9 +342,72 @@ class RobotDogUI(QMainWindow):
                 print("Error: No actions provided")
                 return
             
+            # 액션 설명 포맷팅 - 특별한 패턴 확인
+            formatted_actions = []
+            
+            # 액션 그룹화 및 특별 패턴 확인
+            for action_item, group in groupby(action):
+                count = len(list(group))
+                
+                # 특별한 패턴 처리: turn right 또는 turn left가 두 번 연속이면 turn around로 변경
+                if (action_item == "turn right" or action_item == "turn left") and count == 2:
+                    formatted_actions.append("turn around")
+                else:
+                    if count > 1:
+                        formatted_actions.append(f"{action_item} {count} times")
+                    else:
+                        formatted_actions.append(f"{action_item}")
+                    
+            action_description = " and ".join(formatted_actions)
+            
+            print(f"피드백 액션: {action}")
+            
+            # 랜드마크 관련 액션인지 확인
+            is_landmark_action = self.dog.ai_client.is_landmark_action
+            self.hide_loading()
+            
+            # 피드백 메시지 표시 - 더 자연스러운 표현으로 개선
+            try:
+                # 랜드마크 관련 액션인 경우
+                if is_landmark_action:
+                    landmark_names = self.dog.ai_client.get_multiple_landmark_names(self.message_data.text)
+                    print(f"Is landmark action_ui: {is_landmark_action}")
+                    print(f"Found landmark names: {landmark_names}")
+                    
+                    if landmark_names:
+                        if len(landmark_names) > 1:
+                            landmarks_text = " and ".join(landmark_names)
+                            self.add_robot_message(f"Got it! I'll head to the area between {landmarks_text} now.")
+                        else:
+                            self.add_robot_message(f"Thanks for the feedback! I'll go to the {landmark_names[0]} right away.")
+                    else:
+                        # 랜드마크 관련이지만 이름이 없는 경우 일반 메시지 사용
+                        import random
+                        general_messages = [
+                            "I understand your guidance. I'll follow your directions now.",
+                            "Thanks for the feedback! I'll adjust my path accordingly.",
+                            "Got it! I'll navigate based on your instructions.",
+                            "I'll execute your feedback right away.",
+                            "Your feedback is helpful. I'm on it!"
+                        ]
+                        self.add_robot_message(random.choice(general_messages))
+                else:
+                    # 일반 명령에 대한 다양한 응답
+                    import random
+                    general_messages = [
+                        "I'll follow your instructions right away.",
+                        "Thanks for guiding me! I'm on it.",
+                        "Got it! Executing your feedback now.",
+                        "I understand. I'll make those adjustments immediately.",
+                        "Your feedback is clear. I'm implementing it now."
+                    ]
+                    self.add_robot_message(random.choice(general_messages))
+            except Exception as e:
+                print(f"Error generating feedback message: {e}")
+                self.add_robot_message("I've received your feedback and I'm acting on it now.")
+            
+            # 액션 실행
             print("Executing feedback with actions:", action)
-            self.show_loading()
-            print("[DEBUG] show_loading - execute_feedback_action")
             self.dog.activate_sportclient(action)
             QTimer.singleShot(3000, self.complete_feedback)
             
@@ -473,12 +419,6 @@ class RobotDogUI(QMainWindow):
 
     def complete_feedback(self):
         # 먼저 로딩 애니메이션 숨기기
-        self.hide_loading()
-        print("[DEBUG] hide_loading - complete_feedback")
-        
-        # 그 다음 피드백 완료 메시지 표시
-        self.add_robot_message(Messages.FEEDBACK_COMPLETE)
-        
         QTimer.singleShot(600, lambda: self.resume_auto_mode())
 
     def resume_auto_mode(self):
@@ -620,10 +560,10 @@ class RobotDogUI(QMainWindow):
         self.send_message_thread.process_target_signal.connect(self.process_target)
         self.send_message_thread.input_widget_signal.connect(self.input_widget.setVisible)
         self.send_message_thread.feedback_button_signal.connect(self.feedback_button.setVisible)
-        self.send_message_thread.confirm_feedback_signal.connect(self.confirm_feedback)
         self.send_message_thread.add_robot_message_signal.connect(self.add_robot_message_with_loading)
         self.send_message_thread.activate_feedback_mode_signal.connect(self.activate_feedback_mode)
         self.send_message_thread.execute_feedback_action_signal.connect(self.execute_feedback_action)
+        self.send_message_thread.show_loading_signal.connect(self.show_loading)
         self.send_message_thread.start()
         
         QTimer.singleShot(100, self.activate_feedback_mode)
