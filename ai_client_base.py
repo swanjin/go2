@@ -166,21 +166,21 @@ class AiClientBase:
                 - If the distance to the detected object is greater than {(self.env['stop_landmark']+(self.env['threshold_range']*3))} meters and less than {(self.env['stop_landmark']+(self.env['threshold_range']*4))} meters, move forward **four times**.
                 - If the distance to the detected object is greater than {(self.env['stop_landmark']+(self.env['threshold_range']*2))} meters and less than {(self.env['stop_landmark']+(self.env['threshold_range']*3))} meters, move forward **three times**.
                 - If the distance to the detected object is greater than {(self.env['stop_landmark']+(self.env['threshold_range']))} meters and less than {(self.env['stop_landmark']+(self.env['threshold_range']*2))} meters, move forward **two times**.
-                - If the distance to the detected object is less than {self.env['stop_landmark']} meters, rotate once to explore a different orientation without changing your position (x, y). If the previous round involved turning right once, do not turn left this round, and vice versa.
+                - If the distance to the detected object is less than {self.env['stop_landmark']} meters, rotate **once** to explore a different orientation without changing your position (x, y). If the previous round's action was turning right **once**, do not turn left this round, and vice versa.
 
         - **Subcase 2.2**: Either {self.env['object3']}, {self.env['object4']}, or {self.env['object5']} is detected in the 'Detection' section.
             - **Action**: [IMPORTANT] Strictly observe the following rules:
                 - If the distance to the detected object is greater than {(self.env['stop_landmark']+self.env['threshold_range'])*2} meters, move forward **two times**.
                 - If the distance to the detected object is greater than {(self.env['stop_landmark']+self.env['threshold_range'])} meters and less than {(self.env['stop_landmark']+self.env['threshold_range'])*2} meters, move forward **one time**.
-                - If the distance to the detected object is less than {self.env['stop_landmark']}, rotate once to explore a different orientation without changing your position (x, y). If the previous round involved turning right once, do not turn left this round, and vice versa.
+                - If the distance to the detected object is less than {self.env['stop_landmark']}, rotate **once** to explore a different orientation without changing your position (x, y). If the previous round's action was turning right **once**, do not turn left this round, and vice versa.
 
         - **Subcase 2.3**: Either {self.env['object6']} or {self.env['object7']} is detected in the 'Detection' section.
             - **Action**: [IMPORTANT] Strictly observe the following rules:
-                - Rotate once to explore a different orientation without changing your position (x, y). If the previous round involved turning right once, do not turn left this round, and vice versa.
+                - Rotate **once** to explore a different orientation without changing your position (x, y). If the previous round involved turning right **once**, do not turn left this round, and vice versa.
 
         - **Subcase 2.4**: None of {self.env['object2']}, {self.env['object3']}, {self.env['object4']}, {self.env['object5']}, {self.env['object6']}, or {self.env['object7']} are detected in the 'Detection' section.
             - **Action**: [IMPORTANT] Strictly observe the following rules:
-                - Rotate once to explore a different orientation without changing your position (x, y). If the previous round involved turning right once, do not turn left this round, and vice versa.
+                - Rotate **once** to explore a different orientation without changing your position (x, y). If the previous round involved turning right **once**, do not turn left this round, and vice versa.
         """)
 
     def response_format_auto(self):
