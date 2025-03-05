@@ -30,12 +30,14 @@ class AiClientBase:
         """)
     
     def get_action_dictionary(self):
-        return ("""
+        return (f"""
         Action dictionary:
         - 'move forward'
         - 'move backward'
-        - 'turn right 30' 
-        - 'turn left 30'
+        - 'shift right' 
+        - 'shift left'
+        - 'turn right slightly' 
+        - 'turn left slightly'
         - 'turn right'
         - 'turn left'
         - 'stop'
@@ -44,14 +46,8 @@ class AiClientBase:
         """)
     
     def get_new_state(self):
-        return ("""
-        Obstacles:
-        You should avoid the following obstacles:
+        return (f"""
         {self.get_obstacles()}
-
-        Allowed Coordinates:
-        You can navigate to the following coordinates:
-        {self.list_inner_coordinates()}
         
         Orientation determines all directional movements. Use the following orientation mappings:
         - 0° or 360° (North): Facing the positive Y-axis.
@@ -61,16 +57,16 @@ class AiClientBase:
 
         The effect of executing each action once on x and y grid coordinates depends on the orientation as shown:
 
-        | Orientation | move forward | move backward |
-        |-------------|--------------|---------------|
-        | 0° (North)  | (x, y + 1)   | (x, y - 1)    |
-        | 90° (East)  | (x + 1, y)   | (x - 1, y)    |
-        | 180° (South)| (x, y - 1)   | (x, y + 1)    |
-        | 270° (West) | (x - 1, y)   | (x + 1, y)    |
+        | Orientation | move forward | move backward | shift right | shift left |
+        |-------------|--------------|---------------|-------------|------------|
+        | 0° (North)  | (x, y + 1)   | (x, y - 1)    | (x + 1, y)  | (x - 1, y) |
+        | 90° (East)  | (x + 1, y)   | (x - 1, y)    | (x, y - 1)  | (x, y + 1) |
+        | 180° (South)| (x, y - 1)   | (x, y + 1)    | (x - 1, y)  | (x + 1, y) |
+        | 270° (West) | (x - 1, y)   | (x + 1, y)    | (x, y + 1)  | (x, y - 1) |
 
         The effect of executing turn right or turn left once (Orientation Changes Only):
-        - turn right 30: Increases orientation by 30°.
-        - turn left 30: Decreases orientation by 30°.
+        - turn right slightly: Increases orientation by 30°.
+        - turn left slightly: Decreases orientation by 30°.
         - turn right: Increases orientation by 90°.
         - turn left: Decreases orientation by 90°.
         After each turn, normalize the orientation to a range of 0° to 360° (e.g., -90° becomes 270°).
@@ -93,7 +89,11 @@ class AiClientBase:
         # Dynamically fetch all obstacles from NaviConfig
         obstacles = ", ".join([f"({coords[0]}, {coords[1]})" for coords in self.obstacle_points])
         
-        return (f"""{border_lines}, {obstacles}""")
+        return (f"""
+        If there is an obstacle in the way, you cannot move to that state: you must stop before the obstacle or avoid it.
+        The obstacles are:
+        {border_lines}, {obstacles}
+        """)
 
     def list_inner_coordinates(self):
         # Get the border size from NaviConfig
@@ -113,7 +113,10 @@ class AiClientBase:
         inner_coords_str = ", ".join([f"({x}, {y})" for x, y in inner_coords])
 
         # Return the prompt with the allowed coordinates
-        return f"""{inner_coords_str}"""
+        return f"""
+        You can only navigate to the following coordinates:
+        {inner_coords_str}
+        """
 
     def prompt_auto(self, curr_state):
         stop_target = self.env.get('stop_target')
@@ -141,10 +144,10 @@ class AiClientBase:
             - **Action**: 'stop'.
 
         - **Subcase 1.3**: All the detected {self.env['target']} are on the left side of the frame.
-            - **Action**: 'turn left 30'. [IMPORTANT] Never 'turn right 30' or 'turn left' or 'turn right' in this subcase.
+            - **Action**: 'turn left slightly'. [IMPORTANT] Never 'turn right slightly', 'turn left' or 'turn right' in this subcase.
 
         - **Subcase 1.4**: All the detected {self.env['target']} are on the right side of the frame.
-            - **Action**: 'turn right 30'. [IMPORTANT] Never 'turn left 30' or 'turn left' or 'turn right' in this subcase.
+            - **Action**: 'turn right slightly'. [IMPORTANT] Never 'turn left slightly', 'turn left' or 'turn right' in this subcase.
 
         - **Verification Step for Case 1**:
             - Ensure the following before proceeding:
@@ -196,7 +199,7 @@ class AiClientBase:
           - If {self.env['object7']} is found, it suggests this is a living room, not the kind of place where you'd expect to find {self.env['target']}.
           - Explain your reasoning concisely within two sentences.
           - Do not mention case numbers, subcase numbers, section names or distances.
-          - If referring to the {self.env['target']} position in the image, use 'left', 'middle', or 'right' without mentioning 'third'.
+          - If referring to the {self.env['target']} position in the image, use 'left', 'middle', or 'right' without mentioning 'third' and 'frame'.
         """)
 
     def prompt_landmark_or_non_command(self, curr_state):
@@ -231,7 +234,7 @@ class AiClientBase:
     def response_format_non_command(self): # non-command: what can you see?
         return (f"""
         Rules:
-        - If the user asks a question, one sentence should provide a concise answer to the user's question.
+        - If the user asks a question, one sentence should provide a concise answer to the user's question in a friendly conversational manner.
         - Do not mention numbers and cardinal directions for states, obstacles, or landmarks. 
         - Describe landmarks relative to your current state only if the user asks for it.
         """)
@@ -247,13 +250,13 @@ class AiClientBase:
 
     def response_format_general_command(self): # general command: move forward 3 times/ turn around
         return (f"""
-        Ensure each response follows the following format precisely. Do not deviate. Before responding, verify that your output exactly matches the structured format. 
+        Ensure each response follows the following format precisely. Do not deviate. Before responding, verify that your output exactly matches the structured format:
 
         - **Initial State**: (x, y, orientation)
         - **New State**: (x, y, orientation)
         - **Action**: action1, action2, ... (If the user requests a precise command requiring multiple actions to be executed several times, identify each unique action from the action dictionary and list them accordingly, repeating them as needed and separating them with commas.)
         - **Reason**: 
-          - Explain your choice of actions in one concise sentence.
+          - Explain your choice of actions in one concise sentence. 
         """)
 
     def set_target(self, target):

@@ -308,8 +308,10 @@ class Dog:
                     action_map = {
                         'move forward': (0.5, 0, 0),
                         'move backward': (-0.5, 0, 0),
-                        'turn right 30': (0, 0, -0.55),
-                        'turn left 30': (0, 0, 0.55),
+                        'shift right': (0, -0.35, 0),
+                        'shift left': (0, 0.35, 0),
+                        'turn right slightly': (0, 0, -0.55),
+                        'turn left slightly': (0, 0, 0.55),
                         'turn right': (0, 0, -1.65),
                         'turn left': (0, 0, 1.65)
                     }
