@@ -95,29 +95,6 @@ class AiClientBase:
         {border_lines}, {obstacles}
         """)
 
-    def list_inner_coordinates(self):
-        # Get the border size from NaviConfig
-        border_size = NaviConfig.border_size
-
-        # Get the obstacle coordinates
-        obstacle_coords = set(self.obstacle_points)
-
-        # List all coordinates within the border, excluding obstacles
-        inner_coords = [
-            (x, y) for x in range(-border_size + 1, border_size)
-            for y in range(-border_size, border_size + 1)
-            if (x, y) not in obstacle_coords
-        ]
-
-        # Format the inner coordinates as a string
-        inner_coords_str = ", ".join([f"({x}, {y})" for x, y in inner_coords])
-
-        # Return the prompt with the allowed coordinates
-        return f"""
-        You can only navigate to the following coordinates:
-        {inner_coords_str}
-        """
-
     def prompt_auto(self, curr_state):
         stop_target = self.env.get('stop_target')
         threshold_range = self.env.get('threshold_range')
@@ -135,26 +112,26 @@ class AiClientBase:
         {self.get_action_dictionary()}
 
         #### Case 1: The target object {self.env['target']} is detected in the 'Detection' section.
-        - **Subcase 1.1**: At least one of the {self.env['target']} is in the middle of the frame, and its distance is greater than '{stop_target}'.
+        - **Subcase 1.1**: At least one of the {self.env['target']} is right in front of you, and its distance is greater than '{stop_target}'.
             - **Action**: [IMPORTANT] Strictly observe the following rules:
                 - If its distance is between {stop_target} and {stop_target + threshold_range} meters, move forward **once**.
                 - If its distance is greater than {stop_target + threshold_range} meters, move forward **twice**.
 
-        - **Subcase 1.2**: At least one of the {self.env['target']} is in the middle of the frame, and its distance is less than '{stop_target}'.
+        - **Subcase 1.2**: At least one of the {self.env['target']} is right in front of you, and its distance is less than '{stop_target}'.
             - **Action**: 'stop'.
 
-        - **Subcase 1.3**: All the detected {self.env['target']} are on the left side of the frame.
+        - **Subcase 1.3**: All the detected {self.env['target']} are on your left.
             - **Action**: 'turn left slightly'. [IMPORTANT] Never 'turn right slightly', 'turn left' or 'turn right' in this subcase.
 
-        - **Subcase 1.4**: All the detected {self.env['target']} are on the right side of the frame.
+        - **Subcase 1.4**: All the detected {self.env['target']} are on your right.
             - **Action**: 'turn right slightly'. [IMPORTANT] Never 'turn left slightly', 'turn left' or 'turn right' in this subcase.
 
         - **Verification Step for Case 1**:
             - Ensure the following before proceeding:
-            1. Have you checked whether the {self.env['target']} is detected in the middle of the frame?
+            1. Have you checked whether the {self.env['target']} is detected right in front of you?
             2. Have you accurately compared the distances of  {self.env['target']} against the defined stop distance ('{stop_target}')?
-            3. Have you checked whether the {self.env['target']} is on the left side of the frame?
-            4. Have you checked whether the {self.env['target']} is on the right side of the frame?
+            3. Have you checked whether the {self.env['target']} is on your left?
+            4. Have you checked whether the {self.env['target']} is on your right?
             5. Based on these checks, confirm which subcase (1.1, 1.2, 1.3, or 1.4) applies and proceed with the specified action.
 
         #### Case 2: The {self.env['target']} is **not detected** in the 'Detection' section.
@@ -199,7 +176,7 @@ class AiClientBase:
           - If {self.env['object7']} is found, it suggests this is a living room, not the kind of place where you'd expect to find {self.env['target']}.
           - Explain your reasoning concisely within two sentences.
           - Do not mention case numbers, subcase numbers, section names or distances.
-          - If referring to the {self.env['target']} position in the image, use 'left', 'middle', or 'right' without mentioning 'third' and 'frame'.
+          - If referring to the {self.env['target']} position in the image, use 'left', 'middle', or 'right' without mentioning 'third'.
         """)
 
     def prompt_landmark_or_non_command(self, curr_state):
@@ -234,7 +211,7 @@ class AiClientBase:
     def response_format_non_command(self): # non-command: what can you see?
         return (f"""
         Rules:
-        - If the user asks a question, one sentence should provide a concise answer to the user's question in a friendly conversational manner.
+        - If the user asks a question, answer with one simple and friendly sentence that is easy to understand.
         - Do not mention numbers and cardinal directions for states, obstacles, or landmarks. 
         - Describe landmarks relative to your current state only if the user asks for it.
         """)

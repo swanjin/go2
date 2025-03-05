@@ -257,11 +257,11 @@ class VisionModel:
             detected_objects.append(f"{label}")
             distances.append(rounded_depth)
             if center_x < self.env["captured_width"] * self.env["left_frame"]:
-                description.append(f"You detected {label} on the left side of the frame with a distance of {rounded_depth} meters.")
+                description.append(f"You detected {label} on your left with a distance of {rounded_depth} meters.")
             elif center_x > self.env["captured_width"] * self.env["right_frame"]:
-                description.append(f"You detected {label} on the right side of the frame with a distance of {rounded_depth} meters.")
+                description.append(f"You detected {label} on your right with a distance of {rounded_depth} meters.")
             else:
-                description.append(f"You detected {label} in the middle of the frame with a distance of {rounded_depth} meters.")
+                description.append(f"You detected {label} right in front of you with a distance of {rounded_depth} meters.")
 
         # Draw bounding boxes and labels on the frame if draw_on_frame is True (done on CPU using OpenCV)
         if draw_on_frame:

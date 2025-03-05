@@ -397,9 +397,8 @@ class RobotDogUI(QMainWindow):
                     general_messages = [
                         "I'll follow your instructions right away.",
                         "Thanks for guiding me! I'm on it.",
-                        "Got it! Executing your feedback now.",
-                        "I understand. I'll make those adjustments immediately.",
-                        "Your feedback is clear. I'm implementing it now."
+                        "Got it! I'm working on it right now.",
+                        "Your feedback is clear. I'm doing it now."
                     ]
                     self.add_robot_message(random.choice(general_messages))
             except Exception as e:

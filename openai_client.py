@@ -319,6 +319,9 @@ class OpenaiClient(AiClientBase):
         # Analyze image
         frame_bboxes_array, detected_objects, distances, description = self.analyze_image(image_pil)
         
+        # Assume an apple is detected
+        description = ["You detected an apple right in front of you with a distance of 0.5 meters."]
+
         # Initialize messages
         self.initialize_prompt_auto(description)
         
