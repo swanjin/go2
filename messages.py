@@ -9,7 +9,7 @@ class Messages:
     FEEDBACK_COMPLETE = "I just processed your feedback. I'm back to automatic search mode now."
     
     # Search related messages
-    SEARCH_START = "I'll start searching for {} now."
+    SEARCH_START = "Got it! I'll start searching for an {} now."
     SEARCH_COMPLETE = "I found the {}, so I'm stopping here. You can now end the chat."
     
     # Error messages

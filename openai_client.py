@@ -319,8 +319,8 @@ class OpenaiClient(AiClientBase):
         # Analyze image
         frame_bboxes_array, detected_objects, distances, description = self.analyze_image(image_pil)
         
-        # Assume an apple is detected
-        description = ["You detected an apple right in front of you with a distance of 0.5 meters."]
+        # # Assume an apple is detected
+        # description = ["You detected an apple right in front of you with a distance of 0.5 meters."]
 
         # Initialize messages
         self.initialize_prompt_auto(description)
@@ -434,13 +434,86 @@ class OpenaiClient(AiClientBase):
         if not self.env.get('tts', True):  # tts 설정이 없으면 기본값 True
             return
             
-        CHUNK = 1024
         if not isinstance(text, list):
-            text = text
+            text_to_speak = text
         else:
-            text = self.parse_action_tts(text)
+            text_to_speak = self.parse_action_tts(text)
 
-        # Open `/dev/null` and redirect stderr temporarily
+        # Redirect stdout and stderr to suppress warnings
+        original_stdout = os.dup(1)
+        original_stderr = os.dup(2)
+        devnull = os.open(os.devnull, os.O_WRONLY)
+        os.dup2(devnull, 1)
+        os.dup2(devnull, 2)
+
+        try:
+            from kokoro import KPipeline
+            import torch
+            import numpy as np
+            import pyaudio
+            
+            # Restore stdout for important messages only
+            os.dup2(original_stdout, 1)
+            print(f"Using TTS with Kokoro engine")
+            # Redirect again to suppress further messages
+            os.dup2(devnull, 1)
+            
+            # Initialize the pipeline with American English
+            pipeline = KPipeline(lang_code='a', device="cuda" if torch.cuda.is_available() else "cpu", repo_id='hexgrad/Kokoro-82M')
+            
+            # Generate audio
+            generator = pipeline(
+                text_to_speak, 
+                voice='af_heart',  # Default voice
+                speed=self.env.get('tts_speed'), 
+                split_pattern=r'\n+'
+            )
+            
+            # Process and play each segment
+            for i, (gs, ps, audio) in enumerate(generator):
+                # Convert tensor to numpy array if it's a tensor
+                if isinstance(audio, torch.Tensor):
+                    audio = audio.cpu().detach().numpy()
+                
+                # Play the audio
+                p = pyaudio.PyAudio()
+                stream = p.open(format=pyaudio.paFloat32,
+                                channels=1,
+                                rate=24000,
+                                output=True)
+                
+                # Ensure audio is float32
+                if audio.dtype != np.float32:
+                    audio = audio.astype(np.float32)
+                
+                # Play audio
+                stream.write(audio.tobytes())
+                
+                # Clean up
+                stream.stop_stream()
+                stream.close()
+                p.terminate()
+                
+        except Exception as e:
+            # Restore stdout and stderr for error reporting
+            os.dup2(original_stdout, 1)
+            os.dup2(original_stderr, 2)
+            print(f"Error in TTS: {e}")
+            # Fall back to OpenAI TTS if Kokoro fails
+            self._openai_tts_fallback(text_to_speak)
+        finally:
+            # Restore stdout and stderr
+            os.dup2(original_stdout, 1)
+            os.dup2(original_stderr, 2)
+            os.close(devnull)
+            os.close(original_stdout)
+            os.close(original_stderr)
+
+    def _openai_tts_fallback(self, text):
+        """Fallback to OpenAI TTS if Kokoro fails"""
+        print("Falling back to OpenAI TTS")
+        
+        # Redirect stderr to suppress warnings
         devnull = os.open(os.devnull, os.O_WRONLY)
         original_stderr = os.dup(2)
         os.dup2(devnull, 2)
@@ -457,66 +530,13 @@ class OpenaiClient(AiClientBase):
                 audio_segment = AudioSegment.from_file(container, format="wav")
                 
                 # 속도
-                faster_segment = speedup(audio_segment, playback_speed=self.env['tts_speed'])
+                faster_segment = speedup(audio_segment, playback_speed=self.env.get('tts_speed', 1.0))
 
                 play(faster_segment)
         finally:
             os.dup2(original_stderr, 2)
             os.close(devnull)
             os.close(original_stderr)
-
-    # def tts(self, text):
-    #     # Check if TTS is enabled in the environment settings
-    #     if not self.env.get('tts', True):  # Default to True if not specified
-    #         return
-
-    #     try:
-    #         import pyttsx3
-
-    #         # Convert text to string if it's a list
-    #         if isinstance(text, list):
-    #             text = self.parse_action_tts(text)
-
-    #         # Improve pronunciation
-    #         text = self.improve_pronunciation(text)
-
-    #         # Initialize pyttsx3 engine
-    #         engine = pyttsx3.init()
-
-    #         # Set speech rate
-    #         rate = int(200 * self.env.get('tts_speed', 0.8))
-    #         engine.setProperty('rate', rate)
-
-    #         # Set volume
-    #         engine.setProperty('volume', 1.0)
-
-    #         # Set voice to English if available
-    #         voices = engine.getProperty('voices')
-    #         for voice in voices:
-    #             if "english" in voice.name.lower() or "en-" in voice.id.lower():
-    #                 engine.setProperty('voice', voice.id)
-    #                 break
-
-    #         # Use the engine to say the text
-    #         engine.say(text)
-    #         engine.runAndWait()
-
-    #         # Properly stop the engine to avoid callback issues
-    #         engine.stop()
-
-    #         print("[TTSWorker] TTS finished")
-    #     except Exception as e:
-    #         print(f"[TTSWorker] Error during TTS: {str(e)}")
-
-    # def improve_pronunciation(self, text):
-    #     """특정 단어나 구문의 발음을 개선하기 위한 텍스트 전처리 함수"""
-    #     # Go2를 "Go two"로 변환
-    #     text = text.replace("Go2", "Go two")
-        
-    #     # 필요한 경우 다른 발음 개선 규칙 추가
-    #     # 예: text = text.replace("특정단어", "발음하기 쉬운 형태")
-        
-    #     return text
 
     def close(self):
         self.log_file.close()
