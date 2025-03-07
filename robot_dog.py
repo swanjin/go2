@@ -40,6 +40,7 @@ class Dog:
         self.image_files = None  # To store image paths when using test_dataset
         # self.feedback = None
         # self.window = None  # Will be set by the UI
+        self.tts_engine = None
 
         # Initialize the communication channel and the sport client
         if self.env["connect_robot"]:
@@ -206,8 +207,9 @@ class Dog:
                     continue
                 
                 formatted_action = self.format_actions(assistant.action)
+                print(f"formatted_action: {formatted_action}")
                 combined_message = f"I'm going to {formatted_action}. {assistant.reason}."
-                if self.env["interactive"] or self.env["vo"]:
+                if self.env["interactive"] or self.env["vn"]:
                     pass
                 
                 self.activate_sportclient(assistant.action)
@@ -258,7 +260,7 @@ class Dog:
             self.sport_client.Move(vx, vy, vyaw)
             time.sleep(dt)
         if self.env["woz"]:
-            elapsed_time = 5
+            elapsed_time = 5 # intentional delay for woz
         for i in range(int(elapsed_time / dt)):
             self.sport_client.StopMove()
             time.sleep(dt)
@@ -269,21 +271,30 @@ class Dog:
         else:      
             if self.env["woz"]:
                 print("Executing WOZ movement sequence:")
-                print("1. Turn right")
-                self.VelocityMove(0, 0, -1.6)
-                print("2. Move forward sequence")
+                print("1. Move forward sequence")
+                self.VelocityMove(0.5, 0, 0)
+                self.VelocityMove(0.5, 0, 0)
+                print("2. Turn left")
+                self.VelocityMove(0, 0, 1.65)
+                # print("2. Turn right sequence") # extended version of woz
+                # self.VelocityMove(0, 0, -1.65)
+                # self.VelocityMove(0, 0, -1.65)
+                # self.VelocityMove(0, 0, -1.65)
+                print("3. Move forward sequence")
                 self.VelocityMove(0.5, 0, 0)
                 self.VelocityMove(0.5, 0, 0)
                 self.VelocityMove(0.5, 0, 0)
                 self.VelocityMove(0.5, 0, 0)
                 self.VelocityMove(0.5, 0, 0)
-                print("3. Turn left")
-                self.VelocityMove(0, 0, 1.6)
-                print("4. Move forward sequence")
+                print("4. Turn left")
+                self.VelocityMove(0, 0, 1.65)
+                # print("4. Turn right sequence") # extended version of woz
+                # self.VelocityMove(0, 0, -1.65)
+                # self.VelocityMove(0, 0, -1.65)
+                # self.VelocityMove(0, 0, -1.65)
+                print("5. Move forward sequence")
                 self.VelocityMove(0.5, 0, 0)
                 self.VelocityMove(0.5, 0, 0)
-                print("5. Shift left")
-                self.VelocityMove(0, 0.5, 0)
                 print("6. Final stop")
                 self.VelocityMove(0, 0, 0)
                 
@@ -297,10 +308,10 @@ class Dog:
                     action_map = {
                         'move forward': (0.5, 0, 0),
                         'move backward': (-0.5, 0, 0),
-                        'shift right': (0, -0.5, 0),
-                        'shift left': (0, 0.5, 0),
-                        'turn right': (0, 0, -1.6),
-                        'turn left': (0, 0, 1.6)
+                        'turn right 30': (0, 0, -0.55),
+                        'turn left 30': (0, 0, 0.55),
+                        'turn right': (0, 0, -1.65),
+                        'turn left': (0, 0, 1.65)
                     }
                     
                     for action in actions:
@@ -316,3 +327,54 @@ class Dog:
 
         self.robot_auto_thread.start()
         self.feedback_thread.start()
+
+    def tts(self, text):
+        if not self.env.get('tts', True):
+            return
+        
+        try:
+            import pyttsx3
+            
+            # Convert text to string if it's a list
+            if isinstance(text, list):
+                text = self.parse_action_tts(text)
+            
+            # Improve pronunciation if you have such a method
+            if hasattr(self, 'improve_pronunciation'):
+                text = self.improve_pronunciation(text)
+            
+            print(f"[TTSWorker] Starting TTS with text: {text}")
+            
+            # Create a new engine instance each time to avoid reference issues
+            if self.tts_engine:
+                try:
+                    self.tts_engine.stop()
+                except:
+                    pass
+                
+            self.tts_engine = pyttsx3.init()
+            
+            # Configure the engine
+            rate = int(200 * self.env.get('tts_speed', 0.8))
+            self.tts_engine.setProperty('rate', rate)
+            self.tts_engine.setProperty('volume', 1.0)
+            
+            # Set voice to English if available
+            voices = self.tts_engine.getProperty('voices')
+            for voice in voices:
+                if "english" in voice.name.lower() or "en-" in voice.id.lower():
+                    self.tts_engine.setProperty('voice', voice.id)
+                    break
+                
+            # Use the engine to say the text
+            self.tts_engine.say(text)
+            self.tts_engine.runAndWait()
+            
+            print("[TTSWorker] TTS finished")
+            
+            # Signal that TTS is finished if using events
+            if hasattr(self, 'tts_finished_event'):
+                self.tts_finished_event.set()
+            
+        except Exception as e:
+            print(f"[TTSWorker] Error in TTS: {e}")

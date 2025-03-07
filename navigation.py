@@ -3,6 +3,10 @@ import matplotlib.pyplot as plt
 from matplotlib.patches import Polygon, Rectangle
 from matplotlib.animation import FuncAnimation
 from navi_config import NaviConfig
+import yaml
+
+import utils
+
 
 class NaviModel:
     @staticmethod
@@ -34,24 +38,28 @@ class NaviModel:
                 next_position[1] += 1
             elif orientation == 270:
                 next_position[0] += 1
-        elif "shift right" in action:
-            if orientation == 0:
-                next_position[0] += 1
-            elif orientation == 90:
-                next_position[1] -= 1
-            elif orientation == 180:
-                next_position[0] -= 1
-            elif orientation == 270:
-                next_position[1] += 1
-        elif "shift left" in action:
-            if orientation == 0:
-                next_position[0] -= 1
-            elif orientation == 90:
-                next_position[1] += 1
-            elif orientation == 180:
-                next_position[0] += 1
-            elif orientation == 270:
-                next_position[1] -= 1
+        elif "turn right 30" in action:
+            next_position[2] = (orientation + 30) % 360
+        elif "turn left 30" in action:
+            next_position[2] = (orientation - 30) % 360
+        # elif "shift right" in action:
+        #     if orientation == 0:
+        #         next_position[0] += 1
+        #     elif orientation == 90:
+        #         next_position[1] -= 1
+        #     elif orientation == 180:
+        #         next_position[0] -= 1
+        #     elif orientation == 270:
+        #         next_position[1] += 1
+        # elif "shift left" in action:
+        #     if orientation == 0:
+        #         next_position[0] -= 1
+        #     elif orientation == 90:
+        #         next_position[1] += 1
+        #     elif orientation == 180:
+        #         next_position[0] += 1
+        #     elif orientation == 270:
+        #         next_position[1] -= 1
         elif "turn right" in action:
             next_position[2] = (orientation + 90) % 360
         elif "turn left" in action:
@@ -69,7 +77,7 @@ class NaviModel:
 
     def get_neighbors(self, current, obstacles):
         """Generate possible moves based on the robot's orientation"""
-        actions = ["move forward", "move backward", "shift right", "shift left", "turn right", "turn left"]
+        actions = ["move forward", "move backward", "turn right 30", "turn left 30", "turn right", "turn left"]
         neighbors = []
         for action in actions:
             next_pos = self.get_next_position(current, action)
@@ -140,19 +148,21 @@ class PathAnimator:
         self.ax.axhline(y=0, color='black', linewidth=0.5)
         self.ax.axvline(x=0, color='black', linewidth=0.5)
 
-        banana_area = Rectangle(NaviConfig.banana_bottom_left, NaviConfig.banana_width, NaviConfig.banana_height, color='yellow', alpha=0.5, label='⬆️ banana detectable area')
-        refrigerator_area = Rectangle(NaviConfig.refrigerator_bottom_left, NaviConfig.refrigerator_width, NaviConfig.refrigerator_height, color='lightgray', alpha=0.5, label='➡️ refrigerator detectable area')
-        bottle_area = Rectangle(NaviConfig.bottle_bottom_left, NaviConfig.bottle_width, NaviConfig.bottle_height, color='blue', alpha=0.5, label='⬇️ bottle detectable area')
-        apple_shift_area = Rectangle(NaviConfig.apple_shift_bottom_left, NaviConfig.apple_shift_width, NaviConfig.apple_shift_height, color='green', alpha=0.5, label='⬅️ apple shift detectable area')
-        apple_forward_area = Rectangle(NaviConfig.apple_forward_bottom_left, NaviConfig.apple_forward_width, NaviConfig.apple_forward_height, color='coral', alpha=0.5, label='⬅️ apple forward detectable area')
-        sofa_area = Rectangle(NaviConfig.sofa_bottom_left, NaviConfig.sofa_width, NaviConfig.sofa_height, color='purple', alpha=0.5, label='➡️ sofa detectable area')
+        snack1_area = Rectangle(NaviConfig.snack1_bottom_left, NaviConfig.snack1_width, NaviConfig.snack1_height, color='purple', alpha=0.5, label='➡️ snack')
+        sofa_area = Rectangle(NaviConfig.sofa_bottom_left, NaviConfig.sofa_width, NaviConfig.sofa_height, facecolor='none', edgecolor='blue', linestyle='--', alpha=0.5, label='➡️ sofa', linewidth=2)
+        desk_area = Rectangle(NaviConfig.desk_bottom_left, NaviConfig.desk_width, NaviConfig.desk_height, facecolor='none', edgecolor='green', linestyle='--', alpha=0.5, label='⬇️ desk', linewidth=4)
+        tv_area = Rectangle(NaviConfig.tv_bottom_left, NaviConfig.tv_width, NaviConfig.tv_height, facecolor='none', edgecolor='red', linestyle='--', alpha=0.5, label='⬅️ tv', linewidth=2)    
+        banana_area = Rectangle(NaviConfig.banana_bottom_left, NaviConfig.banana_width, NaviConfig.banana_height, color='lightgray', alpha=0.5, label='⬆️ banana')
+        fridge_area = Rectangle(NaviConfig.fridge_bottom_left, NaviConfig.fridge_width, NaviConfig.fridge_height, color='yellow', alpha=0.5, label='➡️ fridge')
+        snack2_area = Rectangle(NaviConfig.snack2_bottom_left, NaviConfig.snack2_width, NaviConfig.snack2_height, color='blue', alpha=0.5, label='⬇️ snack')
 
-        self.ax.add_patch(banana_area)
-        self.ax.add_patch(refrigerator_area)
-        self.ax.add_patch(bottle_area)
-        self.ax.add_patch(apple_shift_area)
-        self.ax.add_patch(apple_forward_area)
+        self.ax.add_patch(snack1_area)
         self.ax.add_patch(sofa_area)
+        self.ax.add_patch(desk_area)
+        self.ax.add_patch(tv_area)
+        self.ax.add_patch(banana_area)
+        self.ax.add_patch(fridge_area)
+        self.ax.add_patch(snack2_area)
 
         for name, (x, y, _) in self.landmarks.items():
             self.ax.plot(x, y, 'ro')
@@ -253,13 +263,17 @@ class Mapping:
                 self.obstacles[f"border_{idx}"] = (point[0], point[1], 0)
 
 if __name__ == "__main__":
+    # Load configuration from env.yml
+    with open('env.yml', 'r') as file:
+        config = yaml.safe_load(file)
+    
     # Initialize Mapping
     mapping = Mapping()
 
     # Run simulation with obstacle avoidance
     navi_model = NaviModel()
-    start = (-3, -2, 90)
-    target = (-2, 4, 0)
+    start = utils.string_to_tuple(config['curr_state'])
+    target = start
     path_to_target = navi_model.navigate_to(start, target, mapping.obstacles)
     print("Path to target:", path_to_target)
 
