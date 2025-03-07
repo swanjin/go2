@@ -404,6 +404,8 @@ class OpenaiClient(AiClientBase):
             self.append_message(self.msg_feedback, "user", self.response_format_general_command())
             rawAssistant = self.get_ai_response(self.msg_feedback)
             assistant = ResponseMsg.parse(rawAssistant)
+            # Post-processing assistant
+            assistant.new_state = self.correct_next_position(self.curr_state, assistant.action)
 
         # Update data
         image_pil_fmode = utils.put_text_top_left(frame_bboxes_array, text="Feedback mode")
