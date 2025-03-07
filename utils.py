@@ -202,5 +202,17 @@ def string_to_tuple(input_string):
     cleaned_string = input_string.replace('```', '').strip()
     # Remove any newlines
     cleaned_string = cleaned_string.replace('\n', '')
+    # Remove any quotes
+    cleaned_string = cleaned_string.replace('"', '').replace("'", '')
     # Parse the tuple
-    return tuple(map(int, cleaned_string.strip("()").split(",")))
+    try:
+        # Try to parse as a tuple of integers
+        return tuple(map(int, cleaned_string.strip("()").split(",")))
+    except ValueError:
+        # If that fails, try to parse as a tuple of floats and convert to integers
+        try:
+            return tuple(map(int, map(float, cleaned_string.strip("()").split(","))))
+        except ValueError:
+            # If all else fails, return a default tuple
+            print(f"Warning: Could not parse '{input_string}' as a tuple of numbers")
+            return (0, 0, 0)

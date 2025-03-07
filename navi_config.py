@@ -6,7 +6,7 @@ class NaviConfig:
         "snack": (0, 0, 180),
         "desk": (-2, -4, 180),
         "tv": (-3, -3, 270),
-        "curtain": (-1, 2, 180),
+        "curtain": (-2, 2, 180),
         "sofa": (0, -1, 90),
     }
     border_size = 4

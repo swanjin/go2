@@ -705,8 +705,8 @@ class OpenaiClient(AiClientBase):
             "Return a comma-separated list of ONLY the landmark names from the list above that appear in the input. "
             "If no landmarks are mentioned, return 'none'.\n"
             "Examples:\n"
-            "- 'can you go to the coffee machine?' -> coffee machine\n"
-            "- 'the apple is between the fridge and banana' -> fridge, banana\n"
+            "- 'can you go to the curtain?' -> curtain\n"
+            "- 'the apple is between the curtain and kitchen' -> curtain, kitchen\n"
             "- 'move to the area between the sofa and fridge' -> sofa, fridge\n"
             "- 'go to the table' -> none"
         )

@@ -189,6 +189,8 @@ class AiClientBase:
         - Orientation: 0°=N, 90°=E, 180°=S, 270°=W
         - Current state: {curr_state}
 
+        {self.get_new_state()}\n\n
+        {self.get_action_dictionary()}\n\n
         {self.get_landmarks()}\n\n
         {self.get_obstacles()}
         """)
@@ -206,6 +208,8 @@ class AiClientBase:
                 
         Example:
         - Input: "go to the banana" => Output: "{NaviConfig.landmarks.get('banana')}"
+        - Input: "go to the fridge and turn right" => Output: "({NaviConfig.landmarks.get('fridge')[0]}, {NaviConfig.landmarks.get('fridge')[1]}, {NaviConfig.landmarks.get('fridge')[2] + 90})"
+        - Input: "go to between the curtain and kitchen" => Output: "({(NaviConfig.landmarks.get('curtain')[0] + NaviConfig.landmarks.get('kitchen')[0])/2}, {(NaviConfig.landmarks.get('curtain')[1] + NaviConfig.landmarks.get('kitchen')[1])/2}, {NaviConfig.landmarks.get('curtain')[2] + 90})"
         """)
 
     def response_format_non_command(self): # non-command: what can you see?
@@ -233,7 +237,13 @@ class AiClientBase:
         - **New State**: (x, y, orientation)
         - **Action**: action1, action2, ... (If the user requests a precise command requiring multiple actions to be executed several times, identify each unique action from the action dictionary and list them accordingly, repeating them as needed and separating them with commas.)
         - **Reason**: 
-          - Explain your choice of actions in one concise sentence. 
+          - Explain your choice of actions in one concise sentence.
+                
+        Example:
+        - Input: "Please turn left" => Output: "(0, 0, 0), (0, 0, 270), turn left"
+        - Input: "Turn right 2 times" => Output: "(0, 0, 0), (0, 0, 180), turn right, turn right"
+        - Input: "Turn left slightly and move backward" => Output: "(0, 0, 0), (0, -1, 330), turn left slightly, move backward"
+        - Input: "turn around and move forward 2 steps" => Output: "(0, 0, 0), (0, 2, 180), turn right, turn right, move forward, move forward"
         """)
 
     def set_target(self, target):
