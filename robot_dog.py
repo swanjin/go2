@@ -260,7 +260,7 @@ class Dog:
             self.sport_client.Move(vx, vy, vyaw)
             time.sleep(dt)
         if self.env["woz"]:
-            elapsed_time = 5 # intentional delay for woz
+            elapsed_time = 4 # intentional delay for woz
         for i in range(int(elapsed_time / dt)):
             self.sport_client.StopMove()
             time.sleep(dt)
