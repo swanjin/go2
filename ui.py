@@ -14,6 +14,29 @@ from dataclasses import dataclass
 from ui_config import Colors, Sizes, Styles
 from messages import Messages
 from navi_config import NaviConfig
+import os
+
+# Set CUDA environment variables before any CUDA operations
+os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
+# If you want to use a specific GPU, set it here (e.g., "0" for the first GPU)
+# If you want to disable CUDA, set it to "-1"
+os.environ["CUDA_VISIBLE_DEVICES"] = "0"
+
+# Also add this function to initialize CUDA properly
+def initialize_cuda():
+    try:
+        import torch
+        if torch.cuda.is_available():
+            # Force initialization of CUDA in the main thread
+            _ = torch.zeros(1).cuda()
+            print(f"CUDA initialized successfully. Available devices: {torch.cuda.device_count()}")
+            print(f"Current device: {torch.cuda.current_device()}")
+            print(f"Device name: {torch.cuda.get_device_name(0)}")
+        else:
+            print("CUDA is not available. Using CPU.")
+    except Exception as e:
+        print(f"Error initializing CUDA: {str(e)}")
+        print("Falling back to CPU.")
 
 class TTSWorker(QThread):
     def __init__(self, text, dog, parent=None):
@@ -148,7 +171,7 @@ class SendMessageThread(QThread):
                 self.add_robot_message_signal.emit(response, None)
                 self.process_target_signal.emit("apple", response)
                 self.input_widget_signal.emit(False)
-                if self.dog.env["interactive"]:
+                if self.dog.env["i"]:
                     self.feedback_button_signal.emit(True)
 
             else:
@@ -197,6 +220,9 @@ class RobotDogUI(QMainWindow):
         self.loading_message = None
         self.loading_timer = None
         self.delayed_loading_timer = None
+        
+        # Initialize CUDA before any operations that might use it
+        initialize_cuda()
         
         self.initUI()
         
@@ -434,7 +460,7 @@ class RobotDogUI(QMainWindow):
         
         QTimer.singleShot(0, self._scroll_to_bottom)
 
-        if self.dog.env["interactive"]:
+        if self.dog.env["i"]:
             self.input_widget.hide()
             self.feedback_button.show()
 
@@ -505,14 +531,14 @@ class RobotDogUI(QMainWindow):
     def handle_status_update(self, status, image=None):
         print("handle_status_update called")
         print(f"Feedback mode: {self.message_data.feedback_mode}")
-        if self.dog.env["woz"] or self.dog.env["vn"]:
+        if self.dog.env["w"] or self.dog.env["v"]:
             return
         else:
             self.hide_loading()
             self.add_robot_message(status, image)
 
-    def handle_end_search(self, message, delayed_time=63000):
-        if self.dog.env["woz"]:
+    def handle_end_search(self, message, delayed_time=60000):
+        if self.dog.env["w"]:
             print("[DEBUG] hide_loading - handle_end_search")
             QTimer.singleShot(delayed_time - 100, lambda: self.hide_loading())
             QTimer.singleShot(delayed_time, lambda: self.add_robot_message(
@@ -650,8 +676,8 @@ class RobotDogUI(QMainWindow):
         self.loading_message = ChatMessage(is_loading=True, is_user=False)
         self.chat_layout.addWidget(self.loading_message)
         
-        # 로딩 시작 시 피드백 버튼도 함께 표시 (interactive 모드인 경우에만)
-        if self.dog.env["interactive"] and not self.message_data.feedback_mode:
+        # 로딩 시작 시 피드백 버튼도 함께 표시 (i 모드인 경우에만)
+        if self.dog.env["i"] and not self.message_data.feedback_mode:
             self.feedback_button.show()
         
         QApplication.processEvents()  # UI 업데이트 즉시 처리
@@ -664,7 +690,7 @@ class RobotDogUI(QMainWindow):
             self.loading_message = None
             
             # 로딩이 끝날 때 피드백 버튼도 함께 숨김
-            if self.dog.env["interactive"] and not self.message_data.feedback_mode:
+            if self.dog.env["i"] and not self.message_data.feedback_mode:
                 self.feedback_button.hide()
             
             QApplication.processEvents()  # UI 업데이트 즉시 처리
@@ -811,15 +837,15 @@ class SearchThread(QThread):
                 formatted_action = self.format_actions(response.action)
                 combined_message = f"{response.reason}"
 
-                if self.dog.env["interactive"]:
+                if self.dog.env["i"]:
                     self.dog.tts_finished_event.clear()
                     self.status_update.emit(combined_message, q_image)
                     self.dog.tts_finished_event.wait()
                 
-                if  self.dog.env["woz"] or self.dog.env["vn"]:
+                if  self.dog.env["w"] or self.dog.env["v"]:
                     self.status_update.emit(combined_message, q_image)
 
-                if self.dog.env["woz"] or formatted_action == 'stop':
+                if self.dog.env["w"] or formatted_action == 'stop':
                     end_message = Messages.SEARCH_COMPLETE.format("apple")
                     self.end_search.emit(end_message)
 

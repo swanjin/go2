@@ -184,7 +184,7 @@ class Dog:
         return str(actions)
 
     def queryGPT_by_LLM(self):
-        if self.env["woz"]:
+        if self.env["w"]:
             self.env["max_round"] = 1
         while self.ai_client.round_number <= self.env["max_round"]:
             self.feedback_complete_event.wait()
@@ -209,7 +209,7 @@ class Dog:
                 formatted_action = self.format_actions(assistant.action)
                 print(f"formatted_action: {formatted_action}")
                 combined_message = f"I'm going to {formatted_action}. {assistant.reason}."
-                if self.env["interactive"] or self.env["vn"]:
+                if self.env["i"] or self.env["v"]:
                     pass
                 
                 self.activate_sportclient(assistant.action)
@@ -259,8 +259,8 @@ class Dog:
         for i in range(int(elapsed_time / dt)):
             self.sport_client.Move(vx, vy, vyaw)
             time.sleep(dt)
-        if self.env["woz"]:
-            elapsed_time = 4 # intentional delay for woz
+        if self.env["w"]:
+            elapsed_time = 4 # intentional delay for w
         for i in range(int(elapsed_time / dt)):
             self.sport_client.StopMove()
             time.sleep(dt)
@@ -269,14 +269,14 @@ class Dog:
         if not self.env["connect_robot"]:
             print("Assumed action executed.")
         else:      
-            if self.env["woz"]:
-                print("Executing WOZ movement sequence:")
+            if self.env["w"]:
+                print("Executing w movement sequence:")
                 print("1. Move forward sequence")
                 self.VelocityMove(0.5, 0, 0)
                 self.VelocityMove(0.5, 0, 0)
                 print("2. Turn left")
                 self.VelocityMove(0, 0, 1.65)
-                # print("2. Turn right sequence") # extended version of woz
+                # print("2. Turn right sequence") # extended version of w
                 # self.VelocityMove(0, 0, -1.65)
                 # self.VelocityMove(0, 0, -1.65)
                 # self.VelocityMove(0, 0, -1.65)
@@ -288,7 +288,7 @@ class Dog:
                 self.VelocityMove(0.5, 0, 0)
                 print("4. Turn left")
                 self.VelocityMove(0, 0, 1.65)
-                # print("4. Turn right sequence") # extended version of woz
+                # print("4. Turn right sequence") # extended version of w
                 # self.VelocityMove(0, 0, -1.65)
                 # self.VelocityMove(0, 0, -1.65)
                 # self.VelocityMove(0, 0, -1.65)
