@@ -40,7 +40,7 @@ class NaviConfig:
     banana_width = 2
     banana_height = 5
     milk_bottom_left = (-1, 2)
-    milk_width = 3
+    milk_width = 2
     milk_height = 2
     snack2_bottom_left = (1, 3)
     snack2_width = 2
