@@ -4,6 +4,7 @@ from matplotlib.patches import Polygon, Rectangle
 from matplotlib.animation import FuncAnimation
 from navi_config import NaviConfig
 import yaml
+import math
 
 import utils
 
@@ -56,6 +57,10 @@ class NaviModel:
                 next_position[0] += 1
             elif orientation == 270:
                 next_position[1] -= 1
+        elif "turn right slightly" in action:
+            next_position[2] = (orientation + 30) % 360
+        elif "turn left slightly" in action:
+            next_position[2] = (orientation - 30) % 360
         elif "turn right" in action:
             next_position[2] = (orientation + 90) % 360
         elif "turn left" in action:
@@ -73,7 +78,7 @@ class NaviModel:
 
     def get_neighbors(self, current, obstacles):
         """Generate possible moves based on the robot's orientation"""
-        actions = ["move forward", "move backward", "shift right", "shift left", "turn right", "turn left"]
+        actions = ["move forward", "move backward", "shift right", "shift left", "turn right slightly", "turn left slightly", "turn right", "turn left"]
         neighbors = []
         for action in actions:
             next_pos = self.get_next_position(current, action)
@@ -134,6 +139,7 @@ class PathAnimator:
         self.robot_marker = None
         self.path_points = [(start[0], start[1])]
         self.path_lines = []
+        self.current_position = list(start)  # Store the current position including orientation
 
     def setup_plot(self):
         self.ax.set_xlim(-self.grid_size, self.grid_size)
@@ -149,7 +155,7 @@ class PathAnimator:
         desk_area = Rectangle(NaviConfig.desk_bottom_left, NaviConfig.desk_width, NaviConfig.desk_height, facecolor='none', edgecolor='green', linestyle='--', alpha=0.5, label='⬇️ desk', linewidth=4)
         tv_area = Rectangle(NaviConfig.tv_bottom_left, NaviConfig.tv_width, NaviConfig.tv_height, facecolor='none', edgecolor='red', linestyle='--', alpha=0.5, label='⬅️ tv', linewidth=2)    
         banana_area = Rectangle(NaviConfig.banana_bottom_left, NaviConfig.banana_width, NaviConfig.banana_height, color='lightgray', alpha=0.5, label='⬆️ banana')
-        fridge_area = Rectangle(NaviConfig.fridge_bottom_left, NaviConfig.fridge_width, NaviConfig.fridge_height, color='yellow', alpha=0.5, label='➡️ fridge')
+        milk_area = Rectangle(NaviConfig.milk_bottom_left, NaviConfig.milk_width, NaviConfig.milk_height, color='yellow', alpha=0.5, label='➡️ milk')
         snack2_area = Rectangle(NaviConfig.snack2_bottom_left, NaviConfig.snack2_width, NaviConfig.snack2_height, color='blue', alpha=0.5, label='⬇️ snack')
 
         self.ax.add_patch(snack1_area)
@@ -157,7 +163,7 @@ class PathAnimator:
         self.ax.add_patch(desk_area)
         self.ax.add_patch(tv_area)
         self.ax.add_patch(banana_area)
-        self.ax.add_patch(fridge_area)
+        self.ax.add_patch(milk_area)
         self.ax.add_patch(snack2_area)
 
         for name, (x, y, _) in self.landmarks.items():
@@ -177,15 +183,19 @@ class PathAnimator:
         self.ax.legend(loc='upper left')
 
     def update(self, frame):
-        current_position = list(self.start)
-
-        if frame > 0:
-            for i in range(frame):
-                prev_x, prev_y = current_position[0], current_position[1]
-                current_position = list(NaviModel.get_next_position(current_position, self.path[i]))
+        # Initialize current_position with start position
+        if frame == 0:
+            self.current_position = list(self.start)
+            # Add the initial position to path_points
+            self.path_points = [(self.start[0], self.start[1])]
+        else:
+            # Only update position for frames after the first one
+            for i in range(frame - 1, frame):
+                prev_x, prev_y = self.current_position[0], self.current_position[1]
+                self.current_position = list(NaviModel.get_next_position(self.current_position, self.path[i]))
 
                 if "turn" not in self.path[i]:
-                    new_x, new_y = int(current_position[0]), int(current_position[1])
+                    new_x, new_y = int(self.current_position[0]), int(self.current_position[1])
                     if prev_x != new_x:
                         self.path_points.append((new_x, int(prev_y)))
                     if prev_y != new_y:
@@ -205,26 +215,27 @@ class PathAnimator:
                     line, = self.ax.plot([x1, x2], [y1, y2], 'k:', alpha=0.5)
                     self.path_lines.append(line)
 
-        triangle_size = 0.3
-        if current_position[2] == 0:
-            triangle = [(current_position[0], current_position[1] + triangle_size),
-                        (current_position[0] - triangle_size, current_position[1] - triangle_size),
-                        (current_position[0] + triangle_size, current_position[1] - triangle_size)]
-        elif current_position[2] == 90:
-            triangle = [(current_position[0] + triangle_size, current_position[1]),
-                        (current_position[0] - triangle_size, current_position[1] + triangle_size),
-                        (current_position[0] - triangle_size, current_position[1] - triangle_size)]
-        elif current_position[2] == 180:
-            triangle = [(current_position[0], current_position[1] - triangle_size),
-                        (current_position[0] - triangle_size, current_position[1] + triangle_size),
-                        (current_position[0] + triangle_size, current_position[1] + triangle_size)]
-        else:
-            triangle = [(current_position[0] - triangle_size, current_position[1]),
-                        (current_position[0] + triangle_size, current_position[1] + triangle_size),
-                        (current_position[0] + triangle_size, current_position[1] - triangle_size)]
-
-        self.robot_marker = Polygon(triangle, facecolor='black', edgecolor='black')
-        self.ax.add_patch(self.robot_marker)
+        # Create an arrow to represent the robot
+        arrow_length = 0.4
+        arrow_width = 0.2
+        x, y = self.current_position[0], self.current_position[1]
+        orientation_rad = self.current_position[2] * (math.pi / 180)
+        
+        # Calculate the direction vector based on orientation
+        dx = arrow_length * math.sin(orientation_rad)
+        dy = arrow_length * math.cos(orientation_rad)
+        
+        # Draw the arrow
+        self.robot_marker = self.ax.arrow(
+            x, y, 
+            dx, dy,
+            width=arrow_width,
+            head_width=arrow_width*2.5,
+            head_length=arrow_length*0.6,
+            fc='black',
+            ec='black',
+            length_includes_head=True
+        )
 
         return (self.robot_marker, *self.path_lines)
 

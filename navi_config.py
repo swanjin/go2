@@ -1,13 +1,14 @@
 class NaviConfig:
     landmarks = {
-        "fridge": (3, 4, 0),
-        "kitchen": (0, 4, 0),
-        "banana": (2, 4, 0),
+        "fridge": (2, 4, 0),
+        "kitchen": (-1, 4, 0),
+        "banana": (0, 4, 0),
         "snack": (0, 0, 180),
         "desk": (-2, -4, 180),
         "tv": (-3, -3, 270),
         "curtain": (-2, 2, 270),
         "sofa": (0, -1, 90),
+        "milk": (2, 2, 90),
     }
     border_size = 4
     grid_size = 8
@@ -38,9 +39,9 @@ class NaviConfig:
     banana_bottom_left = (-1, -3)
     banana_width = 2
     banana_height = 5
-    fridge_bottom_left = (-1, 2)
-    fridge_width = 2
-    fridge_height = 2
+    milk_bottom_left = (-1, 2)
+    milk_width = 3
+    milk_height = 2
     snack2_bottom_left = (1, 3)
     snack2_width = 2
     snack2_height = 1

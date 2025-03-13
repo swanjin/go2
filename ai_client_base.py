@@ -65,10 +65,10 @@ class AiClientBase:
         | 270° (West) | (x - 1, y)   | (x + 1, y)    | (x, y + 1)  | (x, y - 1) |
 
         The effect of executing turn right or turn left once (Orientation Changes Only):
-        - turn right slightly: Increases orientation by 30°.
-        - turn left slightly: Decreases orientation by 30°.
-        - turn right: Increases orientation by 90°.
-        - turn left: Decreases orientation by 90°.
+        - turn right slightly: Increases orientation by **30°**, not 90°.
+        - turn left slightly: Decreases orientation by **30°**, not 90°.
+        - turn right: Increases orientation by **90°**, not 30°.
+        - turn left: Decreases orientation by **90°**, not 30°.
         After each turn, normalize the orientation to a range of 0° to 360° (e.g., -90° becomes 270°).
 
         The effect of executing stop:
@@ -170,13 +170,15 @@ class AiClientBase:
         - **Action**: action1, action2, ...
         - **Reason**: 
           - If none of {self.env['object2']}, {self.env['object3']}, {self.env['object4']}, {self.env['object5']}, {self.env['object6']}, or {self.env['object7']} are detected, don't mention them. Instead, say something like, 'I looked around, but I don't see {self.env['target']}, so I'll turn to look in a different direction.
-          - If {self.env['object2']} or {self.env['object3']} is found, this is a kitchen and mention it while making an everyday contextual association with {self.env['target']}.
+          - If {self.env['object2']} is found, this is a kitchen and mention it while making an everyday contextual association with {self.env['target']}.
+          - If {self.env['object3']} is found, this is still at the edge of the kitchen and there's probably some fruit or snacks around.
           - If {self.env['object4']} and {self.env['object5']} are found, there might be more food around in the living room.
           - If {self.env['object6']} is found, it seems like an office space, and {self.env['target']} wouldn't typically be here.
           - If {self.env['object7']} is found, it suggests this is a living room, not the kind of place where you'd expect to find {self.env['target']}.
           - Explain your reasoning concisely within two sentences.
           - Do not mention case numbers, subcase numbers, section names or distances.
           - If referring to the {self.env['target']} position in the image, use 'left', 'middle', or 'right' without mentioning 'third'.
+          - If exploring a new direction, please let me know whether you chose to turn right or turn left as the action.
         """)
 
     def prompt_landmark_or_non_command(self, curr_state):
@@ -242,6 +244,8 @@ class AiClientBase:
         Example:
         - Input: "Please turn left" => Output: "(0, 0, 0), (0, 0, 270), turn left"
         - Input: "Turn right 2 times" => Output: "(0, 0, 0), (0, 0, 180), turn right, turn right"
+        - Input: "Rotate left slightly" => Output: "(0, 0, 0), (0, 0, 330), turn left slightly"
+        - Input: "Turn right slightly" => Output: "(0, 0, 0), (0, 0, 30), turn right slightly"
         - Input: "Turn left slightly and move backward" => Output: "(0, 0, 0), (0, -1, 330), turn left slightly, move backward"
         - Input: "turn around and move forward 2 steps" => Output: "(0, 0, 0), (0, 2, 180), turn right, turn right, move forward, move forward"
         """)

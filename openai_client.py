@@ -43,7 +43,7 @@ class OpenaiClient(AiClientBase):
         self.desk_area = self.detectable_area(range(NaviConfig.desk_bottom_left[0], NaviConfig.desk_bottom_left[0]+NaviConfig.desk_width+1), range(NaviConfig.desk_bottom_left[1], NaviConfig.desk_bottom_left[1]+NaviConfig.desk_height+1), 180)
         self.tv_area = self.detectable_area(range(NaviConfig.tv_bottom_left[0], NaviConfig.tv_bottom_left[0]+NaviConfig.tv_width+1), range(NaviConfig.tv_bottom_left[1], NaviConfig.tv_bottom_left[1]+NaviConfig.tv_height+1), 270)
         self.banana_area = self.detectable_area(range(NaviConfig.banana_bottom_left[0], NaviConfig.banana_bottom_left[0]+NaviConfig.banana_width+1), range(NaviConfig.banana_bottom_left[1], NaviConfig.banana_bottom_left[1]+NaviConfig.banana_height+1), 0)    
-        self.fridge_area = self.detectable_area(range(NaviConfig.fridge_bottom_left[0], NaviConfig.fridge_bottom_left[0]+NaviConfig.fridge_width+1), range(NaviConfig.fridge_bottom_left[1], NaviConfig.fridge_bottom_left[1]+NaviConfig.fridge_height+1), 90)
+        self.milk_area = self.detectable_area(range(NaviConfig.milk_bottom_left[0], NaviConfig.milk_bottom_left[0]+NaviConfig.milk_width+1), range(NaviConfig.milk_bottom_left[1], NaviConfig.milk_bottom_left[1]+NaviConfig.milk_height+1), 90)
         self.snack_area2 = self.detectable_area(range(NaviConfig.snack2_bottom_left[0], NaviConfig.snack2_bottom_left[0]+NaviConfig.snack2_width+1), range(NaviConfig.snack2_bottom_left[1], NaviConfig.snack2_bottom_left[1]+NaviConfig.snack2_height+1), 180)
 
         # Combine all detectable areas into a single set to remove duplicates
@@ -53,7 +53,7 @@ class OpenaiClient(AiClientBase):
             self.desk_area +
             self.tv_area +
             self.banana_area +
-            self.fridge_area +
+            self.milk_area +
             self.snack_area2
         ))
 
@@ -148,7 +148,7 @@ class OpenaiClient(AiClientBase):
         )
         self.check_and_update_analysis(
             image_analysis, 
-            self.fridge_area, 
+            self.milk_area, 
             self.env['object3']
         )
         self.check_and_update_analysis(
@@ -199,10 +199,10 @@ class OpenaiClient(AiClientBase):
                 return '3.1'  # 3 steps
             elif curr_y in [2]:
                 return '2.6'  # 2 steps
-        elif self.curr_state in self.fridge_area and object_name == self.env['object3']:
+        elif self.curr_state in self.milk_area and object_name == self.env['object3']:
             if curr_x in [-1, 0]:
                 return '3.1'  # 2 steps
-            elif curr_x in [1]:
+            elif curr_x in [1, 2]:
                 return '2.6'  # 1 steps
         elif self.curr_state in self.snack_area2 and object_name == self.env['object4']:
             if curr_y in [4]:
@@ -265,7 +265,7 @@ class OpenaiClient(AiClientBase):
                 distance_value = float(distances[detected_objects.index(self.env['object7'])])
             elif self.curr_state in self.banana_area:
                 distance_value = float(distances[detected_objects.index(self.env['object2'])])
-            elif self.curr_state in self.fridge_area:
+            elif self.curr_state in self.milk_area:
                 distance_value = float(distances[detected_objects.index(self.env['object3'])])
             elif self.curr_state in self.snack_area2:
                 distance_value = float(distances[detected_objects.index(self.env['object4'])])
