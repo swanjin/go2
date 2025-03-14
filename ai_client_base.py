@@ -248,6 +248,7 @@ class AiClientBase:
         - Input: "Turn right slightly" => Output: "(0, 0, 0), (0, 0, 30), turn right slightly"
         - Input: "Turn left slightly and move backward" => Output: "(0, 0, 0), (0, -1, 330), turn left slightly, move backward"
         - Input: "turn around and move forward 2 steps" => Output: "(0, 0, 0), (0, 2, 180), turn right, turn right, move forward, move forward"
+        - Input: "go for it" "go get it"=> Output: "(0, 0, 0), (0, 1, 0), move forward"
         """)
 
     def set_target(self, target):
