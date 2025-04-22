@@ -39,7 +39,7 @@ class NaviModel:
                 next_position[1] += 1
             elif orientation == 270:
                 next_position[0] += 1
-        elif "shift right" in action:
+        elif "go right" in action:
             if orientation == 0:
                 next_position[0] += 1
             elif orientation == 90:
@@ -48,7 +48,7 @@ class NaviModel:
                 next_position[0] -= 1
             elif orientation == 270:
                 next_position[1] += 1
-        elif "shift left" in action:
+        elif "go left" in action:
             if orientation == 0:
                 next_position[0] -= 1
             elif orientation == 90:
@@ -78,7 +78,7 @@ class NaviModel:
 
     def get_neighbors(self, current, obstacles):
         """Generate possible moves based on the robot's orientation"""
-        actions = ["move forward", "move backward", "shift right", "shift left", "turn right slightly", "turn left slightly", "turn right", "turn left"]
+        actions = ["move forward", "move backward", "go right", "go left", "turn right slightly", "turn left slightly", "turn right", "turn left"]
         neighbors = []
         for action in actions:
             next_pos = self.get_next_position(current, action)

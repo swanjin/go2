@@ -34,8 +34,8 @@ class AiClientBase:
         Action dictionary:
         - 'move forward'
         - 'move backward'
-        - 'shift right' 
-        - 'shift left'
+        - 'go right' 
+        - 'go left'
         - 'turn right slightly' 
         - 'turn left slightly'
         - 'turn right'
@@ -57,7 +57,7 @@ class AiClientBase:
 
         The effect of executing each action once on x and y grid coordinates depends on the orientation as shown:
 
-        | Orientation | move forward | move backward | shift right | shift left |
+        | Orientation | move forward | move backward | go right | go left |
         |-------------|--------------|---------------|-------------|------------|
         | 0° (North)  | (x, y + 1)   | (x, y - 1)    | (x + 1, y)  | (x - 1, y) |
         | 90° (East)  | (x + 1, y)   | (x - 1, y)    | (x, y - 1)  | (x, y + 1) |
@@ -217,7 +217,15 @@ class AiClientBase:
     def response_format_non_command(self): # non-command: what can you see?
         return (f"""
         Rules:
-        - If the user asks a question, answer with one simple and friendly sentence that is easy to understand.
+        - If the user asks a question, only answer what's being asked.
+        - Answer with one extremely simple and friendly sentence that is easy to understand. Keep it short. 
+        - The below is your reasoning for your strategy. Only use this information if the user asks for it.
+            - If none of {self.env['object2']}, {self.env['object3']}, {self.env['object4']}, {self.env['object5']}, {self.env['object6']}, or {self.env['object7']} are detected, don't mention them. In this case, your strategy is to turn to look in a different direction.
+            - If {self.env['object2']} is found, that is in the kitchen. That means you are facing the kitchen and your strategy is to go there.
+            - If {self.env['object3']} is found, that is at the edge of the kitchen and your strategy is to go to the edge of the kitchen.
+            - If {self.env['object4']} and {self.env['object5']} are found, there might be more food around in the living room.
+            - If {self.env['object6']} is found, it seems like an office space, and {self.env['target']} wouldn't typically be here.
+            - If {self.env['object7']} is found, it suggests this is a living room, not the kind of place where you'd expect to find {self.env['target']}.
         - Do not mention numbers and cardinal directions for states, obstacles, or landmarks. 
         - Describe landmarks relative to your current state only if the user asks for it.
         """)
