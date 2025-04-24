@@ -239,7 +239,7 @@ class AiClientBase:
         {self.get_new_state()}
         """)
 
-    def response_format_general_command(self): # general command: move forward 3 times/ turn around
+    def response_format_general_command(self): # general command: move forward 3 times/ turn around / it is behind you
         return (f"""
         Ensure each response follows the following format precisely. Do not deviate. Before responding, verify that your output exactly matches the structured format:
 
@@ -257,6 +257,9 @@ class AiClientBase:
         - Input: "Turn left slightly and move backward" => Output: "(0, 0, 0), (0, -1, 330), turn left slightly, move backward"
         - Input: "turn around and move forward 2 steps" => Output: "(0, 0, 0), (0, 2, 180), turn right, turn right, move forward, move forward"
         - Input: "go for it" "go get it"=> Output: "(0, 0, 0), (0, 1, 0), move forward"
+        - Input: "it is behind you" => Output: "(0, 0, 0), (0, 0, 180), turn right, turn right"
+        - Input: "the apple is on your left" => Output: "(0, 0, 0), (0, 0, 270), turn left"
+        - Input: "the apple is on your right" => Output: "(0, 0, 0), (0, 0, 90), turn right"
         """)
 
     def set_target(self, target):

@@ -569,6 +569,8 @@ class OpenaiClient(AiClientBase):
             "- 'go straight as far as you can' -> true\n"
             "- 'I think the apple is between banana and fridge' -> true\n"
             "- 'the target is located near the sofa' -> true\n"
+            "- 'do it' -> true\n"
+            "- 'go ahead' -> true\n"
             "- 'can you see the apple?' -> false\n"
             "- 'what is in front of you?' -> false"
         )

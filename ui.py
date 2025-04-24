@@ -410,11 +410,11 @@ class RobotDogUI(QMainWindow):
                         # 랜드마크 관련이지만 이름이 없는 경우 일반 메시지 사용
                         import random
                         general_messages = [
-                            "I understand your guidance. I'll follow your directions now.",
-                            "Thanks for the feedback! I'll adjust my path accordingly.",
-                            "Got it! I'll navigate based on your instructions.",
-                            "I'll execute your feedback right away.",
-                            "Your feedback is helpful. I'm on it!"
+                            "Thanks for the help! I’ll do it just like you said.",
+                            "Okay, I’ll change it the way you told me to!",
+                            "Got it! I’ll follow your directions now.",
+                            "I’ll work on that right away—thanks for the tip!",
+                            "That helps a lot! I’m on it!"
                         ]
                         self.add_robot_message(random.choice(general_messages))
                 else:
@@ -537,18 +537,18 @@ class RobotDogUI(QMainWindow):
             self.hide_loading()
             self.add_robot_message(status, image)
 
-    def handle_end_search(self, message, delayed_time=60000):
+    def handle_end_search(self, message, delayed_time=61000):
         if self.dog.env["w"]:
             print("[DEBUG] hide_loading - handle_end_search")
             QTimer.singleShot(delayed_time - 100, lambda: self.hide_loading())
             QTimer.singleShot(delayed_time, lambda: self.add_robot_message(
                 Messages.SEARCH_COMPLETE.format(self.dog.target)
             ))
-            QTimer.singleShot(delayed_time + 100, lambda: self._delayed_tts(
+            QTimer.singleShot(delayed_time + 1000, lambda: self._delayed_tts(
                 Messages.SEARCH_COMPLETE.format(self.dog.target)
             ))
             # 검색 완료 후 모든 기능 종료
-            QTimer.singleShot(delayed_time + 200, self.shutdown_all_features)
+            QTimer.singleShot(delayed_time + 2000, self.shutdown_all_features)
         else:
             self.hide_loading()
             self.add_robot_message(Messages.SEARCH_COMPLETE.format(self.dog.target))
