@@ -13,7 +13,7 @@ class Messages:
     SEARCH_COMPLETE = "I found the {}, so I'm stopping here. You can now end the chat."
     
     # Error messages
-    ERROR_NO_TARGET = "Apologies, I didn't catch that. Could you please clarify the target you'd like me to identify?"
+    ERROR_NO_TARGET = "Apologies, I didn't understnad. Can you try again?"
     ERROR_FEEDBACK_EXECUTION = "Failed to execute feedback: {}"
     
     # Mode messages
