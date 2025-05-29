@@ -171,7 +171,7 @@ class AiClientBase:
         - **Reason**: 
           - If none of {self.env['object2']}, {self.env['object3']}, {self.env['object4']}, {self.env['object5']}, {self.env['object6']}, or {self.env['object7']} are detected, don't mention them. Instead, say something like, 'I looked around, but I don't see {self.env['target']}, so I'll turn to look in a different direction.
           - If {self.env['object2']} is found, this is a kitchen and mention it while making an everyday contextual association with {self.env['target']}.
-          - If {self.env['object3']} is found, this is still at the edge of the kitchen and there's probably some fruit or snacks around.
+          - If {self.env['object3']} is found, it is at the edge of the kitchen and there's probably some fruit or snacks around.
           - If {self.env['object4']} and {self.env['object5']} are found, there might be more food around in the living room.
           - If {self.env['object6']} is found, it seems like an office space, and {self.env['target']} wouldn't typically be here.
           - If {self.env['object7']} is found, it suggests this is a living room, not the kind of place where you'd expect to find {self.env['target']}.
